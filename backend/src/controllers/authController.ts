@@ -130,7 +130,7 @@ export const adminLogin = async (req: Request, res: Response) => {
       return res.status(401).json({ message: 'Invalid Admin Credentials' });
     }
 
-    const isMatch = await bcrypt.compare(password,'Cbe@12345');
+    const isMatch = await bcrypt.compare(password,password_hash);
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid Admin Credentials' });
     }
