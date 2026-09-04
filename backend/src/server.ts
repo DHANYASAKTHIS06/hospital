@@ -11,12 +11,22 @@ import patientRoutes from './routes/patientRoutes';
 import adminRoutes from './routes/adminRoutes';
 
 const app = express();
+const server = http.createServer(app);
 
-// Middleware
-app.use(cors());
+// Initialize Socket.IO with persistent WebSockets for Render deployment
+initSocket(server);
+
+// CORS configuration supporting Vercel frontend & Render cross-origin calls
+app.use(
+  cors({
+    origin: true, // Accepts dynamic origin from frontend
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 
-// Database connection & seeding middleware for Serverless / Vercel compatibility
+// Database connection & seeding middleware
 app.use(async (req, res, next) => {
   try {
     await connectDB();
@@ -35,20 +45,18 @@ app.use('/api/admin', adminRoutes);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'OK', message: 'Hospital Canteen Management API is running.' });
+  res.status(200).json({ status: 'OK', message: 'Hospital Canteen Management API is running on Render.' });
+});
+app.get('/', (req, res) => {
+  res.status(200).send('🏥 Hospital Canteen Management Backend Service Running on Render.');
 });
 
-// Standalone Server startup (when not running as a Vercel serverless function)
-if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
-  const server = http.createServer(app);
-  initSocket(server);
-
-  server.listen(PORT, () => {
-    console.log(`====================================================`);
-    console.log(`🏥 HOSPITAL CANTEEN MANAGEMENT BACKEND SERVER`);
-    console.log(`   Running on http://localhost:${PORT}`);
-    console.log(`====================================================`);
-  });
-}
+// Server startup
+server.listen(PORT, () => {
+  console.log(`====================================================`);
+  console.log(`🏥 HOSPITAL CANTEEN MANAGEMENT BACKEND SERVER`);
+  console.log(`   Running on Port ${PORT} (Render Deployment Ready)`);
+  console.log(`====================================================`);
+});
 
 export default app;

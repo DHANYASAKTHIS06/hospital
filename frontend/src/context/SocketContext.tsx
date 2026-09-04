@@ -15,14 +15,15 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const { user } = useAuth();
 
   useEffect(() => {
-    // Socket connection URL
-    const socketInstance = io('/', {
+    const backendUrl = import.meta.env.VITE_BACKEND_URL || 'https://hospital-lakl.onrender.com';
+
+    const socketInstance = io(backendUrl, {
       transports: ['websocket', 'polling'],
       autoConnect: true,
     });
 
     socketInstance.on('connect', () => {
-      console.log('Socket connected:', socketInstance.id);
+      console.log('Socket connected to Render backend:', socketInstance.id);
       setIsConnected(true);
 
       if (user) {
@@ -35,7 +36,7 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     });
 
     socketInstance.on('disconnect', () => {
-      console.log('Socket disconnected');
+      console.log('Socket disconnected from Render backend');
       setIsConnected(false);
     });
 

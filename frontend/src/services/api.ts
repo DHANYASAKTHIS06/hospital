@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_BASE_URL = '/api';
+// Render backend URL fallback or VITE_BACKEND_URL env var
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || 'https://hospital-lakl.onrender.com';
+const API_BASE_URL = `${BACKEND_URL}/api`;
 
 export const api = axios.create({
   baseURL: API_BASE_URL,
@@ -24,7 +26,6 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response && error.response.status === 401) {
-      // Clear token if unauthorized
       localStorage.removeItem('hospital_token');
       localStorage.removeItem('hospital_user');
     }

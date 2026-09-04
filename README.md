@@ -41,51 +41,36 @@ A full-stack, database-driven web application built strictly for managing food/c
 
 - **Frontend**: React 18, TypeScript, Vite, Tailwind CSS, Lucide Icons, React Router v6, Socket.IO Client
 - **Backend**: Node.js, Express.js, TypeScript, Mongoose, Socket.IO, JWT, bcryptjs
-- **Database**: MongoDB / MongoDB Atlas (with automatic fallback to `mongodb-memory-server` during local dev)
-- **Deployment**: Configured for Vercel Serverless deployment (`vercel.json`)
+- **Database**: MongoDB Atlas (`sakthis25sk_db_user`)
+- **Deployment**: Render for Backend Service (`https://hospital-lakl.onrender.com`) & Vercel for Frontend
 
 ---
 
-## 🚀 How to Run Locally
+## ☁️ Deployment Guide
 
-### Prerequisites
-- Node.js (v18+)
-
-### 1. Backend Setup & Startup
-```bash
-cd backend
-npm install
-npm run dev
-```
-*The backend starts on `http://localhost:5000` and automatically connects to MongoDB (or Memory Server fallback) and seeds the default Admin (`admin` / `Admin@123`) and menu items.*
-
-### 2. Frontend Setup & Startup
-```bash
-cd frontend
-npm install
-npm run dev
-```
-*The frontend will run on `http://localhost:5173`.*
-
----
-
-## ☁️ Deploying to Vercel with MongoDB Atlas
-
-The repository is pre-configured for Vercel monorepo serverless deployment (`vercel.json` and `api/index.js`).
-
-### 1. Connect MongoDB Atlas
-1. Create a MongoDB Atlas cluster at [mongodb.com/cloud/atlas](https://www.mongodb.com/cloud/atlas).
-2. Obtain your connection string: `mongodb+srv://<username>:<password>@cluster0.xxx.mongodb.net/hospital_canteen?retryWrites=true&w=majority`
-
-### 2. Deploy to Vercel
-1. Push this repository to GitHub / GitLab / Bitbucket.
-2. Go to [vercel.com](https://vercel.com) and click **Add New Project**.
-3. Import your repository.
-4. Set Environment Variables in Vercel settings:
-   - `MONGODB_URI`: Your MongoDB Atlas connection string
-   - `JWT_SECRET`: A secure secret key (e.g. `super_secret_hospital_jwt_key_2026`)
+### 🚀 1. Deploy Backend on Render (`https://hospital-lakl.onrender.com`)
+1. Go to [render.com](https://render.com) and create a **Web Service**.
+2. Connect your repository and configure:
+   - **Root Directory**: `backend`
+   - **Build Command**: `npm install && npm run build`
+   - **Start Command**: `npm start` (or `node dist/server.js`)
+3. Add Environment Variables in Render:
+   - `DATABASE_URL`: `mongodb+srv://sakthis25sk_db_user:qsLWqrnawvzNSNfx@cluster0.eplvm3s.mongodb.net/hospital_canteen?retryWrites=true&w=majority`
+   - `MONGODB_URI`: `mongodb+srv://sakthis25sk_db_user:qsLWqrnawvzNSNfx@cluster0.eplvm3s.mongodb.net/hospital_canteen?retryWrites=true&w=majority`
+   - `JWT_SECRET`: `super_secret_hospital_canteen_jwt_key_2026`
    - `NODE_ENV`: `production`
-5. Click **Deploy**. Vercel will automatically build the Vite frontend and deploy the Express API routes as serverless functions.
+
+---
+
+### 🌐 2. Deploy Frontend on Vercel
+1. Go to [vercel.com](https://vercel.com) and import the repository.
+2. Under **Project Settings → Build & Development Settings**:
+   - **Root Directory**: `frontend`
+   - **Build Command**: `npm run build` (runs `vite build`)
+   - **Output Directory**: `dist`
+3. Add Environment Variable in Vercel:
+   - `VITE_BACKEND_URL`: `https://hospital-lakl.onrender.com`
+4. Click **Deploy**.
 
 ---
 
@@ -97,4 +82,3 @@ The repository is pre-configured for Vercel monorepo serverless deployment (`ver
 
 - **Patient Login**:
   - Register via **Patient Signup** to receive your auto-generated Patient ID (e.g. `P20260001`).
-"# hospital" 

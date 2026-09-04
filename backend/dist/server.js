@@ -14,10 +14,16 @@ const authRoutes_1 = __importDefault(require("./routes/authRoutes"));
 const patientRoutes_1 = __importDefault(require("./routes/patientRoutes"));
 const adminRoutes_1 = __importDefault(require("./routes/adminRoutes"));
 const app = (0, express_1.default)();
-// Middleware
-app.use((0, cors_1.default)());
+const server = http_1.default.createServer(app);
+// Initialize Socket.IO with persistent WebSockets for Render deployment
+(0, socketService_1.initSocket)(server);
+// CORS configuration supporting Vercel frontend & Render cross-origin calls
+app.use((0, cors_1.default)({
+    origin: true, // Accepts dynamic origin from frontend
+    credentials: true,
+}));
 app.use(express_1.default.json());
-// Database connection & seeding middleware for Serverless / Vercel compatibility
+// Database connection & seeding middleware
 app.use(async (req, res, next) => {
     try {
         await (0, db_1.connectDB)();
@@ -35,17 +41,16 @@ app.use('/api/patient', patientRoutes_1.default);
 app.use('/api/admin', adminRoutes_1.default);
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-    res.status(200).json({ status: 'OK', message: 'Hospital Canteen Management API is running.' });
+    res.status(200).json({ status: 'OK', message: 'Hospital Canteen Management API is running on Render.' });
 });
-// Standalone Server startup (when not running as a Vercel serverless function)
-if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
-    const server = http_1.default.createServer(app);
-    (0, socketService_1.initSocket)(server);
-    server.listen(env_1.PORT, () => {
-        console.log(`====================================================`);
-        console.log(`🏥 HOSPITAL CANTEEN MANAGEMENT BACKEND SERVER`);
-        console.log(`   Running on http://localhost:${env_1.PORT}`);
-        console.log(`====================================================`);
-    });
-}
+app.get('/', (req, res) => {
+    res.status(200).send('🏥 Hospital Canteen Management Backend Service Running on Render.');
+});
+// Server startup
+server.listen(env_1.PORT, () => {
+    console.log(`====================================================`);
+    console.log(`🏥 HOSPITAL CANTEEN MANAGEMENT BACKEND SERVER`);
+    console.log(`   Running on Port ${env_1.PORT} (Render Deployment Ready)`);
+    console.log(`====================================================`);
+});
 exports.default = app;
