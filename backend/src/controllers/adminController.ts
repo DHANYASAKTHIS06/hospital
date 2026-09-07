@@ -3,6 +3,7 @@ import { Patient } from '../models/Patient';
 import { FoodOrder } from '../models/FoodOrder';
 import { OrderItem } from '../models/OrderItem';
 import { Bill } from '../models/Bill';
+import { MenuItem } from '../models/MenuItem';
 
 export const getAdminDashboardStats = async (req: Request, res: Response) => {
   try {
@@ -42,6 +43,30 @@ export const getAdminDashboardStats = async (req: Request, res: Response) => {
       })
     );
 
+    // Food Items to Prepare aggregation
+    // Aggregates quantities from all ACCEPTED and DELIVERY CONFIRMATION PENDING orders
+    const allMenuItems = await MenuItem.find().sort({ menu_id: 1 });
+    const activeAcceptedOrders = await FoodOrder.find({
+      order_status: { $in: ['ACCEPTED', 'DELIVERY CONFIRMATION PENDING'] },
+    });
+
+    const activeOrderIds = activeAcceptedOrders.map((o) => o.order_id);
+    const activeOrderItems = await OrderItem.find({ order_id: { $in: activeOrderIds } });
+
+    const quantityMap = new Map<number, number>();
+    for (const item of activeOrderItems) {
+      const currentQty = quantityMap.get(item.menu_id) || 0;
+      quantityMap.set(item.menu_id, currentQty + item.quantity);
+    }
+
+    const foodItemsToPrepare = allMenuItems.map((item) => ({
+      menu_id: item.menu_id,
+      item_name: item.item_name,
+      category: item.category,
+      portion_size: item.quantity,
+      total_preparation_quantity: quantityMap.get(item.menu_id) || 0,
+    }));
+
     return res.status(200).json({
       totalPatients,
       pendingOrders,
@@ -50,6 +75,7 @@ export const getAdminDashboardStats = async (req: Request, res: Response) => {
       todaysRevenue,
       pendingPaymentsCount,
       recentPendingOrders: enrichedPendingOrders,
+      foodItemsToPrepare,
     });
   } catch (error: any) {
     console.error('Admin Dashboard Stats Error:', error);

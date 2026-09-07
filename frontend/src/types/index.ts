@@ -14,6 +14,14 @@ export interface User {
 
 export type Category = 'TEA / MILK' | 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACKS';
 
+export interface FoodItemToPrepare {
+  menu_id: number;
+  item_name: string;
+  category: Category;
+  portion_size: string;
+  total_preparation_quantity: number;
+}
+
 export interface MenuItem {
   _id: string;
   menu_id: number;

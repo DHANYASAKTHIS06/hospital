@@ -1,8 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { useSocket } from '../context/SocketContext';
-import { StatusBadge } from '../components/StatusBadge';
-import { FoodOrder } from '../types';
+import { FoodOrder, FoodItemToPrepare, Category } from '../types';
 import {
   Users,
   Clock,
@@ -13,6 +12,9 @@ import {
   Check,
   X,
   AlertCircle,
+  ChefHat,
+  Utensils,
+  Filter,
 } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
@@ -20,6 +22,8 @@ export const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [cancellingOrder, setCancellingOrder] = useState<FoodOrder | null>(null);
   const [cancelReason, setCancelReason] = useState('Food item unavailable');
+  const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
+  const [showOnlyRequired, setShowOnlyRequired] = useState<boolean>(false);
   const { socket } = useSocket();
 
   const fetchStats = async () => {
@@ -77,6 +81,25 @@ export const AdminDashboard: React.FC = () => {
     return <div className="text-center py-12 text-gray-500 text-xs">Loading Admin Dashboard...</div>;
   }
 
+  const foodItemsToPrepare: FoodItemToPrepare[] = stats?.foodItemsToPrepare || [];
+
+  const categories: string[] = ['ALL', 'TEA / MILK', 'BREAKFAST', 'LUNCH', 'DINNER', 'SNACKS'];
+
+  const filteredItems = foodItemsToPrepare.filter((item) => {
+    const matchesCategory = selectedCategory === 'ALL' || item.category === selectedCategory;
+    const matchesRequired = !showOnlyRequired || item.total_preparation_quantity > 0;
+    return matchesCategory && matchesRequired;
+  });
+
+  const totalPreparationQuantity = foodItemsToPrepare.reduce(
+    (sum, item) => sum + item.total_preparation_quantity,
+    0
+  );
+
+  const distinctItemsToPrepareCount = foodItemsToPrepare.filter(
+    (item) => item.total_preparation_quantity > 0
+  ).length;
+
   return (
     <div className="space-y-6">
       {/* Title */}
@@ -86,7 +109,7 @@ export const AdminDashboard: React.FC = () => {
             Hospital Canteen Manager
           </span>
           <h1 className="text-2xl font-bold mt-1">ADMIN DASHBOARD</h1>
-          <p className="text-xs text-slate-300">Live canteen order receiving and status management portal.</p>
+          <p className="text-xs text-slate-300">Live canteen order receiving and preparation management portal.</p>
         </div>
       </div>
 
@@ -138,6 +161,122 @@ export const AdminDashboard: React.FC = () => {
             <CreditCard className="w-4 h-4 text-rose-600" />
           </div>
           <div className="text-xl font-bold text-rose-700">{stats?.pendingPaymentsCount || 0}</div>
+        </div>
+      </div>
+
+      {/* FOOD ITEMS TO PREPARE SECTION */}
+      <div className="bg-white rounded-xl border border-emerald-200 shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-emerald-100 bg-emerald-50 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h2 className="text-base font-bold text-emerald-950 flex items-center gap-2">
+              <ChefHat className="w-5 h-5 text-emerald-700" />
+              FOOD ITEMS TO PREPARE
+            </h2>
+            <p className="text-xs text-emerald-800 mt-0.5">
+              Live preparation counts aggregated automatically from accepted orders. Deducted upon delivery confirmation.
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="bg-emerald-100 border border-emerald-300 text-emerald-950 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2">
+              <span>Items to Cook:</span>
+              <span className="bg-emerald-700 text-white px-2 py-0.5 rounded-md font-mono text-sm">
+                {totalPreparationQuantity}
+              </span>
+            </div>
+            <div className="bg-emerald-100 border border-emerald-300 text-emerald-950 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2">
+              <span>Active Dishes:</span>
+              <span className="bg-emerald-900 text-white px-2 py-0.5 rounded-md font-mono text-sm">
+                {distinctItemsToPrepareCount}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Filters & Tabs */}
+        <div className="p-4 bg-gray-50 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <span className="text-xs font-semibold text-gray-500 mr-1 flex items-center gap-1">
+              <Filter className="w-3.5 h-3.5 text-gray-500" /> Category:
+            </span>
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
+                  selectedCategory === cat
+                    ? 'bg-emerald-700 text-white shadow-sm'
+                    : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          <label className="inline-flex items-center cursor-pointer text-xs font-semibold text-gray-700 bg-white border border-gray-300 px-3 py-1.5 rounded-lg hover:bg-gray-100">
+            <input
+              type="checkbox"
+              checked={showOnlyRequired}
+              onChange={(e) => setShowOnlyRequired(e.target.checked)}
+              className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 mr-2"
+            />
+            Show Only Items Needing Preparation ({distinctItemsToPrepareCount})
+          </label>
+        </div>
+
+        {/* Preparation Items Grid */}
+        <div className="p-6">
+          {filteredItems.length === 0 ? (
+            <div className="text-center py-8 text-gray-500 text-xs">
+              No food items match the selected filter.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {filteredItems.map((item) => {
+                const isRequired = item.total_preparation_quantity > 0;
+                return (
+                  <div
+                    key={item.menu_id}
+                    className={`p-4 rounded-xl border transition-all flex justify-between items-center ${
+                      isRequired
+                        ? 'bg-emerald-50/70 border-emerald-400 shadow-sm ring-1 ring-emerald-400/50'
+                        : 'bg-white border-gray-200 opacity-75 hover:opacity-100'
+                    }`}
+                  >
+                    <div className="space-y-1 pr-2">
+                      <div className="flex items-center gap-1.5">
+                        <Utensils className={`w-3.5 h-3.5 ${isRequired ? 'text-emerald-700' : 'text-gray-400'}`} />
+                        <span className={`text-xs font-bold ${isRequired ? 'text-emerald-950' : 'text-gray-700'}`}>
+                          {item.item_name}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] uppercase font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                          {item.category}
+                        </span>
+                        <span className="text-[10px] text-gray-500">{item.portion_size}</span>
+                      </div>
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <div
+                        className={`text-lg font-black font-mono px-3 py-1 rounded-lg flex items-center justify-center min-w-[3rem] ${
+                          isRequired
+                            ? 'bg-emerald-600 text-white shadow-sm'
+                            : 'bg-gray-100 text-gray-400 border border-gray-200'
+                        }`}
+                      >
+                        {item.total_preparation_quantity}
+                      </div>
+                      <span className="text-[9px] font-semibold text-gray-400 block mt-0.5">
+                        {isRequired ? 'REQUIRED' : 'NONE'}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
