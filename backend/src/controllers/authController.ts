@@ -130,14 +130,14 @@ export const adminLogin = async (req: Request, res: Response) => {
       return res.status(401).json({ message: 'Invalid Admin Credentials' });
     }
 
-    const isMatch = await bcrypt.compare(password, admin.password_hash);
+    const isMatch = await bcrypt.compare(password,password_hash);
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid Admin Credentials' });
     }
 
     const token = jwt.sign(
       {
-        id: admin._id,
+        id: admin._id,S
         username: admin.username,
         role: 'ADMIN',
       },
