@@ -45,27 +45,49 @@ export const getAdminDashboardStats = async (req: Request, res: Response) => {
 
     // Food Items to Prepare aggregation
     // Aggregates quantities from all ACCEPTED and DELIVERY CONFIRMATION PENDING orders
-    const allMenuItems = await MenuItem.find().sort({ menu_id: 1 });
+    let allMenuItems = await MenuItem.find().sort({ menu_id: 1 });
+    if (!allMenuItems || allMenuItems.length === 0) {
+      const { seedDatabase } = await import('../seed/seedData');
+      await seedDatabase();
+      allMenuItems = await MenuItem.find().sort({ menu_id: 1 });
+    }
+
     const activeAcceptedOrders = await FoodOrder.find({
-      order_status: { $in: ['ACCEPTED', 'DELIVERY CONFIRMATION PENDING'] },
+      order_status: {
+        $in: ['ACCEPTED', 'DELIVERY CONFIRMATION PENDING', 'Accepted', 'Delivery Confirmation Pending'],
+      },
     });
 
     const activeOrderIds = activeAcceptedOrders.map((o) => o.order_id);
     const activeOrderItems = await OrderItem.find({ order_id: { $in: activeOrderIds } });
 
-    const quantityMap = new Map<number, number>();
+    const quantityByMenuId = new Map<string, number>();
+    const quantityByName = new Map<string, number>();
+
     for (const item of activeOrderItems) {
-      const currentQty = quantityMap.get(item.menu_id) || 0;
-      quantityMap.set(item.menu_id, currentQty + item.quantity);
+      if (item.menu_id !== undefined && item.menu_id !== null) {
+        const key = String(item.menu_id);
+        quantityByMenuId.set(key, (quantityByMenuId.get(key) || 0) + item.quantity);
+      }
+      if (item.item_name_snapshot) {
+        const key = item.item_name_snapshot.trim().toLowerCase();
+        quantityByName.set(key, (quantityByName.get(key) || 0) + item.quantity);
+      }
     }
 
-    const foodItemsToPrepare = allMenuItems.map((item) => ({
-      menu_id: item.menu_id,
-      item_name: item.item_name,
-      category: item.category,
-      portion_size: item.quantity,
-      total_preparation_quantity: quantityMap.get(item.menu_id) || 0,
-    }));
+    const foodItemsToPrepare = allMenuItems.map((item) => {
+      const byId = quantityByMenuId.get(String(item.menu_id)) || 0;
+      const byName = quantityByName.get(item.item_name.trim().toLowerCase()) || 0;
+      const totalQty = Math.max(byId, byName);
+
+      return {
+        menu_id: item.menu_id,
+        item_name: item.item_name,
+        category: item.category,
+        portion_size: item.quantity,
+        total_preparation_quantity: totalQty,
+      };
+    });
 
     return res.status(200).json({
       totalPatients,

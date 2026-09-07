@@ -1,10 +1,44 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getRoomFoodRecords = exports.getFoodRecords = exports.getPatientById = exports.getPatientsList = exports.getAdminDashboardStats = void 0;
 const Patient_1 = require("../models/Patient");
 const FoodOrder_1 = require("../models/FoodOrder");
 const OrderItem_1 = require("../models/OrderItem");
 const Bill_1 = require("../models/Bill");
+const MenuItem_1 = require("../models/MenuItem");
 const getAdminDashboardStats = async (req, res) => {
     try {
         const totalPatients = await Patient_1.Patient.countDocuments();
@@ -34,6 +68,45 @@ const getAdminDashboardStats = async (req, res) => {
                 items,
             };
         }));
+        // Food Items to Prepare aggregation
+        // Aggregates quantities from all ACCEPTED and DELIVERY CONFIRMATION PENDING orders
+        let allMenuItems = await MenuItem_1.MenuItem.find().sort({ menu_id: 1 });
+        if (!allMenuItems || allMenuItems.length === 0) {
+            const { seedDatabase } = await Promise.resolve().then(() => __importStar(require('../seed/seedData')));
+            await seedDatabase();
+            allMenuItems = await MenuItem_1.MenuItem.find().sort({ menu_id: 1 });
+        }
+        const activeAcceptedOrders = await FoodOrder_1.FoodOrder.find({
+            order_status: {
+                $in: ['ACCEPTED', 'DELIVERY CONFIRMATION PENDING', 'Accepted', 'Delivery Confirmation Pending'],
+            },
+        });
+        const activeOrderIds = activeAcceptedOrders.map((o) => o.order_id);
+        const activeOrderItems = await OrderItem_1.OrderItem.find({ order_id: { $in: activeOrderIds } });
+        const quantityByMenuId = new Map();
+        const quantityByName = new Map();
+        for (const item of activeOrderItems) {
+            if (item.menu_id !== undefined && item.menu_id !== null) {
+                const key = String(item.menu_id);
+                quantityByMenuId.set(key, (quantityByMenuId.get(key) || 0) + item.quantity);
+            }
+            if (item.item_name_snapshot) {
+                const key = item.item_name_snapshot.trim().toLowerCase();
+                quantityByName.set(key, (quantityByName.get(key) || 0) + item.quantity);
+            }
+        }
+        const foodItemsToPrepare = allMenuItems.map((item) => {
+            const byId = quantityByMenuId.get(String(item.menu_id)) || 0;
+            const byName = quantityByName.get(item.item_name.trim().toLowerCase()) || 0;
+            const totalQty = Math.max(byId, byName);
+            return {
+                menu_id: item.menu_id,
+                item_name: item.item_name,
+                category: item.category,
+                portion_size: item.quantity,
+                total_preparation_quantity: totalQty,
+            };
+        });
         return res.status(200).json({
             totalPatients,
             pendingOrders,
@@ -42,6 +115,7 @@ const getAdminDashboardStats = async (req, res) => {
             todaysRevenue,
             pendingPaymentsCount,
             recentPendingOrders: enrichedPendingOrders,
+            foodItemsToPrepare,
         });
     }
     catch (error) {

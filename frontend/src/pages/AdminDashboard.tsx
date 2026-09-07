@@ -86,7 +86,12 @@ export const AdminDashboard: React.FC = () => {
   const categories: string[] = ['ALL', 'TEA / MILK', 'BREAKFAST', 'LUNCH', 'DINNER', 'SNACKS'];
 
   const filteredItems = foodItemsToPrepare.filter((item) => {
-    const matchesCategory = selectedCategory === 'ALL' || item.category === selectedCategory;
+    const itemCat = (item.category || '').trim().toUpperCase();
+    const selCat = selectedCategory.trim().toUpperCase();
+    const matchesCategory =
+      selCat === 'ALL' ||
+      itemCat === selCat ||
+      itemCat.replace(/\s+/g, '') === selCat.replace(/\s+/g, '');
     const matchesRequired = !showOnlyRequired || item.total_preparation_quantity > 0;
     return matchesCategory && matchesRequired;
   });
