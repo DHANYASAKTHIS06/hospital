@@ -99,26 +99,28 @@ export const PatientMenu: React.FC = () => {
   const cartCount = Object.values(cart).reduce((a, b) => a + b, 0);
 
   return (
-    <div className="space-y-6 pb-24">
+    <div className="space-y-5 sm:space-y-6 pb-28">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <Utensils className="w-5 h-5 text-blue-600" />
+          <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600">
+              <Utensils className="w-5 h-5" />
+            </div>
             Canteen Food Menu
           </h1>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <p className="text-xs text-slate-500 mt-0.5 font-medium">
             Select food items and quantities for your daily meal order.
           </p>
         </div>
 
         {/* Meal Type selection */}
-        <div className="flex items-center space-x-2 text-xs">
-          <label className="font-semibold text-gray-700">Meal Type:</label>
+        <div className="flex items-center space-x-2 text-xs w-full sm:w-auto">
+          <label className="font-bold text-slate-700 whitespace-nowrap">Meal Type:</label>
           <select
             value={mealType}
             onChange={(e) => setMealType(e.target.value)}
-            className="border border-gray-300 rounded-md px-3 py-1.5 bg-white text-gray-800 font-medium focus:ring-2 focus:ring-blue-500"
+            className="w-full sm:w-auto border border-slate-200 rounded-xl px-3 py-2 bg-slate-50 text-slate-800 font-semibold focus:ring-2 focus:ring-blue-500 outline-none"
           >
             <option value="Tea / Coffee">Tea / Milk</option>
             <option value="Breakfast">Breakfast</option>
@@ -129,14 +131,14 @@ export const PatientMenu: React.FC = () => {
         </div>
       </div>
 
-      {/* Category Tabs */}
-      <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-2">
+      {/* Category Horizontal Scroll Bar on Mobile */}
+      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none no-scrollbar">
         <button
           onClick={() => setSelectedCategory('ALL')}
-          className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+          className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
             selectedCategory === 'ALL'
-              ? 'bg-blue-700 text-white'
-              : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+              ? 'bg-blue-600 text-white shadow-xs'
+              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80'
           }`}
         >
           ALL ITEMS ({menuItems.length})
@@ -145,10 +147,10 @@ export const PatientMenu: React.FC = () => {
           <button
             key={cat}
             onClick={() => setSelectedCategory(cat)}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+            className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
               selectedCategory === cat
-                ? 'bg-blue-700 text-white'
-                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                ? 'bg-blue-600 text-white shadow-xs'
+                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80'
             }`}
           >
             {cat}
@@ -158,14 +160,14 @@ export const PatientMenu: React.FC = () => {
 
       {/* Messages */}
       {error && (
-        <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs rounded-md font-medium flex items-center gap-2">
+        <div className="p-3.5 bg-rose-50 border border-rose-200/80 text-rose-700 text-xs rounded-xl font-semibold flex items-center gap-2">
           <AlertCircle className="w-4 h-4 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       {successMsg && (
-        <div className="p-3 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs rounded-md font-medium flex items-center gap-2">
+        <div className="p-3.5 bg-emerald-50 border border-emerald-200/80 text-emerald-800 text-xs rounded-xl font-semibold flex items-center gap-2">
           <Check className="w-4 h-4 shrink-0 text-emerald-600" />
           <span>{successMsg}</span>
         </div>
@@ -173,11 +175,15 @@ export const PatientMenu: React.FC = () => {
 
       {/* Menu Items Grid */}
       {loading ? (
-        <div className="text-center py-12 text-gray-500 text-xs">Loading canteen menu items...</div>
+        <div className="text-center py-12 text-slate-400 text-xs font-medium animate-pulse">
+          Loading canteen menu items...
+        </div>
       ) : filteredItems.length === 0 ? (
-        <div className="text-center py-12 text-gray-500 text-xs">No items found in this category.</div>
+        <div className="text-center py-12 text-slate-500 text-xs font-medium bg-white rounded-2xl border border-slate-200/80">
+          No items found in this category.
+        </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredItems.map((item) => {
             const isAvailable = item.is_available_today;
             const qtyInCart = cart[item.menu_id] || 0;
@@ -185,17 +191,17 @@ export const PatientMenu: React.FC = () => {
             return (
               <div
                 key={item._id}
-                className={`bg-white border rounded-xl p-4 flex flex-col justify-between shadow-sm transition-all ${
-                  isAvailable ? 'border-gray-200 hover:border-blue-300' : 'border-gray-200 bg-gray-50 opacity-75'
+                className={`bg-white border rounded-2xl p-4 flex flex-col justify-between shadow-xs hover:shadow-md transition-all ${
+                  isAvailable ? 'border-slate-200/80' : 'border-slate-200 bg-slate-50/60 opacity-80'
                 }`}
               >
                 <div>
-                  <div className="flex justify-between items-start mb-2">
+                  <div className="flex justify-between items-start mb-2 gap-2">
                     <div>
-                      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                      <span className="text-[10px] font-extrabold text-blue-600 uppercase tracking-wider bg-blue-50 px-2 py-0.5 rounded-md">
                         {item.category}
                       </span>
-                      <h3 className="text-base font-bold text-gray-900">{item.item_name}</h3>
+                      <h3 className="text-base font-bold text-slate-900 mt-1">{item.item_name}</h3>
                     </div>
                     <StatusBadge
                       status={isAvailable ? 'AVAILABLE' : 'UNAVAILABLE'}
@@ -204,41 +210,41 @@ export const PatientMenu: React.FC = () => {
                   </div>
 
                   {item.description && (
-                    <p className="text-xs text-gray-500 mb-2 leading-relaxed">{item.description}</p>
+                    <p className="text-xs text-slate-500 mb-2 leading-relaxed font-medium">{item.description}</p>
                   )}
 
-                  <div className="flex justify-between items-center text-xs text-gray-600 mb-3">
-                    <span>Qty: <strong className="text-gray-800">{item.quantity}</strong></span>
-                    <span className="text-base font-bold text-blue-700">₹{item.price}</span>
+                  <div className="flex justify-between items-center text-xs text-slate-600 mb-3">
+                    <span className="font-semibold">Portion: <strong className="text-slate-800 font-bold">{item.quantity}</strong></span>
+                    <span className="text-base font-black text-blue-700">₹{item.price}</span>
                   </div>
 
                   {!isAvailable && (
-                    <div className="text-[11px] text-amber-700 bg-amber-50 p-1.5 rounded border border-amber-200 mb-2">
+                    <div className="text-[11px] text-amber-800 bg-amber-50 p-2 rounded-xl border border-amber-200/80 mb-2 font-medium">
                       Available on: {item.available_days.join(', ')}
                     </div>
                   )}
                 </div>
 
                 {/* Patient Quantity Selector */}
-                <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
+                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
                   {isAvailable ? (
                     <div className="flex items-center space-x-2 w-full justify-between">
-                      <div className="flex items-center border border-gray-300 rounded-lg overflow-hidden bg-white">
+                      <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
                         <button
                           type="button"
                           onClick={() => handleQtyChange(item.menu_id, -1)}
                           disabled={qtyInCart === 0}
-                          className="px-2.5 py-1 text-gray-600 hover:bg-gray-100 disabled:opacity-30"
+                          className="px-3 py-1.5 text-slate-600 hover:bg-slate-200 active:bg-slate-300 disabled:opacity-30 transition-colors"
                         >
                           <Minus className="w-3.5 h-3.5" />
                         </button>
-                        <span className="px-3 py-1 text-xs font-bold text-gray-800 min-w-[2rem] text-center">
+                        <span className="px-3 py-1.5 text-xs font-black text-slate-800 min-w-[2rem] text-center">
                           {qtyInCart}
                         </span>
                         <button
                           type="button"
                           onClick={() => handleQtyChange(item.menu_id, 1)}
-                          className="px-2.5 py-1 text-gray-600 hover:bg-gray-100"
+                          className="px-3 py-1.5 text-slate-600 hover:bg-slate-200 active:bg-slate-300 transition-colors"
                         >
                           <Plus className="w-3.5 h-3.5" />
                         </button>
@@ -247,17 +253,17 @@ export const PatientMenu: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => handleQtyChange(item.menu_id, qtyInCart > 0 ? 0 : 1)}
-                        className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
+                        className={`text-xs font-extrabold px-3.5 py-1.5 rounded-xl transition-all ${
                           qtyInCart > 0
-                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-300'
-                            : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200'
+                            ? 'bg-emerald-600 text-white shadow-xs'
+                            : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200/80'
                         }`}
                       >
                         {qtyInCart > 0 ? 'Added ✓' : 'Add'}
                       </button>
                     </div>
                   ) : (
-                    <span className="text-xs text-gray-400 font-medium italic">Item Unavailable Today</span>
+                    <span className="text-xs text-slate-400 font-semibold italic">Unavailable Today</span>
                   )}
                 </div>
               </div>
@@ -268,21 +274,21 @@ export const PatientMenu: React.FC = () => {
 
       {/* Floating Order Cart Bar */}
       {cartCount > 0 && (
-        <div className="fixed bottom-4 left-4 right-4 md:left-72 max-w-4xl mx-auto bg-gray-900 text-white rounded-xl p-4 shadow-xl border border-gray-800 flex items-center justify-between z-40">
+        <div className="fixed bottom-20 md:bottom-6 left-4 right-4 md:left-72 max-w-4xl mx-auto bg-slate-900/95 backdrop-blur-md text-white rounded-2xl p-4 shadow-2xl border border-slate-800 flex items-center justify-between z-40">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center font-bold text-white">
+            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center font-bold text-white shadow-xs">
               <ShoppingBag className="w-5 h-5" />
             </div>
             <div>
-              <div className="text-xs text-gray-400 font-medium">Selected Items: {cartCount}</div>
-              <div className="text-lg font-bold text-white">Total: ₹{calculateTotal()}</div>
+              <div className="text-[11px] text-slate-400 font-semibold">Selected Items: {cartCount}</div>
+              <div className="text-base sm:text-lg font-black text-white">Total: ₹{calculateTotal()}</div>
             </div>
           </div>
 
           <button
             onClick={handlePlaceOrder}
             disabled={submitting}
-            className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm px-6 py-2.5 rounded-lg shadow transition-colors disabled:opacity-50"
+            className="bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-black text-xs sm:text-sm px-5 py-2.5 rounded-xl shadow transition-colors disabled:opacity-50"
           >
             {submitting ? 'Placing Order...' : 'PLACE ORDER'}
           </button>

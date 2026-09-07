@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
+import { BottomNav } from './components/BottomNav';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 // Public pages
@@ -32,15 +33,24 @@ import { AdminPayments } from './pages/AdminPayments';
 import { AdminRoomView } from './pages/AdminRoomView';
 
 const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <Navbar />
-      <div className="flex flex-1">
-        <Sidebar />
-        <main className="flex-1 p-6 overflow-y-auto max-w-7xl mx-auto w-full">
+    <div className="min-h-screen bg-slate-50 flex flex-col antialiased">
+      <Navbar
+        isMobileMenuOpen={mobileMenuOpen}
+        onToggleMobileMenu={() => setMobileMenuOpen((prev) => !prev)}
+      />
+      <div className="flex flex-1 relative">
+        <Sidebar
+          isOpen={mobileMenuOpen}
+          onClose={() => setMobileMenuOpen(false)}
+        />
+        <main className="flex-1 px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8 pb-24 md:pb-8 overflow-y-auto max-w-7xl mx-auto w-full">
           {children}
         </main>
       </div>
+      <BottomNav />
     </div>
   );
 };
