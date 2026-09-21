@@ -1,8 +1,9 @@
 import { Router } from 'express';
-import { patientSignup, patientLogin, adminLogin } from '../controllers/authController';
+import { patientSignup, patientLogin, adminLogin, unifiedLogin } from '../controllers/authController';
 
 const router = Router();
 
+router.post('/login', unifiedLogin);
 router.post('/patient/signup', patientSignup);
 router.post('/patient/login', patientLogin);
 router.post('/admin/login', adminLogin);
