@@ -7,7 +7,8 @@ exports.CLIENT_URL = exports.JWT_SECRET = exports.DATABASE_URL = exports.PORT = 
 const dotenv_1 = __importDefault(require("dotenv"));
 const path_1 = __importDefault(require("path"));
 dotenv_1.default.config({ path: path_1.default.join(__dirname, '../../.env') });
+const ATLAS_URI = 'mongodb+srv://sakthis25sk_db_user:qsLWqrnawvzNSNfx@cluster0.eplvm3s.mongodb.net/hospital_canteen?retryWrites=true&w=majority';
 exports.PORT = process.env.PORT || 5000;
-exports.DATABASE_URL = process.env.DATABASE_URL || 'mongodb://localhost:27017/hospital_canteen';
+exports.DATABASE_URL = process.env.MONGODB_URI || process.env.DATABASE_URL || ATLAS_URI;
 exports.JWT_SECRET = process.env.JWT_SECRET || 'super_secret_hospital_canteen_jwt_key_2026';
 exports.CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:5173';

@@ -7,6 +7,7 @@ export const AdminPatients: React.FC = () => {
   const [patients, setPatients] = useState<PatientRecord[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [selectedPatient, setSelectedPatient] = useState<PatientRecord | null>(null);
 
   // Add Patient Modal state
@@ -35,11 +36,13 @@ export const AdminPatients: React.FC = () => {
   const [copied, setCopied] = useState(false);
 
   const fetchPatients = async () => {
+    setFetchError(null);
     try {
       const response = await api.get('/admin/patients', { params: { search } });
       setPatients(response.data);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error fetching patients:', err);
+      setFetchError(err.response?.data?.message || 'Failed to connect to MongoDB database. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -135,12 +138,25 @@ export const AdminPatients: React.FC = () => {
         </div>
       </div>
 
+      {/* Error Alert */}
+      {fetchError && (
+        <div className="p-4 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-2xl font-bold flex items-center justify-between">
+          <span>{fetchError}</span>
+          <button
+            onClick={fetchPatients}
+            className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-all"
+          >
+            Retry Connection
+          </button>
+        </div>
+      )}
+
       {/* Patient Directory Table */}
       {loading ? (
         <div className="text-center py-12 text-slate-500 text-xs">Loading patient records...</div>
       ) : patients.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200/80 p-12 text-center text-slate-500 text-xs">
-          No patient records found matching your query.
+          No patient records found in MongoDB database. Click "Add New Patient" to register a patient.
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">

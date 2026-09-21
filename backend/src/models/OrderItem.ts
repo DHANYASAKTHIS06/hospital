@@ -22,6 +22,7 @@ const OrderItemSchema: Schema = new Schema(
   },
   {
     timestamps: true,
+    collection: 'orderitems',
   }
 );
 

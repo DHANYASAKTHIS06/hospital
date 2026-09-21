@@ -50,6 +50,7 @@ const FoodOrderSchema: Schema = new Schema(
   },
   {
     timestamps: true,
+    collection: 'foodorders',
   }
 );
 

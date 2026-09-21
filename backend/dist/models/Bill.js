@@ -53,5 +53,6 @@ const BillSchema = new mongoose_1.Schema({
     orders_included: { type: [String], default: [] },
 }, {
     timestamps: true,
+    collection: 'bills',
 });
 exports.Bill = mongoose_1.default.model('Bill', BillSchema);

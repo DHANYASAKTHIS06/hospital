@@ -4,10 +4,13 @@ export interface ICounter extends Document {
   seq: number;
 }
 
-const CounterSchema: Schema = new Schema({
-  _id: { type: String, required: true },
-  seq: { type: Number, default: 0 },
-});
+const CounterSchema: Schema = new Schema(
+  {
+    _id: { type: String, required: true },
+    seq: { type: Number, default: 0 },
+  },
+  { collection: 'counters' }
+);
 
 export const Counter = mongoose.model<ICounter>('Counter', CounterSchema);
 

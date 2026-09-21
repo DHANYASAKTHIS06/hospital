@@ -24,6 +24,7 @@ const PatientSchema: Schema = new Schema(
   },
   {
     timestamps: true,
+    collection: 'patients',
   }
 );
 

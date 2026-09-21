@@ -57,5 +57,6 @@ const FoodOrderSchema = new mongoose_1.Schema({
     patient_delivery_confirmed_at: { type: Date },
 }, {
     timestamps: true,
+    collection: 'foodorders',
 });
 exports.FoodOrder = mongoose_1.default.model('FoodOrder', FoodOrderSchema);

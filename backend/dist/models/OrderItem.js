@@ -45,5 +45,6 @@ const OrderItemSchema = new mongoose_1.Schema({
     subtotal: { type: Number, required: true, min: 0 },
 }, {
     timestamps: true,
+    collection: 'orderitems',
 });
 exports.OrderItem = mongoose_1.default.model('OrderItem', OrderItemSchema);

@@ -73,14 +73,14 @@ export const LoginPage: React.FC = () => {
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
               <User className="w-3.5 h-3.5 text-blue-600" />
-              Patient ID / Admin Username *
+              Patient ID *
             </label>
             <input
               type="text"
               required
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
-              placeholder="e.g. P20260001 or ADMIN"
+              placeholder=" "
               className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none bg-slate-50/50"
             />
           </div>

@@ -33,6 +33,7 @@ const MenuItemSchema: Schema = new Schema(
   },
   {
     timestamps: true,
+    collection: 'menuitems',
   }
 );
 

@@ -38,7 +38,7 @@ const mongoose_1 = __importStar(require("mongoose"));
 const CounterSchema = new mongoose_1.Schema({
     _id: { type: String, required: true },
     seq: { type: Number, default: 0 },
-});
+}, { collection: 'counters' });
 exports.Counter = mongoose_1.default.model('Counter', CounterSchema);
 const getNextSequenceValue = async (sequenceName) => {
     const counter = await exports.Counter.findByIdAndUpdate(sequenceName, { $inc: { seq: 1 } }, { new: true, upsert: true });

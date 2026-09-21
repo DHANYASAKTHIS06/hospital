@@ -45,5 +45,6 @@ const PatientSchema = new mongoose_1.Schema({
     password_hash: { type: String, required: true },
 }, {
     timestamps: true,
+    collection: 'patients',
 });
 exports.Patient = mongoose_1.default.model('Patient', PatientSchema);

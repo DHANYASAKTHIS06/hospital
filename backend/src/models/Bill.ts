@@ -37,6 +37,7 @@ const BillSchema: Schema = new Schema(
   },
   {
     timestamps: true,
+    collection: 'bills',
   }
 );
 

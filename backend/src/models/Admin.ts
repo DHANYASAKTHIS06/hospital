@@ -14,6 +14,7 @@ const AdminSchema: Schema = new Schema(
   },
   {
     timestamps: true,
+    collection: 'admins',
   }
 );
 
