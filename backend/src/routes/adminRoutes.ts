@@ -5,6 +5,7 @@ import {
   getPatientsList,
   getPatientById,
   createPatient,
+  deletePatient,
   getFoodRecords,
   getRoomFoodRecords,
 } from '../controllers/adminController';
@@ -46,6 +47,7 @@ router.delete('/menu/:menuId', deleteMenuItem);
 router.get('/patients', getPatientsList);
 router.post('/patients', createPatient);
 router.get('/patients/:patientId', getPatientById);
+router.delete('/patients/:patientId', deletePatient);
 
 // Food Records & Room-wise view
 router.get('/food-records', getFoodRecords);

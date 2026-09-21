@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
 import { Patient } from '../models/Patient';
 import { FoodOrder } from '../models/FoodOrder';
@@ -143,6 +144,35 @@ export const getPatientById = async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Get Patient By ID Error:', error);
     return res.status(500).json({ message: 'Error fetching patient details.' });
+  }
+};
+
+export const deletePatient = async (req: Request, res: Response) => {
+  try {
+    const { patientId } = req.params;
+    const formattedId = String(patientId).toUpperCase().trim();
+
+    const patient = await Patient.findOne({
+      $or: [
+        { patient_id: formattedId },
+        { patient_id: String(patientId).trim() },
+        ...(mongoose.isValidObjectId(patientId) ? [{ _id: patientId }] : []),
+      ],
+    });
+
+    if (!patient) {
+      return res.status(404).json({ message: 'Patient record not found.' });
+    }
+
+    await Patient.deleteOne({ _id: patient._id });
+
+    return res.status(200).json({
+      message: `Patient account "${patient.name}" (${patient.patient_id}) deleted successfully.`,
+      patient_id: patient.patient_id,
+    });
+  } catch (error: any) {
+    console.error('Delete Patient Error:', error);
+    return res.status(500).json({ message: 'Error deleting patient record.' });
   }
 };
 

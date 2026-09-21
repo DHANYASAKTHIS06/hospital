@@ -36,7 +36,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createPatient = exports.getRoomFoodRecords = exports.getFoodRecords = exports.getPatientById = exports.getPatientsList = exports.getAdminDashboardStats = void 0;
+exports.createPatient = exports.getRoomFoodRecords = exports.getFoodRecords = exports.deletePatient = exports.getPatientById = exports.getPatientsList = exports.getAdminDashboardStats = void 0;
+const mongoose_1 = __importDefault(require("mongoose"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const Patient_1 = require("../models/Patient");
 const FoodOrder_1 = require("../models/FoodOrder");
@@ -168,6 +169,32 @@ const getPatientById = async (req, res) => {
     }
 };
 exports.getPatientById = getPatientById;
+const deletePatient = async (req, res) => {
+    try {
+        const { patientId } = req.params;
+        const formattedId = String(patientId).toUpperCase().trim();
+        const patient = await Patient_1.Patient.findOne({
+            $or: [
+                { patient_id: formattedId },
+                { patient_id: String(patientId).trim() },
+                ...(mongoose_1.default.isValidObjectId(patientId) ? [{ _id: patientId }] : []),
+            ],
+        });
+        if (!patient) {
+            return res.status(404).json({ message: 'Patient record not found.' });
+        }
+        await Patient_1.Patient.deleteOne({ _id: patient._id });
+        return res.status(200).json({
+            message: `Patient account "${patient.name}" (${patient.patient_id}) deleted successfully.`,
+            patient_id: patient.patient_id,
+        });
+    }
+    catch (error) {
+        console.error('Delete Patient Error:', error);
+        return res.status(500).json({ message: 'Error deleting patient record.' });
+    }
+};
+exports.deletePatient = deletePatient;
 const getFoodRecords = async (req, res) => {
     try {
         const { date, patient_id, room_number, meal_type } = req.query;

@@ -25,6 +25,7 @@ router.delete('/menu/:menuId', menuController_1.deleteMenuItem);
 router.get('/patients', adminController_1.getPatientsList);
 router.post('/patients', adminController_1.createPatient);
 router.get('/patients/:patientId', adminController_1.getPatientById);
+router.delete('/patients/:patientId', adminController_1.deletePatient);
 // Food Records & Room-wise view
 router.get('/food-records', adminController_1.getFoodRecords);
 router.get('/room-food-records', adminController_1.getRoomFoodRecords);
