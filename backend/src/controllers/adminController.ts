@@ -1,9 +1,11 @@
 import { Request, Response } from 'express';
+import bcrypt from 'bcryptjs';
 import { Patient } from '../models/Patient';
 import { FoodOrder } from '../models/FoodOrder';
 import { OrderItem } from '../models/OrderItem';
 import { Bill } from '../models/Bill';
 import { MenuItem } from '../models/MenuItem';
+import { getNextSequenceValue } from '../models/Counter';
 
 export const getAdminDashboardStats = async (req: Request, res: Response) => {
   try {
@@ -248,3 +250,72 @@ export const getRoomFoodRecords = async (req: Request, res: Response) => {
     return res.status(500).json({ message: 'Error fetching room food records.' });
   }
 };
+
+export const createPatient = async (req: Request, res: Response) => {
+  try {
+    const { patient_id: rawPatientId, name, age, address, room_number, mobile, password } = req.body;
+
+    if (!name || !age || !address || !room_number || !mobile || !password) {
+      return res.status(400).json({ message: 'Name, Age, Address, Room Number, Mobile, and Password are required.' });
+    }
+
+    if (password.length < 4) {
+      return res.status(400).json({ message: 'Password must be at least 4 characters long.' });
+    }
+
+    const mobileRegex = /^[6-9]\d{9}$/;
+    if (!mobileRegex.test(mobile)) {
+      return res.status(400).json({ message: 'Please enter a valid 10-digit mobile number.' });
+    }
+
+    // Check if mobile number is already registered
+    const existingMobile = await Patient.findOne({ mobile });
+    if (existingMobile) {
+      return res.status(400).json({ message: 'Mobile Number is already registered for another patient.' });
+    }
+
+    let finalPatientId = rawPatientId ? String(rawPatientId).toUpperCase().trim() : '';
+
+    if (!finalPatientId) {
+      const year = new Date().getFullYear();
+      const seq = await getNextSequenceValue(`patient_id_${year}`);
+      const formattedSeq = String(seq).padStart(4, '0');
+      finalPatientId = `P${year}${formattedSeq}`;
+    }
+
+    const existingId = await Patient.findOne({ patient_id: finalPatientId });
+    if (existingId) {
+      return res.status(400).json({ message: `Patient ID "${finalPatientId}" already exists. Please use a unique Patient ID.` });
+    }
+
+    const password_hash = await bcrypt.hash(password, 10);
+
+    const newPatient = await Patient.create({
+      patient_id: finalPatientId,
+      name: name.trim(),
+      age: Number(age),
+      address: address.trim(),
+      room_number: String(room_number).trim(),
+      mobile: String(mobile).trim(),
+      password_hash,
+    });
+
+    return res.status(201).json({
+      message: 'Patient account created successfully',
+      patient: {
+        _id: newPatient._id,
+        patient_id: newPatient.patient_id,
+        name: newPatient.name,
+        age: newPatient.age,
+        address: newPatient.address,
+        room_number: newPatient.room_number,
+        mobile: newPatient.mobile,
+        plain_password: password,
+      },
+    });
+  } catch (error: any) {
+    console.error('Create Patient Error:', error);
+    return res.status(500).json({ message: 'Error creating patient account.', error: error.message });
+  }
+};
+

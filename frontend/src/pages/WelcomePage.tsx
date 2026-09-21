@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, ShieldCheck, UserPlus, UtensilsCrossed } from 'lucide-react';
+import { User, ShieldCheck, UtensilsCrossed, ArrowRight } from 'lucide-react';
 
 export const WelcomePage: React.FC = () => {
   const navigate = useNavigate();
@@ -16,7 +16,7 @@ export const WelcomePage: React.FC = () => {
             <UtensilsCrossed className="w-8 h-8" />
           </div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">Hospital Canteen</h1>
-          <p className="text-xs text-slate-500 font-medium">Select your role to access the canteen portal</p>
+          <p className="text-xs text-slate-500 font-medium">Select your role to sign into the canteen portal</p>
         </div>
 
         <div className="space-y-4 pt-1">
@@ -30,38 +30,31 @@ export const WelcomePage: React.FC = () => {
             <p className="text-xs text-slate-500 mb-3.5 font-medium leading-relaxed">
               Patients can view daily food menus, order meals to their room, track live status & view bills.
             </p>
-            <div className="flex gap-2">
-              <button
-                onClick={() => navigate('/patient/login')}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs py-2.5 px-3 rounded-xl transition-all shadow-xs"
-              >
-                Patient Login
-              </button>
-              <button
-                onClick={() => navigate('/patient/signup')}
-                className="flex-1 bg-white hover:bg-slate-100 text-blue-700 font-bold text-xs py-2.5 px-3 border border-blue-200 rounded-xl transition-all flex items-center justify-center gap-1 shadow-xs"
-              >
-                <UserPlus className="w-3.5 h-3.5" />
-                Patient Signup
-              </button>
-            </div>
+            <button
+              onClick={() => navigate('/login?role=patient')}
+              className="w-full bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-bold text-xs py-2.5 px-3 rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5"
+            >
+              <span>Patient Login</span>
+              <ArrowRight className="w-3.5 h-3.5" />
+            </button>
           </div>
 
           <div className="border border-slate-200/80 rounded-2xl p-4 bg-slate-50/80 hover:bg-amber-50/50 hover:border-amber-300 transition-all">
             <h2 className="text-sm font-extrabold text-slate-900 mb-1 flex items-center gap-2">
               <div className="p-1 rounded-md bg-amber-100 text-amber-700">
-                <ShieldCheck className="w-4 h-4" />
+                <ShieldCheck className="w-4 h-4 text-amber-600" />
               </div>
               Admin Portal
             </h2>
             <p className="text-xs text-slate-500 mb-3.5 font-medium leading-relaxed">
-              Canteen manager access for menu management, incoming orders, room delivery & billing.
+              Canteen manager access for patient registration, menu management, orders, delivery & billing.
             </p>
             <button
-              onClick={() => navigate('/admin/login')}
-              className="w-full bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white font-bold text-xs py-2.5 px-3 rounded-xl transition-all shadow-xs"
+              onClick={() => navigate('/login?role=admin')}
+              className="w-full bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white font-bold text-xs py-2.5 px-3 rounded-xl transition-all shadow-xs flex items-center justify-center gap-1.5"
             >
-              Admin Manager Login
+              <span>Admin Manager Login</span>
+              <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>

@@ -9,9 +9,7 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 
 // Public pages
 import { WelcomePage } from './pages/WelcomePage';
-import { PatientSignupPage } from './pages/PatientSignupPage';
-import { PatientLoginPage } from './pages/PatientLoginPage';
-import { AdminLoginPage } from './pages/AdminLoginPage';
+import { LoginPage } from './pages/LoginPage';
 
 // Patient pages
 import { PatientDashboard } from './pages/PatientDashboard';
@@ -63,9 +61,10 @@ export const App: React.FC = () => {
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<WelcomePage />} />
-            <Route path="/patient/signup" element={<PatientSignupPage />} />
-            <Route path="/patient/login" element={<PatientLoginPage />} />
-            <Route path="/admin/login" element={<AdminLoginPage />} />
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/patient/login" element={<LoginPage />} />
+            <Route path="/admin/login" element={<LoginPage />} />
+            <Route path="/patient/signup" element={<Navigate to="/login" replace />} />
 
             {/* Protected Patient Routes */}
             <Route element={<ProtectedRoute allowedRole="PATIENT" />}>
