@@ -32,13 +32,18 @@ var __importStar = (this && this.__importStar) || (function () {
         return result;
     };
 })();
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getRoomFoodRecords = exports.getFoodRecords = exports.getPatientById = exports.getPatientsList = exports.getAdminDashboardStats = void 0;
+exports.createPatient = exports.getRoomFoodRecords = exports.getFoodRecords = exports.getPatientById = exports.getPatientsList = exports.getAdminDashboardStats = void 0;
+const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const Patient_1 = require("../models/Patient");
 const FoodOrder_1 = require("../models/FoodOrder");
 const OrderItem_1 = require("../models/OrderItem");
 const Bill_1 = require("../models/Bill");
 const MenuItem_1 = require("../models/MenuItem");
+const Counter_1 = require("../models/Counter");
 const getAdminDashboardStats = async (req, res) => {
     try {
         const totalPatients = await Patient_1.Patient.countDocuments();
@@ -251,3 +256,62 @@ const getRoomFoodRecords = async (req, res) => {
     }
 };
 exports.getRoomFoodRecords = getRoomFoodRecords;
+const createPatient = async (req, res) => {
+    try {
+        const { patient_id: rawPatientId, name, age, address, room_number, mobile, password } = req.body;
+        if (!name || !age || !address || !room_number || !mobile || !password) {
+            return res.status(400).json({ message: 'Name, Age, Address, Room Number, Mobile, and Password are required.' });
+        }
+        if (password.length < 4) {
+            return res.status(400).json({ message: 'Password must be at least 4 characters long.' });
+        }
+        const mobileRegex = /^[6-9]\d{9}$/;
+        if (!mobileRegex.test(mobile)) {
+            return res.status(400).json({ message: 'Please enter a valid 10-digit mobile number.' });
+        }
+        // Check if mobile number is already registered
+        const existingMobile = await Patient_1.Patient.findOne({ mobile });
+        if (existingMobile) {
+            return res.status(400).json({ message: 'Mobile Number is already registered for another patient.' });
+        }
+        let finalPatientId = rawPatientId ? String(rawPatientId).toUpperCase().trim() : '';
+        if (!finalPatientId) {
+            const year = new Date().getFullYear();
+            const seq = await (0, Counter_1.getNextSequenceValue)(`patient_id_${year}`);
+            const formattedSeq = String(seq).padStart(4, '0');
+            finalPatientId = `P${year}${formattedSeq}`;
+        }
+        const existingId = await Patient_1.Patient.findOne({ patient_id: finalPatientId });
+        if (existingId) {
+            return res.status(400).json({ message: `Patient ID "${finalPatientId}" already exists. Please use a unique Patient ID.` });
+        }
+        const password_hash = await bcryptjs_1.default.hash(password, 10);
+        const newPatient = await Patient_1.Patient.create({
+            patient_id: finalPatientId,
+            name: name.trim(),
+            age: Number(age),
+            address: address.trim(),
+            room_number: String(room_number).trim(),
+            mobile: String(mobile).trim(),
+            password_hash,
+        });
+        return res.status(201).json({
+            message: 'Patient account created successfully',
+            patient: {
+                _id: newPatient._id,
+                patient_id: newPatient.patient_id,
+                name: newPatient.name,
+                age: newPatient.age,
+                address: newPatient.address,
+                room_number: newPatient.room_number,
+                mobile: newPatient.mobile,
+                plain_password: password,
+            },
+        });
+    }
+    catch (error) {
+        console.error('Create Patient Error:', error);
+        return res.status(500).json({ message: 'Error creating patient account.', error: error.message });
+    }
+};
+exports.createPatient = createPatient;

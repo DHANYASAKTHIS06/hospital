@@ -12,13 +12,18 @@ const seedDatabase = async () => {
     try {
         // 1. Seed Admin User
         const existingAdmin = await Admin_1.Admin.findOne({ username: 'admin' });
+        const password_hash = await bcryptjs_1.default.hash('ProCare@2026', 10);
         if (!existingAdmin) {
-            const password_hash = await bcryptjs_1.default.hash('Admin@123', 10);
             await Admin_1.Admin.create({
                 username: 'admin',
                 password_hash,
             });
-            console.log('Seeded Admin account: admin / Admin@123');
+            console.log('Seeded Admin account: admin / ProCare@2026');
+        }
+        else {
+            existingAdmin.password_hash = password_hash;
+            await existingAdmin.save();
+            console.log('Updated Admin password for admin account to ProCare@2026');
         }
         // 2. Seed Initial Menu Items
         const count = await MenuItem_1.MenuItem.countDocuments();
