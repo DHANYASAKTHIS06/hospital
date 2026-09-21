@@ -7,17 +7,13 @@ export const seedDatabase = async () => {
   try {
     // 1. Seed Admin User
     const existingAdmin = await Admin.findOne({ username: 'admin' });
-    const password_hash = await bcrypt.hash('ProCare@2026', 10);
     if (!existingAdmin) {
+      const password_hash = await bcrypt.hash('ProCare@2026', 10);
       await Admin.create({
         username: 'admin',
         password_hash,
       });
       console.log('Seeded Admin account: admin / ProCare@2026');
-    } else {
-      existingAdmin.password_hash = password_hash;
-      await existingAdmin.save();
-      console.log('Updated Admin password for admin account to ProCare@2026');
     }
 
     // 2. Seed Initial Menu Items

@@ -23,11 +23,15 @@ app.use((0, cors_1.default)({
     credentials: true,
 }));
 app.use(express_1.default.json());
+let isSeeded = false;
 // Database connection & seeding middleware
 app.use(async (req, res, next) => {
     try {
         await (0, db_1.connectDB)();
-        await (0, seedData_1.seedDatabase)();
+        if (!isSeeded) {
+            await (0, seedData_1.seedDatabase)();
+            isSeeded = true;
+        }
         next();
     }
     catch (err) {

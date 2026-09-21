@@ -26,11 +26,16 @@ app.use(
 
 app.use(express.json());
 
+let isSeeded = false;
+
 // Database connection & seeding middleware
 app.use(async (req, res, next) => {
   try {
     await connectDB();
-    await seedDatabase();
+    if (!isSeeded) {
+      await seedDatabase();
+      isSeeded = true;
+    }
     next();
   } catch (err) {
     console.error('Database connection / seed error:', err);
