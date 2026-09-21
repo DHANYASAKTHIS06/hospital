@@ -15,6 +15,7 @@ router.get('/menu', menuController_1.getMenuItems);
 router.post('/orders', orderController_1.createOrder);
 router.get('/orders', orderController_1.getPatientOrders);
 router.post('/orders/:orderId/confirm-delivery', orderController_1.patientConfirmDelivery);
+router.post('/orders/:orderId/feedback', orderController_1.submitPatientFeedback);
 // EXPLICIT REJECTION for any attempt by patient to cancel order
 router.post('/orders/:orderId/cancel', (req, res) => {
     return res.status(403).json({

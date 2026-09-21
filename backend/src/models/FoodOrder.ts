@@ -22,6 +22,10 @@ export interface IFoodOrder extends Document {
   patient_delivery_confirmed: boolean;
   admin_delivery_confirmed_at?: Date;
   patient_delivery_confirmed_at?: Date;
+  rating?: number;
+  feedback_comment?: string;
+  feedback_date?: Date;
+  has_feedback?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -47,6 +51,10 @@ const FoodOrderSchema: Schema = new Schema(
     patient_delivery_confirmed: { type: Boolean, default: false },
     admin_delivery_confirmed_at: { type: Date },
     patient_delivery_confirmed_at: { type: Date },
+    rating: { type: Number, min: 1, max: 5 },
+    feedback_comment: { type: String, default: '' },
+    feedback_date: { type: Date },
+    has_feedback: { type: Boolean, default: false },
   },
   {
     timestamps: true,

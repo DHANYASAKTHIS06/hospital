@@ -268,13 +268,8 @@ export const adminConfirmDelivery = async (req: AuthRequest, res: Response) => {
 
     order.admin_delivery_confirmed = true;
     order.admin_delivery_confirmed_at = new Date();
-
-    // Check if patient has also confirmed delivery
-    if (order.patient_delivery_confirmed) {
-      order.order_status = 'DELIVERED';
-    } else {
-      order.order_status = 'DELIVERY CONFIRMATION PENDING';
-    }
+    // Directly mark order as DELIVERED once admin confirms delivery
+    order.order_status = 'DELIVERED';
 
     await order.save();
 
@@ -285,7 +280,7 @@ export const adminConfirmDelivery = async (req: AuthRequest, res: Response) => {
     emitToAdmin('delivery_status_updated', payload);
 
     return res.status(200).json({
-      message: 'Admin delivery confirmed successfully',
+      message: 'Order marked as DELIVERED successfully',
       order: payload,
     });
   } catch (error: any) {
@@ -344,3 +339,50 @@ export const patientConfirmDelivery = async (req: AuthRequest, res: Response) =>
     return res.status(500).json({ message: 'Error confirming patient delivery.' });
   }
 };
+
+export const submitPatientFeedback = async (req: AuthRequest, res: Response) => {
+  try {
+    const { orderId } = req.params;
+    const patient_id = req.user?.patient_id;
+    const { rating, feedback_comment } = req.body;
+
+    if (!rating || Number(rating) < 1 || Number(rating) > 5) {
+      return res.status(400).json({ message: 'Rating must be a number between 1 and 5 stars.' });
+    }
+
+    const order = await FoodOrder.findOne({ order_id: orderId });
+    if (!order) {
+      return res.status(404).json({ message: 'Order not found.' });
+    }
+
+    if (order.patient_id !== patient_id) {
+      return res.status(403).json({ message: 'You can only leave feedback for your own orders.' });
+    }
+
+    if (order.order_status !== 'DELIVERED') {
+      return res.status(400).json({ message: 'Feedback can only be submitted for delivered orders.' });
+    }
+
+    order.rating = Number(rating);
+    order.feedback_comment = feedback_comment ? String(feedback_comment).trim() : '';
+    order.feedback_date = new Date();
+    order.has_feedback = true;
+
+    await order.save();
+
+    const items = await OrderItem.find({ order_id: order.order_id });
+    const payload = { ...order.toObject(), items };
+
+    emitToPatient(order.patient_id, 'order_status_updated', payload);
+    emitToAdmin('order_status_updated', payload);
+
+    return res.status(200).json({
+      message: 'Feedback submitted successfully',
+      order: payload,
+    });
+  } catch (error: any) {
+    console.error('Submit Feedback Error:', error);
+    return res.status(500).json({ message: 'Error submitting feedback.' });
+  }
+};
+

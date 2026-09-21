@@ -3,7 +3,7 @@ import { api } from '../services/api';
 import { useSocket } from '../context/SocketContext';
 import { FoodOrder, OrderStatus } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
-import { ShoppingBag, Check, X, Truck, AlertCircle } from 'lucide-react';
+import { ShoppingBag, Check, X, Truck, AlertCircle, Star, MessageSquare } from 'lucide-react';
 
 export const AdminOrders: React.FC = () => {
   const [orders, setOrders] = useState<FoodOrder[]>([]);
@@ -179,29 +179,48 @@ export const AdminOrders: React.FC = () => {
                 </table>
               </div>
 
+              {/* Patient Feedback Section if Submitted */}
+              {order.has_feedback && (
+                <div className="bg-amber-50/70 rounded-lg p-3 border border-amber-200/70 text-xs space-y-1">
+                  <div className="flex items-center gap-1 text-amber-700 font-bold">
+                    <span className="text-gray-700">Patient Rating & Feedback:</span>
+                    <div className="flex items-center gap-0.5 ml-1">
+                      {[1, 2, 3, 4, 5].map((star) => (
+                        <Star
+                          key={star}
+                          className={`w-3.5 h-3.5 ${
+                            star <= (order.rating || 0)
+                              ? 'text-amber-500 fill-amber-400'
+                              : 'text-gray-300'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                    <span className="text-gray-900 font-extrabold ml-1">({order.rating}/5)</span>
+                  </div>
+                  {order.feedback_comment && (
+                    <div className="text-gray-700 font-medium italic flex items-start gap-1 pt-0.5">
+                      <MessageSquare className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                      <span>"{order.feedback_comment}"</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Delivery Checklist & Admin Control Buttons */}
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-2 border-t border-gray-100">
                 <div className="text-xs space-y-1">
                   <div className="text-gray-700 font-semibold">
-                    Delivery Confirmations Checklist:
+                    Delivery Status:
                   </div>
-                  <div className="flex items-center space-x-4">
-                    <span>
-                      Admin: {' '}
-                      {order.admin_delivery_confirmed ? (
-                        <strong className="text-emerald-700">✓ Confirmed</strong>
-                      ) : (
-                        <strong className="text-amber-700">Pending</strong>
-                      )}
-                    </span>
-                    <span>
-                      Patient: {' '}
-                      {order.patient_delivery_confirmed ? (
-                        <strong className="text-emerald-700">✓ Confirmed</strong>
-                      ) : (
-                        <strong className="text-amber-700">Pending</strong>
-                      )}
-                    </span>
+                  <div>
+                    {order.order_status === 'DELIVERED' ? (
+                      <span className="text-emerald-700 font-bold">✓ DELIVERED</span>
+                    ) : order.admin_delivery_confirmed ? (
+                      <span className="text-emerald-700 font-bold">✓ Admin Confirmed</span>
+                    ) : (
+                      <span className="text-amber-700 font-semibold">In Progress / Pending</span>
+                    )}
                   </div>
                 </div>
 
@@ -228,15 +247,13 @@ export const AdminOrders: React.FC = () => {
                   {(order.order_status === 'ACCEPTED' ||
                     order.order_status === 'DELIVERY CONFIRMATION PENDING') && (
                     <>
-                      {!order.admin_delivery_confirmed && (
-                        <button
-                          onClick={() => handleAdminConfirmDelivery(order.order_id)}
-                          className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-4 py-2 rounded-lg transition-colors flex items-center gap-1 shadow-sm"
-                        >
-                          <Truck className="w-4 h-4" />
-                          <span>[ORDER DELIVERED]</span>
-                        </button>
-                      )}
+                      <button
+                        onClick={() => handleAdminConfirmDelivery(order.order_id)}
+                        className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-4 py-2 rounded-lg transition-colors flex items-center gap-1 shadow-sm"
+                      >
+                        <Truck className="w-4 h-4" />
+                        <span>MARK ORDER AS DELIVERED</span>
+                      </button>
                       <button
                         onClick={() => setCancellingOrder(order)}
                         className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-4 py-2 rounded-lg transition-colors flex items-center gap-1"

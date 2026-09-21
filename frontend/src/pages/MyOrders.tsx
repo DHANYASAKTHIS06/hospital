@@ -3,13 +3,20 @@ import { api } from '../services/api';
 import { useSocket } from '../context/SocketContext';
 import { FoodOrder } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
-import { ShoppingBag, CheckCircle, Clock, AlertTriangle } from 'lucide-react';
+import { ShoppingBag, Clock, AlertTriangle, Star, MessageSquare, X, CheckCircle2 } from 'lucide-react';
 
 export const MyOrders: React.FC = () => {
   const [orders, setOrders] = useState<FoodOrder[]>([]);
   const [loading, setLoading] = useState(true);
-  const [confirmingId, setConfirmingId] = useState<string | null>(null);
   const { socket } = useSocket();
+
+  // Feedback Modal State
+  const [feedbackOrder, setFeedbackOrder] = useState<FoodOrder | null>(null);
+  const [rating, setRating] = useState<number>(5);
+  const [hoverRating, setHoverRating] = useState<number>(0);
+  const [comment, setComment] = useState<string>('');
+  const [feedbackLoading, setFeedbackLoading] = useState<boolean>(false);
+  const [feedbackError, setFeedbackError] = useState<string | null>(null);
 
   const fetchOrders = async () => {
     try {
@@ -36,15 +43,32 @@ export const MyOrders: React.FC = () => {
     }
   }, [socket]);
 
-  const handlePatientConfirmDelivery = async (orderId: string) => {
-    setConfirmingId(orderId);
+  const handleOpenFeedback = (order: FoodOrder) => {
+    setFeedbackOrder(order);
+    setRating(5);
+    setHoverRating(0);
+    setComment('');
+    setFeedbackError(null);
+  };
+
+  const handleSubmitFeedback = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!feedbackOrder) return;
+    setFeedbackError(null);
+    setFeedbackLoading(true);
+
     try {
-      await api.post(`/patient/orders/${orderId}/confirm-delivery`);
+      await api.post(`/patient/orders/${feedbackOrder.order_id}/feedback`, {
+        rating,
+        feedback_comment: comment,
+      });
+
+      setFeedbackOrder(null);
       fetchOrders();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to confirm delivery.');
+      setFeedbackError(err.response?.data?.message || 'Failed to submit feedback.');
     } finally {
-      setConfirmingId(null);
+      setFeedbackLoading(false);
     }
   };
 
@@ -59,7 +83,7 @@ export const MyOrders: React.FC = () => {
             My Food Orders
           </h1>
           <p className="text-xs text-slate-500 mt-0.5 font-medium">
-            Track live food order status and confirm physical delivery.
+            Track live food order status and share feedback on delivered orders.
           </p>
         </div>
 
@@ -81,10 +105,7 @@ export const MyOrders: React.FC = () => {
       ) : (
         <div className="space-y-4">
           {orders.map((order) => {
-            const isAccepted = order.order_status === 'ACCEPTED';
-            const isDeliveryPending = order.order_status === 'DELIVERY CONFIRMATION PENDING';
-            const canConfirmDelivery =
-              (isAccepted || isDeliveryPending) && !order.patient_delivery_confirmed;
+            const isDelivered = order.order_status === 'DELIVERED';
 
             return (
               <div
@@ -135,43 +156,56 @@ export const MyOrders: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Delivery Confirmation Box */}
-                <div className="bg-blue-50/50 rounded-xl p-4 border border-blue-100/80 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs">
-                  <div className="space-y-1">
-                    <div className="font-bold text-slate-800 flex items-center gap-2">
-                      <span>Delivery Status Checklist:</span>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-3 text-slate-700 font-medium">
-                      <span>
-                        Admin:{' '}
-                        {order.admin_delivery_confirmed ? (
-                          <span className="text-emerald-700 font-bold">✓ Confirmed</span>
-                        ) : (
-                          <span className="text-amber-700 font-semibold">Pending</span>
-                        )}
-                      </span>
-                      <span>
-                        Patient:{' '}
-                        {order.patient_delivery_confirmed ? (
-                          <span className="text-emerald-700 font-bold">✓ Confirmed</span>
-                        ) : (
-                          <span className="text-amber-700 font-semibold">Pending</span>
-                        )}
-                      </span>
-                    </div>
-                  </div>
+                {/* Patient Feedback Section for DELIVERED orders */}
+                {isDelivered && (
+                  <div className="bg-gradient-to-r from-blue-50/70 to-indigo-50/70 rounded-xl p-4 border border-blue-200/60 space-y-2">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                      <div className="flex items-center gap-2">
+                        <Star className="w-4 h-4 text-amber-500 fill-amber-400" />
+                        <span className="text-xs font-bold text-slate-800">Patient Feedback & Food Rating:</span>
+                      </div>
 
-                  {canConfirmDelivery && (
-                    <button
-                      onClick={() => handlePatientConfirmDelivery(order.order_id)}
-                      disabled={confirmingId === order.order_id}
-                      className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold px-4 py-2.5 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-xs text-xs shrink-0 active:scale-95"
-                    >
-                      <CheckCircle className="w-4 h-4" />
-                      <span>{confirmingId === order.order_id ? 'Confirming...' : 'CONFIRM DELIVERY'}</span>
-                    </button>
-                  )}
-                </div>
+                      {order.has_feedback ? (
+                        <div className="flex items-center gap-1 text-emerald-700 bg-emerald-100/80 px-2.5 py-1 rounded-lg text-xs font-bold">
+                          <CheckCircle2 className="w-3.5 h-3.5" />
+                          <span>Feedback Submitted</span>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleOpenFeedback(order)}
+                          className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-extrabold px-3.5 py-2 rounded-xl transition-all shadow-sm flex items-center gap-1.5 active:scale-95"
+                        >
+                          <Star className="w-3.5 h-3.5 fill-current" />
+                          <span>Leave Feedback</span>
+                        </button>
+                      )}
+                    </div>
+
+                    {order.has_feedback && (
+                      <div className="bg-white/90 p-3 rounded-xl border border-blue-100 text-xs space-y-1">
+                        <div className="flex items-center gap-1 text-amber-500 font-bold">
+                          {[1, 2, 3, 4, 5].map((star) => (
+                            <Star
+                              key={star}
+                              className={`w-4 h-4 ${
+                                star <= (order.rating || 0)
+                                  ? 'text-amber-500 fill-amber-400'
+                                  : 'text-slate-200'
+                              }`}
+                            />
+                          ))}
+                          <span className="text-slate-700 font-bold text-xs ml-1">({order.rating}/5)</span>
+                        </div>
+                        {order.feedback_comment && (
+                          <div className="text-slate-600 font-medium italic flex items-start gap-1.5 pt-1">
+                            <MessageSquare className="w-3.5 h-3.5 text-slate-400 shrink-0 mt-0.5" />
+                            <span>"{order.feedback_comment}"</span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Cancellation Details if Cancelled */}
                 {order.order_status === 'CANCELLED' && (
@@ -195,6 +229,93 @@ export const MyOrders: React.FC = () => {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* FEEDBACK SUBMISSION MODAL */}
+      {feedbackOrder && (
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 space-y-5 shadow-2xl border border-slate-100">
+            <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-amber-50 text-amber-600">
+                  <Star className="w-5 h-5 fill-amber-400" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900">Food & Delivery Feedback</h3>
+                  <p className="text-[11px] text-slate-500 font-medium">Order #{feedbackOrder.order_id}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setFeedbackOrder(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {feedbackError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl font-semibold">
+                {feedbackError}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmitFeedback} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-2">Rating (1 to 5 Stars) *</label>
+                <div className="flex items-center justify-center gap-2 bg-slate-50 py-3 rounded-2xl border border-slate-200/80">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setRating(star)}
+                      onMouseEnter={() => setHoverRating(star)}
+                      onMouseLeave={() => setHoverRating(0)}
+                      className="p-1 transition-transform hover:scale-110 focus:outline-none"
+                    >
+                      <Star
+                        className={`w-7 h-7 ${
+                          star <= (hoverRating || rating)
+                            ? 'text-amber-500 fill-amber-400'
+                            : 'text-slate-200'
+                        }`}
+                      />
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Written Feedback / Comments <span className="text-slate-400 font-normal">(Optional)</span>
+                </label>
+                <textarea
+                  rows={3}
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  placeholder="Share your thoughts about food taste, temperature, portion, or delivery service..."
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-blue-500 outline-none"
+                />
+              </div>
+
+              <div className="pt-2 flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setFeedbackOrder(null)}
+                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-xl transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={feedbackLoading}
+                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl transition-colors shadow-sm disabled:opacity-50"
+                >
+                  {feedbackLoading ? 'Submitting...' : 'Submit Feedback'}
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       )}
     </div>

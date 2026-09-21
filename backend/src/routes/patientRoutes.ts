@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { authenticateToken, requirePatient } from '../middleware/auth';
 import { getProfile, getFoodHistory } from '../controllers/patientController';
 import { getMenuItems } from '../controllers/menuController';
-import { createOrder, getPatientOrders, patientConfirmDelivery } from '../controllers/orderController';
+import { createOrder, getPatientOrders, patientConfirmDelivery, submitPatientFeedback } from '../controllers/orderController';
 import { getPatientBills } from '../controllers/billController';
 import { getPatientPaymentStatus } from '../controllers/paymentController';
 
@@ -17,6 +17,7 @@ router.get('/menu', getMenuItems);
 router.post('/orders', createOrder);
 router.get('/orders', getPatientOrders);
 router.post('/orders/:orderId/confirm-delivery', patientConfirmDelivery);
+router.post('/orders/:orderId/feedback', submitPatientFeedback);
 
 // EXPLICIT REJECTION for any attempt by patient to cancel order
 router.post('/orders/:orderId/cancel', (req, res) => {

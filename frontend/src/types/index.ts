@@ -72,6 +72,10 @@ export interface FoodOrder {
   patient_delivery_confirmed: boolean;
   admin_delivery_confirmed_at?: string;
   patient_delivery_confirmed_at?: string;
+  rating?: number;
+  feedback_comment?: string;
+  feedback_date?: string;
+  has_feedback?: boolean;
   items?: OrderItem[];
   createdAt: string;
 }

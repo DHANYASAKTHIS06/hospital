@@ -55,6 +55,10 @@ const FoodOrderSchema = new mongoose_1.Schema({
     patient_delivery_confirmed: { type: Boolean, default: false },
     admin_delivery_confirmed_at: { type: Date },
     patient_delivery_confirmed_at: { type: Date },
+    rating: { type: Number, min: 1, max: 5 },
+    feedback_comment: { type: String, default: '' },
+    feedback_date: { type: Date },
+    has_feedback: { type: Boolean, default: false },
 }, {
     timestamps: true,
     collection: 'foodorders',
