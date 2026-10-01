@@ -7,10 +7,13 @@ const menuController_1 = require("../controllers/menuController");
 const orderController_1 = require("../controllers/orderController");
 const billController_1 = require("../controllers/billController");
 const paymentController_1 = require("../controllers/paymentController");
+const systemController_1 = require("../controllers/systemController");
 const router = (0, express_1.Router)();
 // Apply auth middleware and requireAdmin to all admin routes
 router.use(auth_1.authenticateToken, auth_1.requireAdmin);
 router.get('/dashboard', adminController_1.getAdminDashboardStats);
+router.get('/system-status', systemController_1.getSystemStatus);
+router.post('/toggle-ordering-lock', systemController_1.toggleOrderingLock);
 // Order Management
 router.get('/orders', orderController_1.getAllOrdersAdmin);
 router.post('/orders/:orderId/accept', orderController_1.acceptOrder);

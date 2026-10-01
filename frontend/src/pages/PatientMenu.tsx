@@ -1,17 +1,20 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
+import { useSocket } from '../context/SocketContext';
 import { MenuItem, Category } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
-import { ShoppingBag, Plus, Minus, Check, Utensils, AlertCircle } from 'lucide-react';
+import { ShoppingBag, Plus, Minus, Check, Utensils, AlertCircle, Lock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const PatientMenu: React.FC = () => {
   const navigate = useNavigate();
+  const { socket } = useSocket();
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<Category | 'ALL'>('ALL');
   const [cart, setCart] = useState<{ [menu_id: number]: number }>({});
   const [mealType, setMealType] = useState<string>('Breakfast');
+  const [isOrderingLocked, setIsOrderingLocked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -19,10 +22,14 @@ export const PatientMenu: React.FC = () => {
 
   const categories: Category[] = ['TEA / MILK', 'BREAKFAST', 'LUNCH', 'DINNER', 'SNACKS'];
 
-  const fetchMenu = async () => {
+  const fetchMenuAndStatus = async () => {
     try {
-      const response = await api.get('/patient/menu');
-      setMenuItems(response.data);
+      const [menuRes, statusRes] = await Promise.all([
+        api.get('/patient/menu'),
+        api.get('/patient/system-status'),
+      ]);
+      setMenuItems(menuRes.data || []);
+      setIsOrderingLocked(Boolean(statusRes.data?.is_ordering_locked));
     } catch (err: any) {
       setError('Failed to fetch menu items.');
     } finally {
@@ -31,10 +38,22 @@ export const PatientMenu: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchMenu();
-  }, []);
+    fetchMenuAndStatus();
+
+    if (socket) {
+      socket.on('ordering_status_changed', (data: { is_ordering_locked: boolean }) => {
+        setIsOrderingLocked(data.is_ordering_locked);
+      });
+
+      return () => {
+        socket.off('ordering_status_changed');
+      };
+    }
+  }, [socket]);
 
   const handleQtyChange = (menu_id: number, delta: number) => {
+    if (isOrderingLocked) return;
+
     setCart((prev) => {
       const current = prev[menu_id] || 0;
       const next = Math.max(0, current + delta);
@@ -62,6 +81,11 @@ export const PatientMenu: React.FC = () => {
     setError(null);
     setSuccessMsg(null);
 
+    if (isOrderingLocked) {
+      setError('Ordering is currently closed by the admin. Please try again later.');
+      return;
+    }
+
     const itemsToOrder = Object.entries(cart).map(([menu_id, quantity]) => ({
       menu_id: Number(menu_id),
       quantity,
@@ -79,7 +103,7 @@ export const PatientMenu: React.FC = () => {
         meal_type: mealType,
       });
 
-      setSuccessMsg('Order placed successfully! Order status set to PENDING.');
+      setSuccessMsg('Order placed successfully!');
       setCart({});
       setTimeout(() => {
         navigate('/patient/orders');
@@ -119,8 +143,9 @@ export const PatientMenu: React.FC = () => {
           <label className="font-bold text-slate-700 whitespace-nowrap">Meal Type:</label>
           <select
             value={mealType}
+            disabled={isOrderingLocked}
             onChange={(e) => setMealType(e.target.value)}
-            className="w-full sm:w-auto border border-slate-200 rounded-xl px-3 py-2 bg-slate-50 text-slate-800 font-semibold focus:ring-2 focus:ring-blue-500 outline-none"
+            className="w-full sm:w-auto border border-slate-200 rounded-xl px-3 py-2 bg-slate-50 text-slate-800 font-semibold focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-50"
           >
             <option value="Tea / Coffee">Tea / Milk</option>
             <option value="Breakfast">Breakfast</option>
@@ -131,7 +156,22 @@ export const PatientMenu: React.FC = () => {
         </div>
       </div>
 
-      {/* Category Horizontal Scroll Bar on Mobile */}
+      {/* ORDERING LOCKED WARNING BANNER */}
+      {isOrderingLocked && (
+        <div className="p-4 bg-rose-50 border-2 border-rose-300 text-rose-900 text-sm rounded-2xl font-bold flex items-center gap-3 shadow-xs">
+          <div className="p-2 bg-rose-600 text-white rounded-xl">
+            <Lock className="w-6 h-6 shrink-0" />
+          </div>
+          <div>
+            <h3 className="font-black text-base text-rose-950">Ordering is currently closed</h3>
+            <p className="text-xs font-semibold text-rose-800 mt-0.5">
+              The admin has temporarily paused new food orders. You cannot place orders until the admin unlocks ordering.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Category Horizontal Scroll Bar */}
       <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none no-scrollbar">
         <button
           onClick={() => setSelectedCategory('ALL')}
@@ -185,7 +225,7 @@ export const PatientMenu: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredItems.map((item) => {
-            const isAvailable = item.is_available_today;
+            const isAvailable = item.is_available_today && !isOrderingLocked;
             const qtyInCart = cart[item.menu_id] || 0;
 
             return (
@@ -204,7 +244,7 @@ export const PatientMenu: React.FC = () => {
                       <h3 className="text-base font-bold text-slate-900 mt-1">{item.item_name}</h3>
                     </div>
                     <StatusBadge
-                      status={isAvailable ? 'AVAILABLE' : 'UNAVAILABLE'}
+                      status={isOrderingLocked ? 'UNAVAILABLE' : isAvailable ? 'AVAILABLE' : 'UNAVAILABLE'}
                       type="menu"
                     />
                   </div>
@@ -218,7 +258,7 @@ export const PatientMenu: React.FC = () => {
                     <span className="text-base font-black text-blue-700">₹{item.price}</span>
                   </div>
 
-                  {!isAvailable && (
+                  {!item.is_available_today && (
                     <div className="text-[11px] text-amber-800 bg-amber-50 p-2 rounded-xl border border-amber-200/80 mb-2 font-medium">
                       Available on: {item.available_days.join(', ')}
                     </div>
@@ -233,8 +273,8 @@ export const PatientMenu: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => handleQtyChange(item.menu_id, -1)}
-                          disabled={qtyInCart === 0}
-                          className="px-3 py-1.5 text-slate-600 hover:bg-slate-200 active:bg-slate-300 disabled:opacity-30 transition-colors"
+                          disabled={qtyInCart === 0 || isOrderingLocked}
+                          className="px-3 py-1.5 text-slate-600 hover:bg-slate-200 active:bg-slate-300 disabled:opacity-30 transition-colors cursor-pointer"
                         >
                           <Minus className="w-3.5 h-3.5" />
                         </button>
@@ -244,7 +284,8 @@ export const PatientMenu: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => handleQtyChange(item.menu_id, 1)}
-                          className="px-3 py-1.5 text-slate-600 hover:bg-slate-200 active:bg-slate-300 transition-colors"
+                          disabled={isOrderingLocked}
+                          className="px-3 py-1.5 text-slate-600 hover:bg-slate-200 active:bg-slate-300 disabled:opacity-30 transition-colors cursor-pointer"
                         >
                           <Plus className="w-3.5 h-3.5" />
                         </button>
@@ -252,8 +293,9 @@ export const PatientMenu: React.FC = () => {
 
                       <button
                         type="button"
+                        disabled={isOrderingLocked}
                         onClick={() => handleQtyChange(item.menu_id, qtyInCart > 0 ? 0 : 1)}
-                        className={`text-xs font-extrabold px-3.5 py-1.5 rounded-xl transition-all ${
+                        className={`text-xs font-extrabold px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
                           qtyInCart > 0
                             ? 'bg-emerald-600 text-white shadow-xs'
                             : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200/80'
@@ -263,7 +305,9 @@ export const PatientMenu: React.FC = () => {
                       </button>
                     </div>
                   ) : (
-                    <span className="text-xs text-slate-400 font-semibold italic">Unavailable Today</span>
+                    <span className="text-xs text-rose-500 font-extrabold italic">
+                      {isOrderingLocked ? 'Ordering Closed' : 'Unavailable Today'}
+                    </span>
                   )}
                 </div>
               </div>
@@ -287,10 +331,10 @@ export const PatientMenu: React.FC = () => {
 
           <button
             onClick={handlePlaceOrder}
-            disabled={submitting}
-            className="bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-black text-xs sm:text-sm px-5 py-2.5 rounded-xl shadow transition-colors disabled:opacity-50"
+            disabled={submitting || isOrderingLocked}
+            className="bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-black text-xs sm:text-sm px-5 py-2.5 rounded-xl shadow transition-colors disabled:opacity-50 cursor-pointer"
           >
-            {submitting ? 'Placing Order...' : 'PLACE ORDER'}
+            {submitting ? 'Placing Order...' : isOrderingLocked ? 'Ordering Closed' : 'PLACE ORDER'}
           </button>
         </div>
       )}

@@ -23,6 +23,7 @@ import {
 } from '../controllers/orderController';
 import { generateBill, getAllBillsAdmin } from '../controllers/billController';
 import { updatePaymentStatus } from '../controllers/paymentController';
+import { getSystemStatus, toggleOrderingLock } from '../controllers/systemController';
 
 const router = Router();
 
@@ -30,6 +31,8 @@ const router = Router();
 router.use(authenticateToken, requireAdmin);
 
 router.get('/dashboard', getAdminDashboardStats);
+router.get('/system-status', getSystemStatus);
+router.post('/toggle-ordering-lock', toggleOrderingLock);
 
 // Order Management
 router.get('/orders', getAllOrdersAdmin);

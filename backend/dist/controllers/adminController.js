@@ -45,11 +45,14 @@ const OrderItem_1 = require("../models/OrderItem");
 const Bill_1 = require("../models/Bill");
 const MenuItem_1 = require("../models/MenuItem");
 const Counter_1 = require("../models/Counter");
+const systemController_1 = require("./systemController");
 const getAdminDashboardStats = async (req, res) => {
     try {
+        const is_ordering_locked = await (0, systemController_1.getOrderingLockedStatus)();
         const totalPatients = await Patient_1.Patient.countDocuments();
-        const pendingOrders = await FoodOrder_1.FoodOrder.countDocuments({ order_status: 'PENDING' });
-        const acceptedOrders = await FoodOrder_1.FoodOrder.countDocuments({ order_status: 'ACCEPTED' });
+        const activeOrdersCount = await FoodOrder_1.FoodOrder.countDocuments({
+            order_status: { $nin: ['DELIVERED', 'CANCELLED'] },
+        });
         const todayStr = new Date().toLocaleDateString('en-GB');
         const todaysOrdersDocs = await FoodOrder_1.FoodOrder.find({ order_date: todayStr });
         const todayOrdersCount = todaysOrdersDocs.length;
@@ -59,12 +62,14 @@ const getAdminDashboardStats = async (req, res) => {
         const pendingPaymentsCount = await Bill_1.Bill.countDocuments({
             payment_status: { $in: ['UNPAID', 'ADVANCE'] },
         });
-        const recentPendingOrders = await FoodOrder_1.FoodOrder.find({ order_status: 'PENDING' })
+        const recentActiveOrders = await FoodOrder_1.FoodOrder.find({
+            order_status: { $nin: ['DELIVERED', 'CANCELLED'] },
+        })
             .sort({ createdAt: -1 })
             .limit(10);
         const patients = await Patient_1.Patient.find();
         const patientMap = new Map(patients.map((p) => [p.patient_id, p]));
-        const enrichedPendingOrders = await Promise.all(recentPendingOrders.map(async (order) => {
+        const enrichedRecentActiveOrders = await Promise.all(recentActiveOrders.map(async (order) => {
             const items = await OrderItem_1.OrderItem.find({ order_id: order.order_id });
             const patient = patientMap.get(order.patient_id);
             return {
@@ -74,20 +79,18 @@ const getAdminDashboardStats = async (req, res) => {
                 items,
             };
         }));
-        // Food Items to Prepare aggregation
-        // Aggregates quantities from all ACCEPTED and DELIVERY CONFIRMATION PENDING orders
+        // Food Items to Prepare aggregation:
+        // Aggregates quantities from ALL active (non-delivered, non-cancelled) orders
         let allMenuItems = await MenuItem_1.MenuItem.find().sort({ menu_id: 1 });
         if (!allMenuItems || allMenuItems.length === 0) {
             const { seedDatabase } = await Promise.resolve().then(() => __importStar(require('../seed/seedData')));
             await seedDatabase();
             allMenuItems = await MenuItem_1.MenuItem.find().sort({ menu_id: 1 });
         }
-        const activeAcceptedOrders = await FoodOrder_1.FoodOrder.find({
-            order_status: {
-                $in: ['ACCEPTED', 'DELIVERY CONFIRMATION PENDING', 'Accepted', 'Delivery Confirmation Pending'],
-            },
+        const activeOrders = await FoodOrder_1.FoodOrder.find({
+            order_status: { $nin: ['DELIVERED', 'CANCELLED'] },
         });
-        const activeOrderIds = activeAcceptedOrders.map((o) => o.order_id);
+        const activeOrderIds = activeOrders.map((o) => o.order_id);
         const activeOrderItems = await OrderItem_1.OrderItem.find({ order_id: { $in: activeOrderIds } });
         const quantityByMenuId = new Map();
         const quantityByName = new Map();
@@ -114,13 +117,16 @@ const getAdminDashboardStats = async (req, res) => {
             };
         });
         return res.status(200).json({
+            is_ordering_locked,
             totalPatients,
-            pendingOrders,
-            acceptedOrders,
+            pendingOrders: 0,
+            acceptedOrders: activeOrdersCount,
+            activeOrdersCount,
             todayOrdersCount,
             todaysRevenue,
             pendingPaymentsCount,
-            recentPendingOrders: enrichedPendingOrders,
+            recentPendingOrders: enrichedRecentActiveOrders,
+            recentActiveOrders: enrichedRecentActiveOrders,
             foodItemsToPrepare,
         });
     }

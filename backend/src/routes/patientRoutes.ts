@@ -5,12 +5,14 @@ import { getMenuItems } from '../controllers/menuController';
 import { createOrder, getPatientOrders, patientConfirmDelivery, submitPatientFeedback } from '../controllers/orderController';
 import { getPatientBills } from '../controllers/billController';
 import { getPatientPaymentStatus } from '../controllers/paymentController';
+import { getSystemStatus } from '../controllers/systemController';
 
 const router = Router();
 
 // Apply auth middleware to all patient routes
 router.use(authenticateToken, requirePatient);
 
+router.get('/system-status', getSystemStatus);
 router.get('/profile', getProfile);
 router.get('/menu', getMenuItems);
 

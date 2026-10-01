@@ -1,35 +1,47 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { useSocket } from '../context/SocketContext';
-import { FoodOrder, FoodItemToPrepare, Category } from '../types';
+import { FoodOrder, FoodItemToPrepare } from '../types';
+import { PrintableReportsModal } from '../components/PrintableReportsModal';
 import {
   Users,
   Clock,
-  CheckCircle,
   ShoppingBag,
   IndianRupee,
   CreditCard,
-  Check,
-  X,
-  AlertCircle,
   ChefHat,
   Utensils,
   Filter,
+  Lock,
+  Unlock,
+  Printer,
+  Truck,
+  Building2,
 } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
   const [stats, setStats] = useState<any>(null);
+  const [allOrders, setAllOrders] = useState<FoodOrder[]>([]);
   const [loading, setLoading] = useState(true);
-  const [cancellingOrder, setCancellingOrder] = useState<FoodOrder | null>(null);
-  const [cancelReason, setCancelReason] = useState('Food item unavailable');
+  const [isOrderingLocked, setIsOrderingLocked] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [showOnlyRequired, setShowOnlyRequired] = useState<boolean>(false);
+
+  // Print modal state
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [reportType, setReportType] = useState<'ROOM_WISE' | 'ITEMS_TO_PREPARE'>('ROOM_WISE');
+
   const { socket } = useSocket();
 
-  const fetchStats = async () => {
+  const fetchStatsAndOrders = async () => {
     try {
-      const response = await api.get('/admin/dashboard');
-      setStats(response.data);
+      const [statsRes, ordersRes] = await Promise.all([
+        api.get('/admin/dashboard'),
+        api.get('/admin/orders'),
+      ]);
+      setStats(statsRes.data);
+      setIsOrderingLocked(Boolean(statsRes.data?.is_ordering_locked));
+      setAllOrders(ordersRes.data || []);
     } catch (err) {
       console.error('Error fetching admin dashboard stats:', err);
     } finally {
@@ -38,51 +50,57 @@ export const AdminDashboard: React.FC = () => {
   };
 
   useEffect(() => {
-    fetchStats();
+    fetchStatsAndOrders();
 
     if (socket) {
-      socket.on('new_order', () => fetchStats());
-      socket.on('order_status_updated', () => fetchStats());
-      socket.on('delivery_status_updated', () => fetchStats());
-      socket.on('payment_status_updated', () => fetchStats());
+      socket.on('new_order', () => fetchStatsAndOrders());
+      socket.on('order_status_updated', () => fetchStatsAndOrders());
+      socket.on('delivery_status_updated', () => fetchStatsAndOrders());
+      socket.on('payment_status_updated', () => fetchStatsAndOrders());
+      socket.on('ordering_status_changed', (data: { is_ordering_locked: boolean }) => {
+        setIsOrderingLocked(data.is_ordering_locked);
+      });
 
       return () => {
         socket.off('new_order');
         socket.off('order_status_updated');
         socket.off('delivery_status_updated');
         socket.off('payment_status_updated');
+        socket.off('ordering_status_changed');
       };
     }
   }, [socket]);
 
-  const handleAcceptOrder = async (orderId: string) => {
+  const handleToggleLock = async () => {
     try {
-      await api.post(`/admin/orders/${orderId}/accept`);
-      fetchStats();
+      const res = await api.post('/admin/toggle-ordering-lock', {
+        is_ordering_locked: !isOrderingLocked,
+      });
+      setIsOrderingLocked(res.data.is_ordering_locked);
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to accept order.');
+      alert(err.response?.data?.message || 'Failed to toggle ordering lock.');
     }
   };
 
-  const handleCancelOrderSubmit = async () => {
-    if (!cancellingOrder) return;
+  const handleAdminConfirmDelivery = async (orderId: string) => {
     try {
-      await api.post(`/admin/orders/${cancellingOrder.order_id}/cancel`, {
-        reason: cancelReason,
-      });
-      setCancellingOrder(null);
-      fetchStats();
+      await api.post(`/admin/orders/${orderId}/confirm-delivery`);
+      fetchStatsAndOrders();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to cancel order.');
+      alert(err.response?.data?.message || 'Failed to confirm delivery.');
     }
+  };
+
+  const openReport = (type: 'ROOM_WISE' | 'ITEMS_TO_PREPARE') => {
+    setReportType(type);
+    setIsReportModalOpen(true);
   };
 
   if (loading) {
-    return <div className="text-center py-12 text-gray-500 text-xs">Loading Admin Dashboard...</div>;
+    return <div className="text-center py-12 text-gray-500 text-xs font-semibold">Loading Admin Dashboard...</div>;
   }
 
   const foodItemsToPrepare: FoodItemToPrepare[] = stats?.foodItemsToPrepare || [];
-
   const categories: string[] = ['ALL', 'TEA / MILK', 'BREAKFAST', 'LUNCH', 'DINNER', 'SNACKS'];
 
   const filteredItems = foodItemsToPrepare.filter((item) => {
@@ -105,21 +123,75 @@ export const AdminDashboard: React.FC = () => {
     (item) => item.total_preparation_quantity > 0
   ).length;
 
+  const activeOrdersList: FoodOrder[] = stats?.recentActiveOrders || stats?.recentPendingOrders || [];
+
   return (
     <div className="space-y-6">
-      {/* Title */}
-      <div className="bg-slate-900 text-white p-6 rounded-xl shadow-sm flex justify-between items-center">
+      {/* Title & Lock Controls Bar */}
+      <div className="bg-slate-900 text-white p-6 rounded-2xl shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider">
-            Hospital Canteen Manager
+          <span className="text-xs font-extrabold text-amber-400 uppercase tracking-wider">
+            Hospital Canteen Operations Manager
           </span>
           <h1 className="text-2xl font-bold mt-1">ADMIN DASHBOARD</h1>
-          <p className="text-xs text-slate-300">Live canteen order receiving and preparation management portal.</p>
+          <p className="text-xs text-slate-300">Live canteen order processing, preparation aggregation, and print reports.</p>
+        </div>
+
+        {/* Lock / Unlock Control & Report Action Buttons */}
+        <div className="flex flex-wrap items-center gap-2.5 w-full md:w-auto">
+          {/* Lock / Unlock Toggle */}
+          <button
+            onClick={handleToggleLock}
+            className={`px-4 py-2.5 rounded-xl font-extrabold text-xs flex items-center gap-2 transition-all shadow-sm cursor-pointer ${
+              isOrderingLocked
+                ? 'bg-rose-600 hover:bg-rose-500 text-white ring-2 ring-rose-400/50'
+                : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+            }`}
+          >
+            {isOrderingLocked ? (
+              <>
+                <Lock className="w-4 h-4" />
+                <span>ORDERING IS LOCKED (CLOSED)</span>
+              </>
+            ) : (
+              <>
+                <Unlock className="w-4 h-4" />
+                <span>ORDERING IS OPEN (UNLOCKED)</span>
+              </>
+            )}
+          </button>
+
+          {/* Printable Report Buttons */}
+          <button
+            onClick={() => openReport('ROOM_WISE')}
+            className="bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
+          >
+            <Building2 className="w-4 h-4" />
+            <span>Print Room-Wise Report</span>
+          </button>
+
+          <button
+            onClick={() => openReport('ITEMS_TO_PREPARE')}
+            className="bg-emerald-700 hover:bg-emerald-600 text-white px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
+          >
+            <Printer className="w-4 h-4" />
+            <span>Print Items to Be Prepared</span>
+          </button>
         </div>
       </div>
 
+      {/* Ordering Lock Status Notification Banner */}
+      {isOrderingLocked && (
+        <div className="p-4 bg-rose-50 border-2 border-rose-300 text-rose-900 rounded-xl text-xs font-bold flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Lock className="w-5 h-5 text-rose-600 shrink-0" />
+            <span>Ordering Control is LOCKED: Patients cannot place new orders right now. Click "ORDERING IS LOCKED" button above to unlock.</span>
+          </div>
+        </div>
+      )}
+
       {/* Stats Cards Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
           <div className="flex justify-between items-center text-gray-500 mb-2">
             <span className="text-xs font-semibold">Total Patients</span>
@@ -129,19 +201,11 @@ export const AdminDashboard: React.FC = () => {
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
-          <div className="flex justify-between items-center text-amber-600 mb-2">
-            <span className="text-xs font-semibold text-gray-500">Pending Orders</span>
-            <Clock className="w-4 h-4 text-amber-600" />
-          </div>
-          <div className="text-xl font-bold text-amber-700">{stats?.pendingOrders || 0}</div>
-        </div>
-
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
           <div className="flex justify-between items-center text-blue-600 mb-2">
-            <span className="text-xs font-semibold text-gray-500">Accepted Orders</span>
-            <CheckCircle className="w-4 h-4 text-blue-600" />
+            <span className="text-xs font-semibold text-gray-500">Active Orders</span>
+            <Clock className="w-4 h-4 text-blue-600" />
           </div>
-          <div className="text-xl font-bold text-blue-700">{stats?.acceptedOrders || 0}</div>
+          <div className="text-xl font-bold text-blue-700">{stats?.acceptedOrders || stats?.activeOrdersCount || 0}</div>
         </div>
 
         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
@@ -175,29 +239,30 @@ export const AdminDashboard: React.FC = () => {
           <div>
             <h2 className="text-base font-bold text-emerald-950 flex items-center gap-2">
               <ChefHat className="w-5 h-5 text-emerald-700" />
-              FOOD ITEMS TO PREPARE
+              FOOD ITEMS TO PREPARE (COOKING DEPARTMENT REPORT)
             </h2>
             <p className="text-xs text-emerald-800 mt-0.5">
-              Live preparation counts aggregated automatically from accepted orders. Deducted upon delivery confirmation.
+              Aggregated total quantities from active patient orders. Automatically deducted when marked as delivered.
             </p>
           </div>
           <div className="flex items-center gap-3">
+            <button
+              onClick={() => openReport('ITEMS_TO_PREPARE')}
+              className="bg-emerald-800 hover:bg-emerald-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>Print Kitchen Report</span>
+            </button>
             <div className="bg-emerald-100 border border-emerald-300 text-emerald-950 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2">
-              <span>Items to Cook:</span>
+              <span>Portions to Cook:</span>
               <span className="bg-emerald-700 text-white px-2 py-0.5 rounded-md font-mono text-sm">
                 {totalPreparationQuantity}
-              </span>
-            </div>
-            <div className="bg-emerald-100 border border-emerald-300 text-emerald-950 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2">
-              <span>Active Dishes:</span>
-              <span className="bg-emerald-900 text-white px-2 py-0.5 rounded-md font-mono text-sm">
-                {distinctItemsToPrepareCount}
               </span>
             </div>
           </div>
         </div>
 
-        {/* Filters & Tabs */}
+        {/* Category Filters */}
         <div className="p-4 bg-gray-50 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-xs font-semibold text-gray-500 mr-1 flex items-center gap-1">
@@ -285,37 +350,48 @@ export const AdminDashboard: React.FC = () => {
         </div>
       </div>
 
-      {/* NEW ORDERS / PENDING ORDERS SECTION */}
+      {/* ACTIVE PATIENT ORDERS SECTION */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 bg-amber-50 flex justify-between items-center">
-          <h2 className="text-sm font-bold text-amber-900 flex items-center gap-2">
-            <Clock className="w-4 h-4 text-amber-700" />
-            NEW ORDERS / PENDING ORDERS
-          </h2>
-          <span className="text-xs font-bold bg-amber-200 text-amber-900 px-2.5 py-0.5 rounded-full">
-            {stats?.recentPendingOrders?.length || 0} Pending
-          </span>
+        <div className="px-6 py-4 border-b border-gray-200 bg-slate-900 text-white flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <Clock className="w-4 h-4 text-blue-400" />
+            <h2 className="text-sm font-bold uppercase tracking-wide">
+              ACTIVE PATIENT ORDERS (AWAITING DELIVERY)
+            </h2>
+          </div>
+          <div className="flex items-center space-x-2">
+            <button
+              onClick={() => openReport('ROOM_WISE')}
+              className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span>Print Room-Wise Report</span>
+            </button>
+            <span className="text-xs font-bold bg-blue-500/30 text-blue-200 px-2.5 py-0.5 rounded-full border border-blue-400/30">
+              {activeOrdersList.length} Active Orders
+            </span>
+          </div>
         </div>
 
-        {!stats?.recentPendingOrders || stats.recentPendingOrders.length === 0 ? (
+        {activeOrdersList.length === 0 ? (
           <div className="p-12 text-center text-gray-500 text-xs">
-            No pending order requests at the moment.
+            No active patient orders currently pending delivery.
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
-            {stats.recentPendingOrders.map((order: FoodOrder) => (
-              <div key={order._id} className="p-6 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 hover:bg-amber-50/30 transition-colors">
+            {activeOrdersList.map((order: FoodOrder) => (
+              <div key={order._id} className="p-6 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 hover:bg-slate-50 transition-colors">
                 <div className="space-y-2">
                   <div className="flex flex-wrap items-center gap-3">
                     <span className="font-mono text-base font-bold text-blue-700">{order.order_id}</span>
-                    <span className="text-xs font-bold text-gray-900 bg-gray-100 px-2.5 py-0.5 rounded">
+                    <span className="text-xs font-bold text-gray-900 bg-blue-50 text-blue-900 border border-blue-200 px-2.5 py-0.5 rounded">
                       Patient: {order.patient_name} ({order.patient_id})
                     </span>
-                    <span className="text-xs font-bold text-slate-800 bg-slate-100 px-2.5 py-0.5 rounded">
-                      Room No: {order.room_number}
+                    <span className="text-xs font-extrabold text-slate-900 bg-slate-100 border border-slate-300 px-2.5 py-0.5 rounded">
+                      Room #{order.room_number || 'N/A'}
                     </span>
-                    <span className="text-xs text-gray-500">
-                      {order.order_date} • {order.order_time}
+                    <span className="text-xs text-gray-500 font-medium">
+                      {order.order_date} • {order.order_time} ({order.meal_type})
                     </span>
                   </div>
 
@@ -328,27 +404,19 @@ export const AdminDashboard: React.FC = () => {
                     ))}
                   </div>
 
-                  <div className="text-xs font-bold text-gray-900">
+                  <div className="text-xs font-extrabold text-slate-900">
                     Total Amount: ₹{order.total_amount}
                   </div>
                 </div>
 
-                {/* Admin Actions */}
+                {/* Admin Delivery Button */}
                 <div className="flex items-center space-x-2 shrink-0">
                   <button
-                    onClick={() => handleAcceptOrder(order.order_id)}
-                    className="bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs px-4 py-2 rounded-lg transition-colors flex items-center gap-1 shadow-sm"
+                    onClick={() => handleAdminConfirmDelivery(order.order_id)}
+                    className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer"
                   >
-                    <Check className="w-4 h-4" />
-                    <span>[ACCEPT ORDER]</span>
-                  </button>
-
-                  <button
-                    onClick={() => setCancellingOrder(order)}
-                    className="bg-red-600 hover:bg-red-700 text-white font-bold text-xs px-4 py-2 rounded-lg transition-colors flex items-center gap-1 shadow-sm"
-                  >
-                    <X className="w-4 h-4" />
-                    <span>[CANCEL ORDER]</span>
+                    <Truck className="w-4 h-4" />
+                    <span>MARK ORDER AS DELIVERED</span>
                   </button>
                 </div>
               </div>
@@ -357,46 +425,14 @@ export const AdminDashboard: React.FC = () => {
         )}
       </div>
 
-      {/* Cancel Reason Modal */}
-      {cancellingOrder && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full p-6 space-y-4 shadow-xl border border-gray-200">
-            <h3 className="text-base font-bold text-gray-900 flex items-center gap-2">
-              <AlertCircle className="w-5 h-5 text-red-600" />
-              Cancel Order #{cancellingOrder.order_id}
-            </h3>
-            <p className="text-xs text-gray-600">
-              Only Admin can cancel orders. Please provide a reason for cancelling this order for patient {cancellingOrder.patient_name}.
-            </p>
-
-            <div>
-              <label className="block text-xs font-semibold text-gray-700 mb-1">Cancellation Reason *</label>
-              <input
-                type="text"
-                value={cancelReason}
-                onChange={(e) => setCancelReason(e.target.value)}
-                placeholder="e.g. Food item unavailable"
-                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-red-500"
-              />
-            </div>
-
-            <div className="flex justify-end space-x-2 pt-2">
-              <button
-                onClick={() => setCancellingOrder(null)}
-                className="px-4 py-2 rounded-lg text-xs font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200"
-              >
-                Back
-              </button>
-              <button
-                onClick={handleCancelOrderSubmit}
-                className="px-4 py-2 rounded-lg text-xs font-bold text-white bg-red-600 hover:bg-red-700 shadow-sm"
-              >
-                Confirm Cancellation
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Printable Reports Modal Component */}
+      <PrintableReportsModal
+        isOpen={isReportModalOpen}
+        onClose={() => setIsReportModalOpen(false)}
+        reportType={reportType}
+        orders={allOrders}
+        foodItemsToPrepare={foodItemsToPrepare}
+      />
     </div>
   );
 };

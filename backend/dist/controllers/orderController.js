@@ -7,8 +7,13 @@ const MenuItem_1 = require("../models/MenuItem");
 const Patient_1 = require("../models/Patient");
 const Counter_1 = require("../models/Counter");
 const socketService_1 = require("../services/socketService");
+const systemController_1 = require("./systemController");
 const createOrder = async (req, res) => {
     try {
+        const isLocked = await (0, systemController_1.getOrderingLockedStatus)();
+        if (isLocked) {
+            return res.status(400).json({ message: 'Ordering is currently closed by the admin.' });
+        }
         const patient_id = req.user?.patient_id;
         if (!patient_id) {
             return res.status(403).json({ message: 'Patient identity missing.' });
@@ -65,7 +70,7 @@ const createOrder = async (req, res) => {
             order_time,
             meal_type: meal_type || 'General',
             total_amount,
-            order_status: 'PENDING',
+            order_status: 'ACCEPTED',
             admin_delivery_confirmed: false,
             patient_delivery_confirmed: false,
         });
@@ -220,9 +225,6 @@ const adminConfirmDelivery = async (req, res) => {
         }
         if (order.order_status === 'CANCELLED') {
             return res.status(400).json({ message: 'Cannot confirm delivery for a cancelled order.' });
-        }
-        if (order.order_status === 'PENDING') {
-            return res.status(400).json({ message: 'Order must be accepted before delivery confirmation.' });
         }
         order.admin_delivery_confirmed = true;
         order.admin_delivery_confirmed_at = new Date();

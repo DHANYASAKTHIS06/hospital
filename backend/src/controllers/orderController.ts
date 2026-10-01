@@ -6,9 +6,15 @@ import { MenuItem } from '../models/MenuItem';
 import { Patient } from '../models/Patient';
 import { getNextSequenceValue } from '../models/Counter';
 import { emitToAdmin, emitToPatient } from '../services/socketService';
+import { getOrderingLockedStatus } from './systemController';
 
 export const createOrder = async (req: AuthRequest, res: Response) => {
   try {
+    const isLocked = await getOrderingLockedStatus();
+    if (isLocked) {
+      return res.status(400).json({ message: 'Ordering is currently closed by the admin.' });
+    }
+
     const patient_id = req.user?.patient_id;
     if (!patient_id) {
       return res.status(403).json({ message: 'Patient identity missing.' });
@@ -78,7 +84,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
       order_time,
       meal_type: meal_type || 'General',
       total_amount,
-      order_status: 'PENDING',
+      order_status: 'ACCEPTED',
       admin_delivery_confirmed: false,
       patient_delivery_confirmed: false,
     });
@@ -260,10 +266,6 @@ export const adminConfirmDelivery = async (req: AuthRequest, res: Response) => {
 
     if (order.order_status === 'CANCELLED') {
       return res.status(400).json({ message: 'Cannot confirm delivery for a cancelled order.' });
-    }
-
-    if (order.order_status === 'PENDING') {
-      return res.status(400).json({ message: 'Order must be accepted before delivery confirmation.' });
     }
 
     order.admin_delivery_confirmed = true;

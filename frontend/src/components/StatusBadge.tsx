@@ -10,11 +10,9 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, type = 'order'
   let badgeStyle = 'bg-gray-100 text-gray-800 border-gray-300';
   let displayText = String(status);
 
-  if (status === 'PENDING') {
-    badgeStyle = 'bg-amber-50 text-amber-800 border-amber-300 font-medium';
-  } else if (status === 'ACCEPTED') {
+  if (status === 'PENDING' || status === 'ACCEPTED') {
     badgeStyle = 'bg-blue-50 text-blue-800 border-blue-300 font-medium';
-    displayText = '✓ ORDER ACCEPTED';
+    displayText = '✓ ORDER ACTIVE';
   } else if (status === 'DELIVERY CONFIRMATION PENDING') {
     badgeStyle = 'bg-purple-50 text-purple-800 border-purple-300 font-medium';
     displayText = 'DELIVERY CONFIRMATION PENDING';

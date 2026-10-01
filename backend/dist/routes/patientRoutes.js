@@ -7,9 +7,11 @@ const menuController_1 = require("../controllers/menuController");
 const orderController_1 = require("../controllers/orderController");
 const billController_1 = require("../controllers/billController");
 const paymentController_1 = require("../controllers/paymentController");
+const systemController_1 = require("../controllers/systemController");
 const router = (0, express_1.Router)();
 // Apply auth middleware to all patient routes
 router.use(auth_1.authenticateToken, auth_1.requirePatient);
+router.get('/system-status', systemController_1.getSystemStatus);
 router.get('/profile', patientController_1.getProfile);
 router.get('/menu', menuController_1.getMenuItems);
 router.post('/orders', orderController_1.createOrder);

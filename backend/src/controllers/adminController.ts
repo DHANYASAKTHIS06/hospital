@@ -7,12 +7,15 @@ import { OrderItem } from '../models/OrderItem';
 import { Bill } from '../models/Bill';
 import { MenuItem } from '../models/MenuItem';
 import { getNextSequenceValue } from '../models/Counter';
+import { getOrderingLockedStatus } from './systemController';
 
 export const getAdminDashboardStats = async (req: Request, res: Response) => {
   try {
+    const is_ordering_locked = await getOrderingLockedStatus();
     const totalPatients = await Patient.countDocuments();
-    const pendingOrders = await FoodOrder.countDocuments({ order_status: 'PENDING' });
-    const acceptedOrders = await FoodOrder.countDocuments({ order_status: 'ACCEPTED' });
+    const activeOrdersCount = await FoodOrder.countDocuments({
+      order_status: { $nin: ['DELIVERED', 'CANCELLED'] },
+    });
 
     const todayStr = new Date().toLocaleDateString('en-GB');
     const todaysOrdersDocs = await FoodOrder.find({ order_date: todayStr });
@@ -26,15 +29,17 @@ export const getAdminDashboardStats = async (req: Request, res: Response) => {
       payment_status: { $in: ['UNPAID', 'ADVANCE'] },
     });
 
-    const recentPendingOrders = await FoodOrder.find({ order_status: 'PENDING' })
+    const recentActiveOrders = await FoodOrder.find({
+      order_status: { $nin: ['DELIVERED', 'CANCELLED'] },
+    })
       .sort({ createdAt: -1 })
       .limit(10);
 
     const patients = await Patient.find();
     const patientMap = new Map(patients.map((p) => [p.patient_id, p]));
 
-    const enrichedPendingOrders = await Promise.all(
-      recentPendingOrders.map(async (order) => {
+    const enrichedRecentActiveOrders = await Promise.all(
+      recentActiveOrders.map(async (order) => {
         const items = await OrderItem.find({ order_id: order.order_id });
         const patient = patientMap.get(order.patient_id);
         return {
@@ -46,8 +51,8 @@ export const getAdminDashboardStats = async (req: Request, res: Response) => {
       })
     );
 
-    // Food Items to Prepare aggregation
-    // Aggregates quantities from all ACCEPTED and DELIVERY CONFIRMATION PENDING orders
+    // Food Items to Prepare aggregation:
+    // Aggregates quantities from ALL active (non-delivered, non-cancelled) orders
     let allMenuItems = await MenuItem.find().sort({ menu_id: 1 });
     if (!allMenuItems || allMenuItems.length === 0) {
       const { seedDatabase } = await import('../seed/seedData');
@@ -55,13 +60,11 @@ export const getAdminDashboardStats = async (req: Request, res: Response) => {
       allMenuItems = await MenuItem.find().sort({ menu_id: 1 });
     }
 
-    const activeAcceptedOrders = await FoodOrder.find({
-      order_status: {
-        $in: ['ACCEPTED', 'DELIVERY CONFIRMATION PENDING', 'Accepted', 'Delivery Confirmation Pending'],
-      },
+    const activeOrders = await FoodOrder.find({
+      order_status: { $nin: ['DELIVERED', 'CANCELLED'] },
     });
 
-    const activeOrderIds = activeAcceptedOrders.map((o) => o.order_id);
+    const activeOrderIds = activeOrders.map((o) => o.order_id);
     const activeOrderItems = await OrderItem.find({ order_id: { $in: activeOrderIds } });
 
     const quantityByMenuId = new Map<string, number>();
@@ -93,13 +96,16 @@ export const getAdminDashboardStats = async (req: Request, res: Response) => {
     });
 
     return res.status(200).json({
+      is_ordering_locked,
       totalPatients,
-      pendingOrders,
-      acceptedOrders,
+      pendingOrders: 0,
+      acceptedOrders: activeOrdersCount,
+      activeOrdersCount,
       todayOrdersCount,
       todaysRevenue,
       pendingPaymentsCount,
-      recentPendingOrders: enrichedPendingOrders,
+      recentPendingOrders: enrichedRecentActiveOrders,
+      recentActiveOrders: enrichedRecentActiveOrders,
       foodItemsToPrepare,
     });
   } catch (error: any) {
