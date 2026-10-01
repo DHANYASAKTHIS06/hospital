@@ -289,7 +289,7 @@ export const getRoomFoodRecords = async (req: Request, res: Response) => {
 
 export const createPatient = async (req: Request, res: Response) => {
   try {
-    const { patient_id: rawPatientId, name, age, address, room_number, mobile, password } = req.body;
+    const { patient_id: rawPatientId, name, age, address, room_number, mobile, password, advance_balance } = req.body;
 
     if (!name || !age || !address || !room_number || !mobile || !password) {
       return res.status(400).json({ message: 'Name, Age, Address, Room Number, Mobile, and Password are required.' });
@@ -325,6 +325,7 @@ export const createPatient = async (req: Request, res: Response) => {
     }
 
     const password_hash = await bcrypt.hash(password, 10);
+    const initialAdvance = Number(advance_balance) >= 0 ? Number(advance_balance) : 0;
 
     const newPatient = await Patient.create({
       patient_id: finalPatientId,
@@ -334,6 +335,7 @@ export const createPatient = async (req: Request, res: Response) => {
       room_number: String(room_number).trim(),
       mobile: String(mobile).trim(),
       password_hash,
+      advance_balance: initialAdvance,
     });
 
     return res.status(201).json({
@@ -346,12 +348,49 @@ export const createPatient = async (req: Request, res: Response) => {
         address: newPatient.address,
         room_number: newPatient.room_number,
         mobile: newPatient.mobile,
+        advance_balance: newPatient.advance_balance,
         plain_password: password,
       },
     });
   } catch (error: any) {
     console.error('Create Patient Error:', error);
     return res.status(500).json({ message: 'Error creating patient account.', error: error.message });
+  }
+};
+
+export const rechargePatientBalance = async (req: Request, res: Response) => {
+  try {
+    const { patientId } = req.params;
+    const { amount } = req.body;
+
+    const rechargeAmount = Number(amount);
+    if (isNaN(rechargeAmount) || rechargeAmount <= 0) {
+      return res.status(400).json({ message: 'Recharge amount must be a positive number.' });
+    }
+
+    const patient = await Patient.findOne({
+      $or: [
+        { patient_id: String(patientId).toUpperCase().trim() },
+        { patient_id: String(patientId).trim() },
+        ...(mongoose.isValidObjectId(patientId) ? [{ _id: patientId }] : []),
+      ],
+    });
+
+    if (!patient) {
+      return res.status(404).json({ message: 'Patient record not found.' });
+    }
+
+    patient.advance_balance = (patient.advance_balance || 0) + rechargeAmount;
+    await patient.save();
+
+    return res.status(200).json({
+      message: `Successfully recharged ₹${rechargeAmount} for patient ${patient.name} (${patient.patient_id}).`,
+      patient_id: patient.patient_id,
+      advance_balance: patient.advance_balance,
+    });
+  } catch (error: any) {
+    console.error('Recharge Patient Balance Error:', error);
+    return res.status(500).json({ message: 'Error recharging patient balance.' });
   }
 };
 

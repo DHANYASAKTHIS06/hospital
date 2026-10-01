@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { PatientRecord } from '../types';
-import { Users, Search, Eye, X, UserPlus, KeyRound, CheckCircle2, Copy, Check, Trash2, AlertTriangle } from 'lucide-react';
+import { Users, Search, Eye, X, UserPlus, KeyRound, CheckCircle2, Copy, Check, Trash2, AlertTriangle, Wallet, PlusCircle } from 'lucide-react';
 
 export const AdminPatients: React.FC = () => {
   const [patients, setPatients] = useState<PatientRecord[]>([]);
@@ -23,6 +23,7 @@ export const AdminPatients: React.FC = () => {
     mobile: '',
     address: '',
     password: '',
+    advance_balance: '5000',
   });
 
   // Created Credentials Modal state
@@ -30,31 +31,22 @@ export const AdminPatients: React.FC = () => {
     patient_id: string;
     name: string;
     room_number: string;
+    advance_balance: number;
     plain_password: string;
   } | null>(null);
 
   const [copied, setCopied] = useState(false);
 
+  // Recharge Balance Modal state
+  const [rechargingPatient, setRechargingPatient] = useState<PatientRecord | null>(null);
+  const [rechargeAmount, setRechargeAmount] = useState('1000');
+  const [rechargeLoading, setRechargeLoading] = useState(false);
+  const [rechargeError, setRechargeError] = useState<string | null>(null);
+
   // Delete Patient state
   const [deletingPatient, setDeletingPatient] = useState<PatientRecord | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
-
-  const handleConfirmDelete = async () => {
-    if (!deletingPatient) return;
-    setDeleteError(null);
-    setDeleteLoading(true);
-
-    try {
-      await api.delete(`/admin/patients/${deletingPatient.patient_id}`);
-      setDeletingPatient(null);
-      fetchPatients();
-    } catch (err: any) {
-      setDeleteError(err.response?.data?.message || 'Failed to delete patient account.');
-    } finally {
-      setDeleteLoading(false);
-    }
-  };
 
   const fetchPatients = async () => {
     setFetchError(null);
@@ -63,7 +55,7 @@ export const AdminPatients: React.FC = () => {
       setPatients(response.data);
     } catch (err: any) {
       console.error('Error fetching patients:', err);
-      setFetchError(err.response?.data?.message || 'Failed to connect to MongoDB database. Please try again.');
+      setFetchError(err.response?.data?.message || 'Failed to connect to database. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -95,12 +87,14 @@ export const AdminPatients: React.FC = () => {
         mobile: '',
         address: '',
         password: '',
+        advance_balance: '5000',
       });
 
       setCreatedCredentials({
         patient_id: newPatient.patient_id,
         name: newPatient.name,
         room_number: newPatient.room_number,
+        advance_balance: newPatient.advance_balance,
         plain_password: newPatient.plain_password,
       });
 
@@ -112,9 +106,44 @@ export const AdminPatients: React.FC = () => {
     }
   };
 
+  const handleRechargeSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!rechargingPatient) return;
+    setRechargeError(null);
+    setRechargeLoading(true);
+
+    try {
+      await api.post(`/admin/patients/${rechargingPatient.patient_id}/recharge`, {
+        amount: Number(rechargeAmount),
+      });
+      setRechargingPatient(null);
+      fetchPatients();
+    } catch (err: any) {
+      setRechargeError(err.response?.data?.message || 'Failed to recharge patient balance.');
+    } finally {
+      setRechargeLoading(false);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!deletingPatient) return;
+    setDeleteError(null);
+    setDeleteLoading(true);
+
+    try {
+      await api.delete(`/admin/patients/${deletingPatient.patient_id}`);
+      setDeletingPatient(null);
+      fetchPatients();
+    } catch (err: any) {
+      setDeleteError(err.response?.data?.message || 'Failed to delete patient account.');
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
+
   const handleCopyCredentials = () => {
     if (!createdCredentials) return;
-    const text = `Hospital Canteen Patient Credentials:\nPatient ID: ${createdCredentials.patient_id}\nPassword: ${createdCredentials.plain_password}\nName: ${createdCredentials.name}\nRoom: ${createdCredentials.room_number}`;
+    const text = `Hospital Canteen Patient Credentials:\nPatient ID: ${createdCredentials.patient_id}\nPassword: ${createdCredentials.plain_password}\nName: ${createdCredentials.name}\nRoom: ${createdCredentials.room_number}\nInitial Advance Balance: ₹${createdCredentials.advance_balance}`;
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -127,10 +156,10 @@ export const AdminPatients: React.FC = () => {
         <div>
           <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
             <Users className="w-5 h-5 text-blue-600" />
-            Manage Patients (Admin)
+            Manage Patients & Advance Balances
           </h1>
           <p className="text-xs text-slate-500 mt-0.5">
-            View patient details or register new patients and issue unique credentials.
+            Register patients with initial advance balances, manage credentials, and process top-up recharges.
           </p>
         </div>
 
@@ -151,7 +180,7 @@ export const AdminPatients: React.FC = () => {
               setAddError(null);
               setIsAddModalOpen(true);
             }}
-            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl transition-all shadow-sm shrink-0"
+            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold text-xs px-4 py-2.5 rounded-xl transition-all shadow-sm shrink-0 cursor-pointer"
           >
             <UserPlus className="w-4 h-4" />
             Add New Patient
@@ -187,45 +216,76 @@ export const AdminPatients: React.FC = () => {
                 <tr>
                   <th className="px-4 py-3.5">Patient ID</th>
                   <th className="px-4 py-3.5">Patient Name</th>
-                  <th className="px-4 py-3.5">Age</th>
                   <th className="px-4 py-3.5">Room No</th>
                   <th className="px-4 py-3.5">Mobile</th>
-                  <th className="px-4 py-3.5">Registration Date</th>
-                  <th className="px-4 py-3.5 text-right">Details</th>
+                  <th className="px-4 py-3.5">Advance Balance</th>
+                  <th className="px-4 py-3.5">Status</th>
+                  <th className="px-4 py-3.5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200/80 font-medium">
-                {patients.map((p) => (
-                  <tr key={p._id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="px-4 py-3 font-mono font-bold text-blue-700">{p.patient_id}</td>
-                    <td className="px-4 py-3 font-extrabold text-slate-900">{p.name}</td>
-                    <td className="px-4 py-3 text-slate-700">{p.age} yrs</td>
-                    <td className="px-4 py-3 font-bold text-slate-800">Room {p.room_number}</td>
-                    <td className="px-4 py-3 text-slate-700">{p.mobile}</td>
-                    <td className="px-4 py-3 text-slate-500">
-                      {new Date(p.createdAt).toLocaleDateString('en-GB')}
-                    </td>
-                    <td className="px-4 py-3 text-right flex items-center justify-end gap-1">
-                      <button
-                        onClick={() => setSelectedPatient(p)}
-                        className="p-1.5 text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="View Details"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => {
-                          setDeleteError(null);
-                          setDeletingPatient(p);
-                        }}
-                        className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
-                        title="Delete Patient"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {patients.map((p) => {
+                  const balance = p.advance_balance || 0;
+                  const isLow = balance < 500;
+                  return (
+                    <tr key={p._id} className={`hover:bg-slate-50/80 transition-colors ${isLow ? 'bg-rose-50/40' : ''}`}>
+                      <td className="px-4 py-3 font-mono font-bold text-blue-700">{p.patient_id}</td>
+                      <td className="px-4 py-3 font-extrabold text-slate-900">
+                        {p.name} <span className="text-[10px] text-slate-400 font-normal">({p.age} yrs)</span>
+                      </td>
+                      <td className="px-4 py-3 font-bold text-slate-800">Room {p.room_number}</td>
+                      <td className="px-4 py-3 text-slate-700">{p.mobile}</td>
+                      <td className="px-4 py-3">
+                        <span className={`font-mono font-black text-sm px-2.5 py-1 rounded-lg border ${
+                          isLow ? 'bg-rose-100 text-rose-900 border-rose-300' : 'bg-emerald-50 text-emerald-900 border-emerald-200'
+                        }`}>
+                          ₹{balance}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        {isLow ? (
+                          <span className="inline-flex items-center gap-1 font-extrabold text-[10px] bg-rose-600 text-white px-2 py-0.5 rounded-md animate-pulse">
+                            ⚠️ LOW BALANCE (&lt; ₹500)
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 font-bold text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md">
+                            ✓ ACTIVE BALANCE
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-right flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => {
+                            setRechargeError(null);
+                            setRechargingPatient(p);
+                          }}
+                          className="px-2.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-[11px] rounded-lg transition-colors flex items-center gap-1 shadow-xs cursor-pointer"
+                          title="Top Up / Recharge Balance"
+                        >
+                          <PlusCircle className="w-3.5 h-3.5" />
+                          <span>Recharge</span>
+                        </button>
+                        <button
+                          onClick={() => setSelectedPatient(p)}
+                          className="p-1.5 text-blue-700 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                          title="View Details"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            setDeleteError(null);
+                            setDeletingPatient(p);
+                          }}
+                          className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                          title="Delete Patient"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -243,7 +303,7 @@ export const AdminPatients: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-base font-extrabold text-slate-900">Add New Patient</h3>
-                  <p className="text-[11px] text-slate-500 font-medium">Create a patient account and set initial credentials</p>
+                  <p className="text-[11px] text-slate-500 font-medium">Create a patient account with initial advance balance</p>
                 </div>
               </div>
               <button
@@ -316,6 +376,28 @@ export const AdminPatients: React.FC = () => {
                     className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-semibold focus:ring-2 focus:ring-blue-500 outline-none"
                   />
                 </div>
+              </div>
+
+              {/* INITIAL ADVANCE BALANCE FIELD */}
+              <div className="bg-emerald-50/70 p-4 rounded-2xl border border-emerald-200 space-y-1">
+                <label className="block text-xs font-extrabold text-emerald-950 flex items-center gap-1.5">
+                  <Wallet className="w-4 h-4 text-emerald-700" />
+                  Initial Advance Balance Amount (₹) *
+                </label>
+                <p className="text-[11px] text-emerald-800 font-medium">
+                  Set initial food order balance for this patient (e.g. ₹5,000 or ₹6,000).
+                </p>
+                <input
+                  type="number"
+                  name="advance_balance"
+                  required
+                  min="0"
+                  step="100"
+                  value={formData.advance_balance}
+                  onChange={handleInputChange}
+                  placeholder="5000"
+                  className="w-full mt-2 px-3.5 py-2.5 bg-white border border-emerald-300 rounded-xl text-sm font-black text-emerald-950 focus:ring-2 focus:ring-emerald-500 outline-none font-mono"
+                />
               </div>
 
               <div>
@@ -416,6 +498,10 @@ export const AdminPatients: React.FC = () => {
                 <span className="text-slate-500 font-bold">Room Number:</span>
                 <span className="font-extrabold text-slate-900">Room {createdCredentials.room_number}</span>
               </div>
+              <div className="flex justify-between items-center pb-2 border-b border-slate-200 bg-emerald-50 p-2.5 rounded-xl border-emerald-200">
+                <span className="text-emerald-800 font-bold">Initial Advance Balance:</span>
+                <span className="font-black text-emerald-950 text-sm">₹{createdCredentials.advance_balance}</span>
+              </div>
               <div className="bg-blue-50/80 p-3 rounded-xl border border-blue-200 space-y-1">
                 <div className="text-blue-600 text-[10px] font-bold uppercase tracking-wider">Login Patient ID</div>
                 <div className="text-base font-black text-blue-900">{createdCredentials.patient_id}</div>
@@ -431,14 +517,14 @@ export const AdminPatients: React.FC = () => {
             <div className="flex gap-2">
               <button
                 onClick={handleCopyCredentials}
-                className="flex-1 bg-slate-900 hover:bg-black text-white font-extrabold text-xs py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                className="flex-1 bg-slate-900 hover:bg-black text-white font-extrabold text-xs py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
               >
                 {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
                 {copied ? 'Copied to Clipboard!' : 'Copy Credentials'}
               </button>
               <button
                 onClick={() => setCreatedCredentials(null)}
-                className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs py-3 px-4 rounded-xl transition-colors"
+                className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs py-3 px-4 rounded-xl transition-colors cursor-pointer"
               >
                 Done
               </button>
@@ -447,18 +533,125 @@ export const AdminPatients: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL 3: Patient Detail View Modal */}
+      {/* MODAL 3: Recharge Advance Balance Modal */}
+      {rechargingPatient && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 space-y-4 shadow-2xl border border-slate-100">
+            <div className="flex justify-between items-center pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-2 text-emerald-800">
+                <div className="p-2 rounded-xl bg-emerald-100 text-emerald-700">
+                  <Wallet className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900">Recharge Advance Balance</h3>
+                  <p className="text-[11px] text-slate-500 font-medium">Add food order funds for patient</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setRechargingPatient(null)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-2 text-xs">
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-semibold">Patient Name:</span>
+                <span className="font-extrabold text-slate-900">{rechargingPatient.name}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-500 font-semibold">Patient ID:</span>
+                <span className="font-mono font-bold text-blue-700">{rechargingPatient.patient_id}</span>
+              </div>
+              <div className="flex justify-between pt-1 border-t border-slate-200">
+                <span className="text-slate-500 font-semibold">Current Balance:</span>
+                <span className="font-mono font-black text-emerald-800 text-sm">₹{rechargingPatient.advance_balance || 0}</span>
+              </div>
+            </div>
+
+            {rechargeError && (
+              <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 text-xs rounded-xl font-semibold">
+                {rechargeError}
+              </div>
+            )}
+
+            <form onSubmit={handleRechargeSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Top-Up Amount (₹) *</label>
+                <div className="flex gap-2 mb-2">
+                  {['500', '1000', '2000', '5000'].map((amt) => (
+                    <button
+                      key={amt}
+                      type="button"
+                      onClick={() => setRechargeAmount(amt)}
+                      className={`flex-1 py-1.5 text-xs font-bold rounded-lg border transition-colors ${
+                        rechargeAmount === amt
+                          ? 'bg-emerald-700 text-white border-emerald-700'
+                          : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
+                      }`}
+                    >
+                      +₹{amt}
+                    </button>
+                  ))}
+                </div>
+                <input
+                  type="number"
+                  required
+                  min="1"
+                  step="50"
+                  value={rechargeAmount}
+                  onChange={(e) => setRechargeAmount(e.target.value)}
+                  placeholder="Enter recharge amount"
+                  className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-base font-mono font-black text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none"
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setRechargingPatient(null)}
+                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-xl transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={rechargeLoading}
+                  className="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs rounded-xl transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
+                >
+                  {rechargeLoading ? 'Recharging...' : 'Confirm Recharge'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: Patient Detail View Modal */}
       {selectedPatient && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-xl border border-slate-200">
             <div className="flex justify-between items-center pb-2 border-b border-slate-200">
-              <h3 className="text-base font-bold text-slate-900">Patient File Details</h3>
+              <h3 className="text-base font-bold text-slate-900">Patient Details & Balance</h3>
               <button onClick={() => setSelectedPatient(null)} className="text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <div className="space-y-3 text-xs">
+              <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-200 flex justify-between items-center">
+                <div>
+                  <div className="text-slate-500 font-semibold">Advance Balance Available</div>
+                  <div className="text-xl font-mono font-black text-emerald-950">₹{selectedPatient.advance_balance || 0}</div>
+                </div>
+                {(selectedPatient.advance_balance || 0) < 500 && (
+                  <span className="text-[10px] font-extrabold bg-rose-600 text-white px-2.5 py-1 rounded-md">
+                    ⚠️ LOW BALANCE
+                  </span>
+                )}
+              </div>
+
               <div className="bg-blue-50 p-3 rounded-xl border border-blue-200">
                 <div className="text-slate-500 font-semibold">Patient ID</div>
                 <div className="text-lg font-mono font-bold text-blue-900">{selectedPatient.patient_id}</div>
@@ -492,7 +685,7 @@ export const AdminPatients: React.FC = () => {
             <div className="pt-2 text-right">
               <button
                 onClick={() => setSelectedPatient(null)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl"
+                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer"
               >
                 Close
               </button>
@@ -501,7 +694,7 @@ export const AdminPatients: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL 4: Delete Confirmation Modal */}
+      {/* MODAL 5: Delete Confirmation Modal */}
       {deletingPatient && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 space-y-4 shadow-2xl border border-slate-100">
@@ -529,7 +722,7 @@ export const AdminPatients: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setDeletingPatient(null)}
-                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-xl transition-colors"
+                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-xl transition-colors cursor-pointer"
               >
                 Cancel
               </button>
@@ -537,7 +730,7 @@ export const AdminPatients: React.FC = () => {
                 type="button"
                 onClick={handleConfirmDelete}
                 disabled={deleteLoading}
-                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs rounded-xl transition-colors shadow-sm disabled:opacity-50"
+                className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs rounded-xl transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
               >
                 {deleteLoading ? 'Deleting...' : 'Delete Patient'}
               </button>

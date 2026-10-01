@@ -43,6 +43,7 @@ const PatientSchema = new mongoose_1.Schema({
     room_number: { type: String, required: true },
     mobile: { type: String, required: true },
     password_hash: { type: String, required: true },
+    advance_balance: { type: Number, default: 0, min: 0 },
 }, {
     timestamps: true,
     collection: 'patients',

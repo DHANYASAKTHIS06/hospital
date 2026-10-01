@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createPatient = exports.getRoomFoodRecords = exports.getFoodRecords = exports.deletePatient = exports.getPatientById = exports.getPatientsList = exports.getAdminDashboardStats = void 0;
+exports.rechargePatientBalance = exports.createPatient = exports.getRoomFoodRecords = exports.getFoodRecords = exports.deletePatient = exports.getPatientById = exports.getPatientsList = exports.getAdminDashboardStats = void 0;
 const mongoose_1 = __importDefault(require("mongoose"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const Patient_1 = require("../models/Patient");
@@ -291,7 +291,7 @@ const getRoomFoodRecords = async (req, res) => {
 exports.getRoomFoodRecords = getRoomFoodRecords;
 const createPatient = async (req, res) => {
     try {
-        const { patient_id: rawPatientId, name, age, address, room_number, mobile, password } = req.body;
+        const { patient_id: rawPatientId, name, age, address, room_number, mobile, password, advance_balance } = req.body;
         if (!name || !age || !address || !room_number || !mobile || !password) {
             return res.status(400).json({ message: 'Name, Age, Address, Room Number, Mobile, and Password are required.' });
         }
@@ -319,6 +319,7 @@ const createPatient = async (req, res) => {
             return res.status(400).json({ message: `Patient ID "${finalPatientId}" already exists. Please use a unique Patient ID.` });
         }
         const password_hash = await bcryptjs_1.default.hash(password, 10);
+        const initialAdvance = Number(advance_balance) >= 0 ? Number(advance_balance) : 0;
         const newPatient = await Patient_1.Patient.create({
             patient_id: finalPatientId,
             name: name.trim(),
@@ -327,6 +328,7 @@ const createPatient = async (req, res) => {
             room_number: String(room_number).trim(),
             mobile: String(mobile).trim(),
             password_hash,
+            advance_balance: initialAdvance,
         });
         return res.status(201).json({
             message: 'Patient account created successfully',
@@ -338,6 +340,7 @@ const createPatient = async (req, res) => {
                 address: newPatient.address,
                 room_number: newPatient.room_number,
                 mobile: newPatient.mobile,
+                advance_balance: newPatient.advance_balance,
                 plain_password: password,
             },
         });
@@ -348,3 +351,35 @@ const createPatient = async (req, res) => {
     }
 };
 exports.createPatient = createPatient;
+const rechargePatientBalance = async (req, res) => {
+    try {
+        const { patientId } = req.params;
+        const { amount } = req.body;
+        const rechargeAmount = Number(amount);
+        if (isNaN(rechargeAmount) || rechargeAmount <= 0) {
+            return res.status(400).json({ message: 'Recharge amount must be a positive number.' });
+        }
+        const patient = await Patient_1.Patient.findOne({
+            $or: [
+                { patient_id: String(patientId).toUpperCase().trim() },
+                { patient_id: String(patientId).trim() },
+                ...(mongoose_1.default.isValidObjectId(patientId) ? [{ _id: patientId }] : []),
+            ],
+        });
+        if (!patient) {
+            return res.status(404).json({ message: 'Patient record not found.' });
+        }
+        patient.advance_balance = (patient.advance_balance || 0) + rechargeAmount;
+        await patient.save();
+        return res.status(200).json({
+            message: `Successfully recharged ₹${rechargeAmount} for patient ${patient.name} (${patient.patient_id}).`,
+            patient_id: patient.patient_id,
+            advance_balance: patient.advance_balance,
+        });
+    }
+    catch (error) {
+        console.error('Recharge Patient Balance Error:', error);
+        return res.status(500).json({ message: 'Error recharging patient balance.' });
+    }
+};
+exports.rechargePatientBalance = rechargePatientBalance;

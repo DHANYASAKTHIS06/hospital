@@ -18,9 +18,17 @@ const createOrder = async (req, res) => {
         if (!patient_id) {
             return res.status(403).json({ message: 'Patient identity missing.' });
         }
-        const { items, meal_type } = req.body; // items: [{ menu_id, quantity }]
-        if (!items || !Array.isArray(items) || items.length === 0) {
-            return res.status(400).json({ message: 'At least one food item must be selected.' });
+        const { items, meal_type, meals } = req.body;
+        // Normalize into array of meal requests: [{ meal_type, items }]
+        let requestedMeals = [];
+        if (meals && Array.isArray(meals) && meals.length > 0) {
+            requestedMeals = meals.filter((m) => m.items && Array.isArray(m.items) && m.items.length > 0);
+        }
+        else if (items && Array.isArray(items) && items.length > 0) {
+            requestedMeals = [{ meal_type: meal_type || 'General', items }];
+        }
+        if (requestedMeals.length === 0) {
+            return res.status(400).json({ message: 'At least one food item must be selected for order.' });
         }
         // Verify patient exists
         const patient = await Patient_1.Patient.findOne({ patient_id });
@@ -29,72 +37,110 @@ const createOrder = async (req, res) => {
         }
         const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
         const currentDay = days[new Date().getDay()];
-        let total_amount = 0;
-        const orderItemSnapshots = [];
-        for (const item of items) {
-            const menuDoc = await MenuItem_1.MenuItem.findOne({ menu_id: item.menu_id });
-            if (!menuDoc) {
-                return res.status(400).json({ message: `Menu item #${item.menu_id} not found.` });
-            }
-            if (!menuDoc.availability || !menuDoc.available_days.includes(currentDay)) {
-                return res.status(400).json({
-                    message: `${menuDoc.item_name} is currently unavailable for order today.`,
+        // First pass: Validate menu items and calculate grand total across all requested meals
+        let grandTotalAmount = 0;
+        const validatedMealPayloads = [];
+        for (const mealReq of requestedMeals) {
+            let mealTotal = 0;
+            const snapshots = [];
+            for (const item of mealReq.items) {
+                const menuDoc = await MenuItem_1.MenuItem.findOne({ menu_id: item.menu_id });
+                if (!menuDoc) {
+                    return res.status(400).json({ message: `Menu item #${item.menu_id} not found.` });
+                }
+                if (!menuDoc.availability || !menuDoc.available_days.includes(currentDay)) {
+                    return res.status(400).json({
+                        message: `${menuDoc.item_name} is currently unavailable for order today.`,
+                    });
+                }
+                const qty = Number(item.quantity);
+                if (qty <= 0) {
+                    return res.status(400).json({ message: 'Item quantity must be greater than 0.' });
+                }
+                const subtotal = menuDoc.price * qty;
+                mealTotal += subtotal;
+                snapshots.push({
+                    menu_id: menuDoc.menu_id,
+                    item_name_snapshot: menuDoc.item_name,
+                    quantity: qty,
+                    unit_price: menuDoc.price,
+                    subtotal,
                 });
             }
-            const qty = Number(item.quantity);
-            if (qty <= 0) {
-                return res.status(400).json({ message: 'Item quantity must be greater than 0.' });
-            }
-            const subtotal = menuDoc.price * qty;
-            total_amount += subtotal;
-            orderItemSnapshots.push({
-                menu_id: menuDoc.menu_id,
-                item_name_snapshot: menuDoc.item_name,
-                quantity: qty,
-                unit_price: menuDoc.price,
-                subtotal,
+            grandTotalAmount += mealTotal;
+            validatedMealPayloads.push({
+                meal_type: mealReq.meal_type || 'General',
+                total_amount: mealTotal,
+                snapshots,
             });
         }
-        // Generate Order ID ORD20260001
+        // CHECK ADVANCE BALANCE BEFORE DEDUCTION
+        const currentBalance = patient.advance_balance || 0;
+        if (currentBalance < grandTotalAmount) {
+            return res.status(400).json({
+                message: `Insufficient advance balance! Available balance is ₹${currentBalance}, but order total is ₹${grandTotalAmount}. Please ask Admin to recharge your balance.`,
+                available_balance: currentBalance,
+                required_amount: grandTotalAmount,
+            });
+        }
+        // DEDUCT BALANCE ATOMICALLY ONCE FOR THE ENTIRE TRANSACTION
+        patient.advance_balance = Math.max(0, currentBalance - grandTotalAmount);
+        await patient.save();
+        // Second pass: Create FoodOrder & OrderItem records for each meal session
         const year = new Date().getFullYear();
-        const seq = await (0, Counter_1.getNextSequenceValue)(`order_id_${year}`);
-        const formattedSeq = String(seq).padStart(4, '0');
-        const order_id = `ORD${year}${formattedSeq}`;
         const now = new Date();
-        const order_date = now.toLocaleDateString('en-GB'); // DD/MM/YYYY or DD-MM-YYYY
+        const order_date = now.toLocaleDateString('en-GB');
         const order_time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-        const newOrder = await FoodOrder_1.FoodOrder.create({
-            order_id,
-            patient_id,
-            order_date,
-            order_time,
-            meal_type: meal_type || 'General',
-            total_amount,
-            order_status: 'ACCEPTED',
-            admin_delivery_confirmed: false,
-            patient_delivery_confirmed: false,
-        });
-        // Save order items
-        for (let i = 0; i < orderItemSnapshots.length; i++) {
-            const itemSeq = await (0, Counter_1.getNextSequenceValue)('order_item_id');
-            await OrderItem_1.OrderItem.create({
-                order_item_id: itemSeq,
-                order_id: newOrder.order_id,
-                ...orderItemSnapshots[i],
+        const createdFullOrders = [];
+        for (const mealData of validatedMealPayloads) {
+            const seq = await (0, Counter_1.getNextSequenceValue)(`order_id_${year}`);
+            const formattedSeq = String(seq).padStart(4, '0');
+            const order_id = `ORD${year}${formattedSeq}`;
+            const newOrder = await FoodOrder_1.FoodOrder.create({
+                order_id,
+                patient_id,
+                order_date,
+                order_time,
+                meal_type: mealData.meal_type,
+                total_amount: mealData.total_amount,
+                order_status: 'ACCEPTED',
+                admin_delivery_confirmed: false,
+                patient_delivery_confirmed: false,
             });
+            for (const itemSnap of mealData.snapshots) {
+                const itemSeq = await (0, Counter_1.getNextSequenceValue)('order_item_id');
+                await OrderItem_1.OrderItem.create({
+                    order_item_id: itemSeq,
+                    order_id: newOrder.order_id,
+                    ...itemSnap,
+                });
+            }
+            const createdOrderItems = await OrderItem_1.OrderItem.find({ order_id: newOrder.order_id });
+            const fullOrderPayload = {
+                ...newOrder.toObject(),
+                patient_name: patient.name,
+                room_number: patient.room_number,
+                patient_advance_balance: patient.advance_balance,
+                items: createdOrderItems,
+            };
+            createdFullOrders.push(fullOrderPayload);
+            (0, socketService_1.emitToAdmin)('new_order', fullOrderPayload);
         }
-        const createdOrderItems = await OrderItem_1.OrderItem.find({ order_id: newOrder.order_id });
-        const fullOrderPayload = {
-            ...newOrder.toObject(),
-            patient_name: patient.name,
-            room_number: patient.room_number,
-            items: createdOrderItems,
-        };
-        // Emit Socket.IO event to admin
-        (0, socketService_1.emitToAdmin)('new_order', fullOrderPayload);
+        // Broadcast balance update event
+        (0, socketService_1.emitToPatient)(patient_id, 'patient_balance_updated', {
+            patient_id,
+            advance_balance: patient.advance_balance,
+        });
+        (0, socketService_1.emitToAdmin)('patient_balance_updated', {
+            patient_id,
+            advance_balance: patient.advance_balance,
+        });
         return res.status(201).json({
-            message: 'Order placed successfully',
-            order: fullOrderPayload,
+            message: 'Order placed successfully! Amount deducted from advance balance.',
+            orders: createdFullOrders,
+            order: createdFullOrders[0],
+            remaining_balance: patient.advance_balance,
+            deducted_amount: grandTotalAmount,
         });
     }
     catch (error) {

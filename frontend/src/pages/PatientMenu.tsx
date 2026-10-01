@@ -3,7 +3,7 @@ import { api } from '../services/api';
 import { useSocket } from '../context/SocketContext';
 import { MenuItem, Category } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
-import { ShoppingBag, Plus, Minus, Check, Utensils, AlertCircle, Lock } from 'lucide-react';
+import { ShoppingBag, Plus, Minus, Check, Utensils, AlertCircle, Lock, Wallet, AlertTriangle, Coffee, Sun, Moon, Cookie } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const PatientMenu: React.FC = () => {
@@ -11,70 +11,117 @@ export const PatientMenu: React.FC = () => {
   const { socket } = useSocket();
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-  const [selectedCategory, setSelectedCategory] = useState<Category | 'ALL'>('ALL');
-  const [cart, setCart] = useState<{ [menu_id: number]: number }>({});
-  const [mealType, setMealType] = useState<string>('Breakfast');
+  const [selectedMealSession, setSelectedMealSession] = useState<'BREAKFAST' | 'LUNCH' | 'DINNER' | 'TEA / MILK' | 'SNACKS' | 'ALL'>('BREAKFAST');
+  
+  // Cart structure: { [meal_type]: { [menu_id]: quantity } }
+  const [cartByMeal, setCartByMeal] = useState<{ [mealType: string]: { [menuId: number]: number } }>({
+    Breakfast: {},
+    Lunch: {},
+    Dinner: {},
+    'Tea / Milk': {},
+    Snacks: {},
+  });
+
+  const [advanceBalance, setAdvanceBalance] = useState<number>(0);
   const [isOrderingLocked, setIsOrderingLocked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
-  const categories: Category[] = ['TEA / MILK', 'BREAKFAST', 'LUNCH', 'DINNER', 'SNACKS'];
+  const mealSessions: Array<{ label: string; value: string; icon: any; categoryFilter: Category | 'ALL' }> = [
+    { label: 'Breakfast', value: 'Breakfast', icon: Coffee, categoryFilter: 'BREAKFAST' },
+    { label: 'Lunch', value: 'Lunch', icon: Sun, categoryFilter: 'LUNCH' },
+    { label: 'Dinner', value: 'Dinner', icon: Moon, categoryFilter: 'DINNER' },
+    { label: 'Tea / Milk', value: 'Tea / Milk', icon: Coffee, categoryFilter: 'TEA / MILK' },
+    { label: 'Snacks', value: 'Snacks', icon: Cookie, categoryFilter: 'SNACKS' },
+    { label: 'All Items', value: 'ALL', icon: Utensils, categoryFilter: 'ALL' },
+  ];
 
-  const fetchMenuAndStatus = async () => {
+  const fetchProfileAndMenu = async () => {
     try {
-      const [menuRes, statusRes] = await Promise.all([
+      const [menuRes, statusRes, profileRes] = await Promise.all([
         api.get('/patient/menu'),
         api.get('/patient/system-status'),
+        api.get('/patient/profile'),
       ]);
       setMenuItems(menuRes.data || []);
       setIsOrderingLocked(Boolean(statusRes.data?.is_ordering_locked));
+      setAdvanceBalance(profileRes.data?.advance_balance || 0);
     } catch (err: any) {
-      setError('Failed to fetch menu items.');
+      setError('Failed to load menu items and profile data.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchMenuAndStatus();
+    fetchProfileAndMenu();
 
     if (socket) {
       socket.on('ordering_status_changed', (data: { is_ordering_locked: boolean }) => {
         setIsOrderingLocked(data.is_ordering_locked);
       });
 
+      socket.on('patient_balance_updated', (data: { advance_balance: number }) => {
+        setAdvanceBalance(data.advance_balance);
+      });
+
       return () => {
         socket.off('ordering_status_changed');
+        socket.off('patient_balance_updated');
       };
     }
   }, [socket]);
 
-  const handleQtyChange = (menu_id: number, delta: number) => {
+  // Current active meal tab name
+  const currentMealName = selectedMealSession === 'ALL' ? 'Breakfast' : selectedMealSession === 'TEA / MILK' ? 'Tea / Milk' : selectedMealSession.charAt(0) + selectedMealSession.slice(1).toLowerCase();
+
+  const handleQtyChange = (menu_id: number, delta: number, targetMeal: string) => {
     if (isOrderingLocked) return;
 
-    setCart((prev) => {
-      const current = prev[menu_id] || 0;
-      const next = Math.max(0, current + delta);
-      if (next === 0) {
-        const copy = { ...prev };
-        delete copy[menu_id];
-        return copy;
+    setCartByMeal((prev) => {
+      const mealCart = prev[targetMeal] || {};
+      const currentQty = mealCart[menu_id] || 0;
+      const nextQty = Math.max(0, currentQty + delta);
+
+      const updatedMealCart = { ...mealCart };
+      if (nextQty === 0) {
+        delete updatedMealCart[menu_id];
+      } else {
+        updatedMealCart[menu_id] = nextQty;
       }
-      return { ...prev, [menu_id]: next };
+
+      return {
+        ...prev,
+        [targetMeal]: updatedMealCart,
+      };
     });
   };
 
-  const calculateTotal = () => {
-    let total = 0;
-    Object.entries(cart).forEach(([idStr, qty]) => {
-      const item = menuItems.find((m) => m.menu_id === Number(idStr));
-      if (item) {
-        total += item.price * qty;
-      }
+  // Calculate total price across all meal sessions in cart
+  const calculateGrandTotal = () => {
+    let grandTotal = 0;
+    Object.entries(cartByMeal).forEach(([_, mealCart]) => {
+      Object.entries(mealCart).forEach(([menuIdStr, qty]) => {
+        const item = menuItems.find((m) => m.menu_id === Number(menuIdStr));
+        if (item) {
+          grandTotal += item.price * qty;
+        }
+      });
     });
-    return total;
+    return grandTotal;
+  };
+
+  // Calculate total item count across all meal sessions
+  const calculateTotalItemCount = () => {
+    let count = 0;
+    Object.values(cartByMeal).forEach((mealCart) => {
+      Object.values(mealCart).forEach((qty) => {
+        count += qty;
+      });
+    });
+    return count;
   };
 
   const handlePlaceOrder = async () => {
@@ -86,25 +133,50 @@ export const PatientMenu: React.FC = () => {
       return;
     }
 
-    const itemsToOrder = Object.entries(cart).map(([menu_id, quantity]) => ({
-      menu_id: Number(menu_id),
-      quantity,
-    }));
-
-    if (itemsToOrder.length === 0) {
+    const grandTotal = calculateGrandTotal();
+    if (grandTotal === 0) {
       setError('Please select at least one item before placing an order.');
       return;
     }
 
+    if (advanceBalance < grandTotal) {
+      setError(`Insufficient advance balance! Your available balance is ₹${advanceBalance}, but your order total is ₹${grandTotal}. Please ask Admin to recharge your balance.`);
+      return;
+    }
+
+    // Format multi-meal order payload: [{ meal_type, items: [{ menu_id, quantity }] }]
+    const mealsPayload: Array<{ meal_type: string; items: Array<{ menu_id: number; quantity: number }> }> = [];
+
+    Object.entries(cartByMeal).forEach(([mealType, mealCart]) => {
+      const mealItems = Object.entries(mealCart).map(([menuIdStr, qty]) => ({
+        menu_id: Number(menuIdStr),
+        quantity: qty,
+      }));
+
+      if (mealItems.length > 0) {
+        mealsPayload.push({
+          meal_type: mealType,
+          items: mealItems,
+        });
+      }
+    });
+
     setSubmitting(true);
     try {
-      await api.post('/patient/orders', {
-        items: itemsToOrder,
-        meal_type: mealType,
+      const response = await api.post('/patient/orders', {
+        meals: mealsPayload,
       });
 
-      setSuccessMsg('Order placed successfully!');
-      setCart({});
+      setSuccessMsg(`Orders placed successfully for ${mealsPayload.length} meal session(s)! Amount ₹${grandTotal} deducted from advance balance.`);
+      setAdvanceBalance(response.data.remaining_balance);
+      setCartByMeal({
+        Breakfast: {},
+        Lunch: {},
+        Dinner: {},
+        'Tea / Milk': {},
+        Snacks: {},
+      });
+
       setTimeout(() => {
         navigate('/patient/orders');
       }, 1500);
@@ -116,45 +188,62 @@ export const PatientMenu: React.FC = () => {
   };
 
   const filteredItems =
-    selectedCategory === 'ALL'
+    selectedMealSession === 'ALL'
       ? menuItems
-      : menuItems.filter((item) => item.category === selectedCategory);
+      : menuItems.filter((item) => {
+          const cat = (item.category || '').trim().toUpperCase();
+          const sel = selectedMealSession.trim().toUpperCase();
+          return cat === sel || cat.replace(/\s+/g, '') === sel.replace(/\s+/g, '');
+        });
 
-  const cartCount = Object.values(cart).reduce((a, b) => a + b, 0);
+  const isLowBalance = advanceBalance < 500;
+  const grandTotal = calculateGrandTotal();
+  const totalItemCount = calculateTotalItemCount();
 
   return (
-    <div className="space-y-5 sm:space-y-6 pb-28">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs">
+    <div className="space-y-5 sm:space-y-6 pb-32">
+      {/* Header with Balance Badge */}
+      <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
             <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600">
               <Utensils className="w-5 h-5" />
             </div>
-            Canteen Food Menu
+            Meal-Wise Canteen Food Menu
           </h1>
           <p className="text-xs text-slate-500 mt-0.5 font-medium">
-            Select food items and quantities for your daily meal order.
+            Order Breakfast, Lunch, and Dinner separately or all together in one transaction.
           </p>
         </div>
 
-        {/* Meal Type selection */}
-        <div className="flex items-center space-x-2 text-xs w-full sm:w-auto">
-          <label className="font-bold text-slate-700 whitespace-nowrap">Meal Type:</label>
-          <select
-            value={mealType}
-            disabled={isOrderingLocked}
-            onChange={(e) => setMealType(e.target.value)}
-            className="w-full sm:w-auto border border-slate-200 rounded-xl px-3 py-2 bg-slate-50 text-slate-800 font-semibold focus:ring-2 focus:ring-blue-500 outline-none disabled:opacity-50"
-          >
-            <option value="Tea / Coffee">Tea / Milk</option>
-            <option value="Breakfast">Breakfast</option>
-            <option value="Lunch">Lunch</option>
-            <option value="Dinner">Dinner</option>
-            <option value="Snacks">Snacks</option>
-          </select>
+        {/* Available Advance Balance Display Card */}
+        <div className={`p-3.5 rounded-2xl border flex items-center gap-3 w-full md:w-auto shrink-0 ${
+          isLowBalance ? 'bg-rose-50 border-rose-300 text-rose-950 ring-2 ring-rose-400/50' : 'bg-emerald-50/80 border-emerald-200 text-emerald-950'
+        }`}>
+          <div className={`p-2.5 rounded-xl text-white font-bold ${isLowBalance ? 'bg-rose-600' : 'bg-emerald-700'}`}>
+            <Wallet className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-[10px] uppercase tracking-wider font-extrabold text-slate-500">Available Advance Balance</div>
+            <div className="text-lg font-black font-mono">₹{advanceBalance}</div>
+          </div>
         </div>
       </div>
+
+      {/* LOW BALANCE ALERT BANNER (< ₹500) */}
+      {isLowBalance && (
+        <div className="p-4 bg-rose-50 border-2 border-rose-400 text-rose-950 text-xs rounded-2xl font-bold flex items-center gap-3 shadow-xs animate-in fade-in">
+          <div className="p-2 bg-rose-600 text-white rounded-xl shrink-0">
+            <AlertTriangle className="w-5 h-5" />
+          </div>
+          <div className="space-y-0.5">
+            <h3 className="font-extrabold text-sm text-rose-900">⚠️ LOW ADVANCE BALANCE ALERT (&lt; ₹500)</h3>
+            <p className="text-xs text-rose-800 font-semibold">
+              Your remaining advance balance is <strong>₹{advanceBalance}</strong>, which is below ₹500. Please ask the canteen admin to recharge your account balance so you can continue ordering meals.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ORDERING LOCKED WARNING BANNER */}
       {isOrderingLocked && (
@@ -165,37 +254,43 @@ export const PatientMenu: React.FC = () => {
           <div>
             <h3 className="font-black text-base text-rose-950">Ordering is currently closed</h3>
             <p className="text-xs font-semibold text-rose-800 mt-0.5">
-              The admin has temporarily paused new food orders. You cannot place orders until the admin unlocks ordering.
+              The admin has temporarily locked food ordering. Please wait until the admin unlocks ordering.
             </p>
           </div>
         </div>
       )}
 
-      {/* Category Horizontal Scroll Bar */}
+      {/* MEAL-WISE SESSION NAVIGATION TABS */}
       <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-none no-scrollbar">
-        <button
-          onClick={() => setSelectedCategory('ALL')}
-          className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-            selectedCategory === 'ALL'
-              ? 'bg-blue-600 text-white shadow-xs'
-              : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80'
-          }`}
-        >
-          ALL ITEMS ({menuItems.length})
-        </button>
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setSelectedCategory(cat)}
-            className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-              selectedCategory === cat
-                ? 'bg-blue-600 text-white shadow-xs'
-                : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200/80'
-            }`}
-          >
-            {cat}
-          </button>
-        ))}
+        {mealSessions.map((session) => {
+          const Icon = session.icon;
+          const keyVal = session.categoryFilter;
+          const isSelected = selectedMealSession === keyVal;
+
+          // Count items in cart for this meal session
+          const sessionMealName = session.value === 'ALL' ? 'Breakfast' : session.value;
+          const countInMeal = Object.values(cartByMeal[sessionMealName] || {}).reduce((a, b) => a + b, 0);
+
+          return (
+            <button
+              key={session.value}
+              onClick={() => setSelectedMealSession(keyVal as any)}
+              className={`px-4 py-2.5 rounded-xl text-xs font-extrabold flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer ${
+                isSelected
+                  ? 'bg-slate-900 text-white shadow-sm ring-2 ring-slate-700'
+                  : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200/80'
+              }`}
+            >
+              <Icon className={`w-4 h-4 ${isSelected ? 'text-amber-400' : 'text-slate-500'}`} />
+              <span>{session.label}</span>
+              {countInMeal > 0 && (
+                <span className="bg-emerald-600 text-white text-[10px] font-mono px-2 py-0.5 rounded-full font-black">
+                  {countInMeal}
+                </span>
+              )}
+            </button>
+          );
+        })}
       </div>
 
       {/* Messages */}
@@ -220,13 +315,14 @@ export const PatientMenu: React.FC = () => {
         </div>
       ) : filteredItems.length === 0 ? (
         <div className="text-center py-12 text-slate-500 text-xs font-medium bg-white rounded-2xl border border-slate-200/80">
-          No items found in this category.
+          No items found in "{selectedMealSession}" section.
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredItems.map((item) => {
             const isAvailable = item.is_available_today && !isOrderingLocked;
-            const qtyInCart = cart[item.menu_id] || 0;
+            const currentMealCart = cartByMeal[currentMealName] || {};
+            const qtyInCart = currentMealCart[item.menu_id] || 0;
 
             return (
               <div
@@ -265,25 +361,25 @@ export const PatientMenu: React.FC = () => {
                   )}
                 </div>
 
-                {/* Patient Quantity Selector */}
+                {/* Patient Quantity Selector for current meal session */}
                 <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
                   {isAvailable ? (
                     <div className="flex items-center space-x-2 w-full justify-between">
                       <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
                         <button
                           type="button"
-                          onClick={() => handleQtyChange(item.menu_id, -1)}
+                          onClick={() => handleQtyChange(item.menu_id, -1, currentMealName)}
                           disabled={qtyInCart === 0 || isOrderingLocked}
                           className="px-3 py-1.5 text-slate-600 hover:bg-slate-200 active:bg-slate-300 disabled:opacity-30 transition-colors cursor-pointer"
                         >
                           <Minus className="w-3.5 h-3.5" />
                         </button>
-                        <span className="px-3 py-1.5 text-xs font-black text-slate-800 min-w-[2rem] text-center">
+                        <span className="px-3 py-1.5 text-xs font-black text-slate-800 min-w-[2rem] text-center font-mono">
                           {qtyInCart}
                         </span>
                         <button
                           type="button"
-                          onClick={() => handleQtyChange(item.menu_id, 1)}
+                          onClick={() => handleQtyChange(item.menu_id, 1, currentMealName)}
                           disabled={isOrderingLocked}
                           className="px-3 py-1.5 text-slate-600 hover:bg-slate-200 active:bg-slate-300 disabled:opacity-30 transition-colors cursor-pointer"
                         >
@@ -294,14 +390,14 @@ export const PatientMenu: React.FC = () => {
                       <button
                         type="button"
                         disabled={isOrderingLocked}
-                        onClick={() => handleQtyChange(item.menu_id, qtyInCart > 0 ? 0 : 1)}
+                        onClick={() => handleQtyChange(item.menu_id, qtyInCart > 0 ? -qtyInCart : 1, currentMealName)}
                         className={`text-xs font-extrabold px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
                           qtyInCart > 0
                             ? 'bg-emerald-600 text-white shadow-xs'
                             : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200/80'
                         }`}
                       >
-                        {qtyInCart > 0 ? 'Added ✓' : 'Add'}
+                        {qtyInCart > 0 ? `Added for ${currentMealName} ✓` : `Add for ${currentMealName}`}
                       </button>
                     </div>
                   ) : (
@@ -316,25 +412,38 @@ export const PatientMenu: React.FC = () => {
         </div>
       )}
 
-      {/* Floating Order Cart Bar */}
-      {cartCount > 0 && (
-        <div className="fixed bottom-20 md:bottom-6 left-4 right-4 md:left-72 max-w-4xl mx-auto bg-slate-900/95 backdrop-blur-md text-white rounded-2xl p-4 shadow-2xl border border-slate-800 flex items-center justify-between z-40">
+      {/* Floating Order Cart Bar with Advance Balance Summary */}
+      {totalItemCount > 0 && (
+        <div className="fixed bottom-20 md:bottom-6 left-4 right-4 md:left-72 max-w-4xl mx-auto bg-slate-900/95 backdrop-blur-md text-white rounded-2xl p-4 shadow-2xl border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 z-40">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center font-bold text-white shadow-xs">
+            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center font-bold text-white shadow-xs shrink-0">
               <ShoppingBag className="w-5 h-5" />
             </div>
             <div>
-              <div className="text-[11px] text-slate-400 font-semibold">Selected Items: {cartCount}</div>
-              <div className="text-base sm:text-lg font-black text-white">Total: ₹{calculateTotal()}</div>
+              <div className="text-[11px] text-slate-300 font-semibold">
+                Items Selected: <strong className="text-white">{totalItemCount}</strong> | Balance: <strong className="text-emerald-400">₹{advanceBalance}</strong>
+              </div>
+              <div className="text-base sm:text-lg font-black text-white">
+                Order Total: ₹{grandTotal}{' '}
+                <span className="text-xs font-semibold text-slate-400">
+                  (Remaining Balance: ₹{advanceBalance - grandTotal})
+                </span>
+              </div>
             </div>
           </div>
 
           <button
             onClick={handlePlaceOrder}
-            disabled={submitting || isOrderingLocked}
-            className="bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-black text-xs sm:text-sm px-5 py-2.5 rounded-xl shadow transition-colors disabled:opacity-50 cursor-pointer"
+            disabled={submitting || isOrderingLocked || advanceBalance < grandTotal}
+            className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-black text-xs sm:text-sm px-6 py-3 rounded-xl shadow-md transition-colors disabled:opacity-50 cursor-pointer"
           >
-            {submitting ? 'Placing Order...' : isOrderingLocked ? 'Ordering Closed' : 'PLACE ORDER'}
+            {submitting
+              ? 'Placing Order & Deducting Balance...'
+              : isOrderingLocked
+              ? 'Ordering Closed'
+              : advanceBalance < grandTotal
+              ? 'Insufficient Balance'
+              : 'PLACE MEAL ORDERS NOW'}
           </button>
         </div>
       )}

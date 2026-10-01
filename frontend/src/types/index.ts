@@ -10,6 +10,7 @@ export interface User {
   address?: string;
   room_number?: string;
   mobile?: string;
+  advance_balance?: number;
 }
 
 export type Category = 'TEA / MILK' | 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACKS';
@@ -60,6 +61,7 @@ export interface FoodOrder {
   patient_id: string;
   patient_name?: string;
   room_number?: string;
+  patient_advance_balance?: number;
   order_date: string;
   order_time: string;
   meal_type: string;
@@ -108,5 +110,6 @@ export interface PatientRecord {
   address: string;
   room_number: string;
   mobile: string;
+  advance_balance: number;
   createdAt: string;
 }
