@@ -26,6 +26,7 @@ export interface IFoodOrder extends Document {
   feedback_comment?: string;
   feedback_date?: Date;
   has_feedback?: boolean;
+  is_cleared_from_active_view: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -55,6 +56,7 @@ const FoodOrderSchema: Schema = new Schema(
     feedback_comment: { type: String, default: '' },
     feedback_date: { type: Date },
     has_feedback: { type: Boolean, default: false },
+    is_cleared_from_active_view: { type: Boolean, default: false },
   },
   {
     timestamps: true,

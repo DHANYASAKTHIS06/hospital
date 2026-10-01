@@ -205,7 +205,13 @@ export const getPatientOrders = async (req: AuthRequest, res: Response) => {
 
 export const getAllOrdersAdmin = async (req: AuthRequest, res: Response) => {
   try {
-    const orders = await FoodOrder.find().sort({ createdAt: -1 });
+    const includeCleared = req.query.include_cleared === 'true' || req.query.all === 'true';
+    const query: any = {};
+    if (!includeCleared) {
+      query.is_cleared_from_active_view = { $ne: true };
+    }
+
+    const orders = await FoodOrder.find(query).sort({ createdAt: -1 });
     const patients = await Patient.find();
     const patientMap = new Map(patients.map((p) => [p.patient_id, p]));
 
@@ -217,6 +223,7 @@ export const getAllOrdersAdmin = async (req: AuthRequest, res: Response) => {
           ...order.toObject(),
           patient_name: patient ? patient.name : 'Unknown',
           room_number: patient ? patient.room_number : 'N/A',
+          patient_advance_balance: patient ? (patient.advance_balance || 0) : 0,
           items,
         };
       })
@@ -226,6 +233,26 @@ export const getAllOrdersAdmin = async (req: AuthRequest, res: Response) => {
   } catch (error: any) {
     console.error('Get Admin Orders Error:', error);
     return res.status(500).json({ message: 'Error fetching orders for admin.' });
+  }
+};
+
+export const clearActiveOrdersView = async (req: AuthRequest, res: Response) => {
+  try {
+    const result = await FoodOrder.updateMany(
+      { is_cleared_from_active_view: { $ne: true } },
+      { $set: { is_cleared_from_active_view: true } }
+    );
+
+    emitToAdmin('new_order', {});
+    emitToAdmin('order_status_updated', {});
+
+    return res.status(200).json({
+      message: 'Active orders view cleared successfully for a fresh cycle. All historical database records preserved intact for billing.',
+      modifiedCount: result.modifiedCount,
+    });
+  } catch (error: any) {
+    console.error('Clear Active Orders View Error:', error);
+    return res.status(500).json({ message: 'Error clearing active orders view.' });
   }
 };
 

@@ -52,6 +52,7 @@ const getAdminDashboardStats = async (req, res) => {
         const totalPatients = await Patient_1.Patient.countDocuments();
         const activeOrdersCount = await FoodOrder_1.FoodOrder.countDocuments({
             order_status: { $nin: ['DELIVERED', 'CANCELLED'] },
+            is_cleared_from_active_view: { $ne: true },
         });
         const todayStr = new Date().toLocaleDateString('en-GB');
         const todaysOrdersDocs = await FoodOrder_1.FoodOrder.find({ order_date: todayStr });
@@ -64,6 +65,7 @@ const getAdminDashboardStats = async (req, res) => {
         });
         const recentActiveOrders = await FoodOrder_1.FoodOrder.find({
             order_status: { $nin: ['DELIVERED', 'CANCELLED'] },
+            is_cleared_from_active_view: { $ne: true },
         })
             .sort({ createdAt: -1 })
             .limit(10);
@@ -80,7 +82,7 @@ const getAdminDashboardStats = async (req, res) => {
             };
         }));
         // Food Items to Prepare aggregation:
-        // Aggregates quantities from ALL active (non-delivered, non-cancelled) orders
+        // Aggregates quantities from active (non-delivered, non-cancelled, non-cleared) orders
         let allMenuItems = await MenuItem_1.MenuItem.find().sort({ menu_id: 1 });
         if (!allMenuItems || allMenuItems.length === 0) {
             const { seedDatabase } = await Promise.resolve().then(() => __importStar(require('../seed/seedData')));
@@ -89,6 +91,7 @@ const getAdminDashboardStats = async (req, res) => {
         }
         const activeOrders = await FoodOrder_1.FoodOrder.find({
             order_status: { $nin: ['DELIVERED', 'CANCELLED'] },
+            is_cleared_from_active_view: { $ne: true },
         });
         const activeOrderIds = activeOrders.map((o) => o.order_id);
         const activeOrderItems = await OrderItem_1.OrderItem.find({ order_id: { $in: activeOrderIds } });

@@ -21,6 +21,7 @@ import {
   acceptOrder,
   cancelOrder,
   adminConfirmDelivery,
+  clearActiveOrdersView,
 } from '../controllers/orderController';
 import { generateBill, getAllBillsAdmin } from '../controllers/billController';
 import { updatePaymentStatus } from '../controllers/paymentController';
@@ -37,6 +38,7 @@ router.post('/toggle-ordering-lock', toggleOrderingLock);
 
 // Order Management
 router.get('/orders', getAllOrdersAdmin);
+router.post('/orders/clear-active-view', clearActiveOrdersView);
 router.post('/orders/:orderId/accept', acceptOrder);
 router.post('/orders/:orderId/cancel', cancelOrder);
 router.post('/orders/:orderId/confirm-delivery', adminConfirmDelivery);

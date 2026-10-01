@@ -51,6 +51,7 @@ const BillSchema = new mongoose_1.Schema({
     },
     due_date: { type: String, required: true },
     orders_included: { type: [String], default: [] },
+    day_wise_breakdown: { type: mongoose_1.Schema.Types.Mixed, default: [] },
 }, {
     timestamps: true,
     collection: 'bills',

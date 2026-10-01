@@ -15,6 +15,7 @@ export const getAdminDashboardStats = async (req: Request, res: Response) => {
     const totalPatients = await Patient.countDocuments();
     const activeOrdersCount = await FoodOrder.countDocuments({
       order_status: { $nin: ['DELIVERED', 'CANCELLED'] },
+      is_cleared_from_active_view: { $ne: true },
     });
 
     const todayStr = new Date().toLocaleDateString('en-GB');
@@ -31,6 +32,7 @@ export const getAdminDashboardStats = async (req: Request, res: Response) => {
 
     const recentActiveOrders = await FoodOrder.find({
       order_status: { $nin: ['DELIVERED', 'CANCELLED'] },
+      is_cleared_from_active_view: { $ne: true },
     })
       .sort({ createdAt: -1 })
       .limit(10);
@@ -52,7 +54,7 @@ export const getAdminDashboardStats = async (req: Request, res: Response) => {
     );
 
     // Food Items to Prepare aggregation:
-    // Aggregates quantities from ALL active (non-delivered, non-cancelled) orders
+    // Aggregates quantities from active (non-delivered, non-cancelled, non-cleared) orders
     let allMenuItems = await MenuItem.find().sort({ menu_id: 1 });
     if (!allMenuItems || allMenuItems.length === 0) {
       const { seedDatabase } = await import('../seed/seedData');
@@ -62,6 +64,7 @@ export const getAdminDashboardStats = async (req: Request, res: Response) => {
 
     const activeOrders = await FoodOrder.find({
       order_status: { $nin: ['DELIVERED', 'CANCELLED'] },
+      is_cleared_from_active_view: { $ne: true },
     });
 
     const activeOrderIds = activeOrders.map((o) => o.order_id);

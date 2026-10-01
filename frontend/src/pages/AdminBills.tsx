@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { Bill, PatientRecord } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
-import { FileText, Plus, Printer, X, Check } from 'lucide-react';
+import { FileText, Plus, Printer, X, Calendar, Wallet } from 'lucide-react';
 
 export const AdminBills: React.FC = () => {
   const [bills, setBills] = useState<Bill[]>([]);
@@ -12,7 +12,6 @@ export const AdminBills: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [selectedPatientId, setSelectedPatientId] = useState('');
   const [billingPeriod, setBillingPeriod] = useState('');
-  const [advanceAmount, setAdvanceAmount] = useState('0');
   const [submitting, setSubmitting] = useState(false);
 
   const fetchBillsAndPatients = async () => {
@@ -45,12 +44,14 @@ export const AdminBills: React.FC = () => {
       return;
     }
 
+    const patientObj = patients.find((p) => p.patient_id === selectedPatientId);
+
     setSubmitting(true);
     try {
       await api.post('/admin/bills/generate', {
         patient_id: selectedPatientId,
         billing_period: billingPeriod,
-        advance_amount: Number(advanceAmount),
+        advance_amount: patientObj ? patientObj.advance_balance || 0 : 0,
       });
 
       setModalOpen(false);
@@ -64,102 +65,144 @@ export const AdminBills: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print">
+      <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print">
         <div>
           <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
             <FileText className="w-5 h-5 text-blue-600" />
-            Bill Management (Admin)
+            Day-Wise Patient Bill Management (Admin)
           </h1>
           <p className="text-xs text-gray-500 mt-0.5">
-            Generate patient food bills and monthly billing statements.
+            Compile historical patient food orders into day-wise billing statements upon patient discharge.
           </p>
         </div>
 
         <div className="flex space-x-2">
           <button
             onClick={() => setModalOpen(true)}
-            className="bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs px-4 py-2.5 rounded-lg shadow-sm transition-colors flex items-center gap-1.5"
+            className="bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
           >
             <Plus className="w-4 h-4" />
-            <span>Generate New Bill</span>
+            <span>Generate Discharge Bill</span>
           </button>
           <button
             onClick={() => window.print()}
-            className="bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold px-4 py-2.5 rounded-lg text-xs flex items-center gap-1.5 transition-colors border border-gray-300"
+            className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-colors border border-slate-300 cursor-pointer"
           >
             <Printer className="w-4 h-4" />
-            <span>Print All</span>
+            <span>Print All Bills</span>
           </button>
         </div>
       </div>
 
       {loading ? (
-        <div className="text-center py-12 text-gray-500 text-xs">Loading bill records...</div>
+        <div className="text-center py-12 text-gray-500 text-xs font-semibold">Loading bill records...</div>
       ) : bills.length === 0 ? (
-        <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-gray-500 text-xs">
-          No bills generated yet. Click "Generate New Bill" to compile unbilled food orders.
+        <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center text-gray-500 text-xs">
+          No bills generated yet. Click "Generate Discharge Bill" to compile a patient's historical food orders.
         </div>
       ) : (
         <div className="space-y-6">
           {bills.map((bill) => (
             <div
               key={bill._id}
-              className="bg-white border border-gray-200 rounded-xl shadow-sm p-6 print-area space-y-4"
+              className="bg-white border border-gray-200 rounded-2xl shadow-xs p-6 print-area space-y-5"
             >
               {/* Header */}
               <div className="flex justify-between items-start border-b border-gray-200 pb-4">
                 <div>
-                  <h2 className="text-lg font-bold text-gray-900">HOSPITAL CANTEEN BILL</h2>
+                  <h2 className="text-lg font-black text-gray-900 tracking-tight">HOSPITAL CANTEEN FINAL BILL</h2>
                   <div className="text-xs text-gray-700 font-semibold mt-1">
                     Bill ID: <span className="font-mono text-blue-700 font-bold">{bill.bill_id}</span>
                   </div>
-                  <div className="text-xs text-gray-600">
-                    Patient: <strong className="text-gray-900">{bill.patient_name}</strong> ({bill.patient_id}) • Room {bill.room_number}
+                  <div className="text-xs text-gray-700 font-bold mt-0.5">
+                    Patient: <strong className="text-gray-900 font-extrabold">{bill.patient_name}</strong> ({bill.patient_id}) • Room #{bill.room_number}
                   </div>
-                  <div className="text-xs text-gray-500">Billing Period: {bill.billing_period}</div>
+                  <div className="text-xs text-gray-500 font-medium">Billing Period: {bill.billing_period}</div>
                 </div>
 
                 <div className="text-right space-y-1">
                   <StatusBadge status={bill.payment_status} type="payment" />
-                  <div className="text-xs text-gray-500">Date: {bill.billing_date}</div>
-                  <div className="text-xs text-gray-500">Due: {bill.due_date}</div>
+                  <div className="text-xs text-gray-500 font-medium">Bill Date: {bill.billing_date}</div>
+                  <div className="text-xs text-gray-500 font-medium">Due Date: {bill.due_date}</div>
                 </div>
               </div>
 
-              {/* Items Summary */}
-              <div className="space-y-2 text-xs">
-                <h4 className="font-bold text-gray-700 uppercase tracking-wider">Orders Included</h4>
-                {bill.orders?.map((order) => (
-                  <div key={order._id} className="bg-gray-50 p-3 rounded-lg border border-gray-200">
-                    <div className="flex justify-between font-bold text-gray-800 mb-1">
-                      <span>Order #{order.order_id} ({order.order_date})</span>
-                      <span>Total: ₹{order.total_amount}</span>
-                    </div>
-                    <div className="space-y-0.5 text-gray-600">
-                      {order.items?.map((it) => (
-                        <div key={it._id} className="flex justify-between">
-                          <span>{it.item_name_snapshot} × {it.quantity}</span>
-                          <span>₹{it.subtotal}</span>
+              {/* DAY-WISE BREAKDOWN TABLE */}
+              {bill.day_wise_breakdown && bill.day_wise_breakdown.length > 0 ? (
+                <div className="space-y-4">
+                  <h4 className="font-extrabold text-slate-800 uppercase tracking-wider text-xs flex items-center gap-1.5">
+                    <Calendar className="w-4 h-4 text-blue-600" />
+                    DAY-WISE FOOD BREAKDOWN
+                  </h4>
+                  <div className="space-y-3">
+                    {bill.day_wise_breakdown.map((dayGroup, idx) => (
+                      <div key={idx} className="border border-slate-200 rounded-xl overflow-hidden">
+                        <div className="bg-slate-900 text-white px-4 py-2 flex justify-between items-center text-xs font-bold">
+                          <span className="flex items-center gap-1.5">
+                            <span>📅 Date: {dayGroup.date}</span>
+                          </span>
+                          <span className="bg-emerald-600 text-white font-mono px-2.5 py-0.5 rounded font-black">
+                            Day Total: ₹{dayGroup.day_total}
+                          </span>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                ))}
-              </div>
 
-              {/* Bill Totals */}
+                        <div className="p-3 bg-slate-50 space-y-2">
+                          {dayGroup.orders.map((o) => (
+                            <div key={o.order_id} className="bg-white p-3 rounded-lg border border-slate-200 text-xs space-y-1">
+                              <div className="flex justify-between items-center font-bold text-slate-800 border-b border-slate-100 pb-1">
+                                <span className="font-mono text-blue-700">{o.order_id} ({o.meal_type} at {o.order_time})</span>
+                                <span className="font-extrabold text-slate-900">₹{o.total_amount}</span>
+                              </div>
+                              <div className="space-y-0.5 pt-1 text-slate-700">
+                                {o.items?.map((it: any) => (
+                                  <div key={it._id || it.item_name_snapshot} className="flex justify-between text-[11px]">
+                                    <span>{it.item_name_snapshot} × {it.quantity}</span>
+                                    <span className="font-semibold text-slate-800">₹{it.subtotal}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-2 text-xs">
+                  <h4 className="font-bold text-gray-700 uppercase tracking-wider">Orders Included</h4>
+                  {bill.orders?.map((order) => (
+                    <div key={order._id} className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                      <div className="flex justify-between font-bold text-gray-800 mb-1">
+                        <span>Order #{order.order_id} ({order.order_date})</span>
+                        <span>Total: ₹{order.total_amount}</span>
+                      </div>
+                      <div className="space-y-0.5 text-gray-600">
+                        {order.items?.map((it) => (
+                          <div key={it._id} className="flex justify-between">
+                            <span>{it.item_name_snapshot} × {it.quantity}</span>
+                            <span>₹{it.subtotal}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Bill Totals Summary */}
               <div className="pt-4 border-t border-gray-200 space-y-1.5 text-xs font-mono text-right max-w-xs ml-auto">
                 <div className="flex justify-between text-gray-700">
-                  <span>Total Bill Amount:</span>
-                  <span className="font-bold text-gray-900">₹{bill.total_amount}</span>
+                  <span>Total Food Bill Amount:</span>
+                  <span className="font-bold text-gray-900 text-sm">₹{bill.total_amount}</span>
                 </div>
                 <div className="flex justify-between text-emerald-700">
-                  <span>Advance Amount:</span>
+                  <span>Patient Advance Payment:</span>
                   <span className="font-bold">₹{bill.advance_amount}</span>
                 </div>
                 <div className="flex justify-between text-rose-700 border-t border-gray-200 pt-1 text-sm">
-                  <span className="font-bold">Remaining Amount:</span>
-                  <span className="font-bold">₹{bill.remaining_amount}</span>
+                  <span className="font-bold">Remaining Amount Due:</span>
+                  <span className="font-black text-base">₹{bill.remaining_amount}</span>
                 </div>
               </div>
             </div>
@@ -169,10 +212,10 @@ export const AdminBills: React.FC = () => {
 
       {/* Generate Bill Modal */}
       {modalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-xl max-w-md w-full p-6 space-y-4 shadow-xl border border-gray-200">
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-xl border border-gray-200">
             <div className="flex justify-between items-center pb-2 border-b border-gray-200">
-              <h3 className="text-base font-bold text-gray-900">Generate Patient Bill</h3>
+              <h3 className="text-base font-bold text-gray-900">Generate Patient Discharge Bill</h3>
               <button onClick={() => setModalOpen(false)} className="text-gray-400 hover:text-gray-600">
                 <X className="w-5 h-5" />
               </button>
@@ -185,12 +228,12 @@ export const AdminBills: React.FC = () => {
                   required
                   value={selectedPatientId}
                   onChange={(e) => setSelectedPatientId(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:ring-2 focus:ring-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="">-- Choose Patient --</option>
                   {patients.map((p) => (
                     <option key={p.patient_id} value={p.patient_id}>
-                      {p.name} ({p.patient_id}) - Room {p.room_number}
+                      {p.name} ({p.patient_id}) - Room #{p.room_number} [Advance: ₹{p.advance_balance || 0}]
                     </option>
                   ))}
                 </select>
@@ -203,20 +246,8 @@ export const AdminBills: React.FC = () => {
                   required
                   value={billingPeriod}
                   onChange={(e) => setBillingPeriod(e.target.value)}
-                  placeholder="e.g. September 2026 or 04-09-2026"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-
-              <div>
-                <label className="block font-semibold text-gray-700 mb-1">Initial Advance Payment (₹)</label>
-                <input
-                  type="number"
-                  min="0"
-                  value={advanceAmount}
-                  onChange={(e) => setAdvanceAmount(e.target.value)}
-                  placeholder="0"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g. October 2026 Discharge Bill"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500"
                 />
               </div>
 
@@ -224,16 +255,16 @@ export const AdminBills: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="px-4 py-2 rounded-lg font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200"
+                  className="px-4 py-2 rounded-xl font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 cursor-pointer"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="px-5 py-2 rounded-lg font-bold text-white bg-blue-700 hover:bg-blue-800 shadow-sm disabled:opacity-50"
+                  className="px-5 py-2 rounded-xl font-bold text-white bg-blue-700 hover:bg-blue-800 shadow-sm disabled:opacity-50 cursor-pointer"
                 >
-                  {submitting ? 'Compiling Bill...' : 'Generate Bill'}
+                  {submitting ? 'Compiling Day-Wise Bill...' : 'Generate Bill'}
                 </button>
               </div>
             </form>

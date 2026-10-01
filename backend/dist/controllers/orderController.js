@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.submitPatientFeedback = exports.patientConfirmDelivery = exports.adminConfirmDelivery = exports.cancelOrder = exports.acceptOrder = exports.getAllOrdersAdmin = exports.getPatientOrders = exports.createOrder = void 0;
+exports.submitPatientFeedback = exports.patientConfirmDelivery = exports.adminConfirmDelivery = exports.cancelOrder = exports.acceptOrder = exports.clearActiveOrdersView = exports.getAllOrdersAdmin = exports.getPatientOrders = exports.createOrder = void 0;
 const FoodOrder_1 = require("../models/FoodOrder");
 const OrderItem_1 = require("../models/OrderItem");
 const MenuItem_1 = require("../models/MenuItem");
@@ -173,7 +173,12 @@ const getPatientOrders = async (req, res) => {
 exports.getPatientOrders = getPatientOrders;
 const getAllOrdersAdmin = async (req, res) => {
     try {
-        const orders = await FoodOrder_1.FoodOrder.find().sort({ createdAt: -1 });
+        const includeCleared = req.query.include_cleared === 'true' || req.query.all === 'true';
+        const query = {};
+        if (!includeCleared) {
+            query.is_cleared_from_active_view = { $ne: true };
+        }
+        const orders = await FoodOrder_1.FoodOrder.find(query).sort({ createdAt: -1 });
         const patients = await Patient_1.Patient.find();
         const patientMap = new Map(patients.map((p) => [p.patient_id, p]));
         const ordersWithDetails = await Promise.all(orders.map(async (order) => {
@@ -183,6 +188,7 @@ const getAllOrdersAdmin = async (req, res) => {
                 ...order.toObject(),
                 patient_name: patient ? patient.name : 'Unknown',
                 room_number: patient ? patient.room_number : 'N/A',
+                patient_advance_balance: patient ? (patient.advance_balance || 0) : 0,
                 items,
             };
         }));
@@ -194,6 +200,22 @@ const getAllOrdersAdmin = async (req, res) => {
     }
 };
 exports.getAllOrdersAdmin = getAllOrdersAdmin;
+const clearActiveOrdersView = async (req, res) => {
+    try {
+        const result = await FoodOrder_1.FoodOrder.updateMany({ is_cleared_from_active_view: { $ne: true } }, { $set: { is_cleared_from_active_view: true } });
+        (0, socketService_1.emitToAdmin)('new_order', {});
+        (0, socketService_1.emitToAdmin)('order_status_updated', {});
+        return res.status(200).json({
+            message: 'Active orders view cleared successfully for a fresh cycle. All historical database records preserved intact for billing.',
+            modifiedCount: result.modifiedCount,
+        });
+    }
+    catch (error) {
+        console.error('Clear Active Orders View Error:', error);
+        return res.status(500).json({ message: 'Error clearing active orders view.' });
+    }
+};
+exports.clearActiveOrdersView = clearActiveOrdersView;
 const acceptOrder = async (req, res) => {
     try {
         const { orderId } = req.params;

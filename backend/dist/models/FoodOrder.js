@@ -59,6 +59,7 @@ const FoodOrderSchema = new mongoose_1.Schema({
     feedback_comment: { type: String, default: '' },
     feedback_date: { type: Date },
     has_feedback: { type: Boolean, default: false },
+    is_cleared_from_active_view: { type: Boolean, default: false },
 }, {
     timestamps: true,
     collection: 'foodorders',

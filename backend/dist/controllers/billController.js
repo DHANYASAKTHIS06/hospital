@@ -18,6 +18,7 @@ const generateBill = async (req, res) => {
             return res.status(404).json({ message: 'Patient not found.' });
         }
         // Find all non-cancelled orders for this patient that are not yet billed
+        // Note: includes historical orders regardless of is_cleared_from_active_view flag!
         const existingBills = await Bill_1.Bill.find({ patient_id });
         const billedOrderIds = new Set();
         existingBills.forEach((b) => b.orders_included.forEach((id) => billedOrderIds.add(id)));
@@ -25,12 +26,38 @@ const generateBill = async (req, res) => {
             patient_id,
             order_status: { $ne: 'CANCELLED' },
             order_id: { $nin: Array.from(billedOrderIds) },
-        });
+        }).sort({ createdAt: 1 });
         if (unbilledOrders.length === 0) {
             return res.status(400).json({ message: 'No unbilled orders found for this patient.' });
         }
+        // Compute Day-Wise Breakdown
+        const dayMap = new Map();
+        for (const order of unbilledOrders) {
+            const items = await OrderItem_1.OrderItem.find({ order_id: order.order_id });
+            const dateKey = order.order_date || 'Unknown Date';
+            if (!dayMap.has(dateKey)) {
+                dayMap.set(dateKey, { day_total: 0, orders: [] });
+            }
+            const dayObj = dayMap.get(dateKey);
+            dayObj.day_total += order.total_amount;
+            dayObj.orders.push({
+                order_id: order.order_id,
+                meal_type: order.meal_type,
+                order_time: order.order_time,
+                total_amount: order.total_amount,
+                items,
+            });
+        }
+        const day_wise_breakdown = Array.from(dayMap.entries()).map(([date, data]) => ({
+            date,
+            day_total: data.day_total,
+            orders: data.orders,
+        }));
         const total_amount = unbilledOrders.reduce((sum, o) => sum + o.total_amount, 0);
-        const advance = Number(advance_amount) || 0;
+        // Use patient's advance_balance if advance_amount not explicitly passed
+        const advance = advance_amount !== undefined && advance_amount !== null
+            ? Number(advance_amount)
+            : (patient.advance_balance || 0);
         const remaining_amount = Math.max(0, total_amount - advance);
         let payment_status = 'UNPAID';
         if (advance >= total_amount && total_amount > 0) {
@@ -61,11 +88,12 @@ const generateBill = async (req, res) => {
             payment_status,
             due_date,
             orders_included,
+            day_wise_breakdown,
         });
         (0, socketService_1.emitToPatient)(patient_id, 'payment_status_updated', newBill);
         (0, socketService_1.emitToAdmin)('payment_status_updated', newBill);
         return res.status(201).json({
-            message: 'Bill generated successfully',
+            message: 'Bill generated successfully with day-wise breakdown.',
             bill: newBill,
         });
     }
@@ -88,8 +116,34 @@ const getPatientBills = async (req, res) => {
                 const items = await OrderItem_1.OrderItem.find({ order_id: o.order_id });
                 return { ...o.toObject(), items };
             }));
+            // If day_wise_breakdown is missing, construct it dynamically
+            let breakdown = bill.day_wise_breakdown;
+            if (!breakdown || breakdown.length === 0) {
+                const dayMap = new Map();
+                ordersWithItems.forEach((o) => {
+                    const dateKey = o.order_date || 'Unknown Date';
+                    if (!dayMap.has(dateKey)) {
+                        dayMap.set(dateKey, { day_total: 0, orders: [] });
+                    }
+                    const dayObj = dayMap.get(dateKey);
+                    dayObj.day_total += o.total_amount;
+                    dayObj.orders.push({
+                        order_id: o.order_id,
+                        meal_type: o.meal_type,
+                        order_time: o.order_time,
+                        total_amount: o.total_amount,
+                        items: o.items,
+                    });
+                });
+                breakdown = Array.from(dayMap.entries()).map(([date, data]) => ({
+                    date,
+                    day_total: data.day_total,
+                    orders: data.orders,
+                }));
+            }
             return {
                 ...bill.toObject(),
+                day_wise_breakdown: breakdown,
                 orders: ordersWithItems,
             };
         }));
@@ -113,10 +167,35 @@ const getAllBillsAdmin = async (req, res) => {
                 const items = await OrderItem_1.OrderItem.find({ order_id: o.order_id });
                 return { ...o.toObject(), items };
             }));
+            let breakdown = bill.day_wise_breakdown;
+            if (!breakdown || breakdown.length === 0) {
+                const dayMap = new Map();
+                ordersWithItems.forEach((o) => {
+                    const dateKey = o.order_date || 'Unknown Date';
+                    if (!dayMap.has(dateKey)) {
+                        dayMap.set(dateKey, { day_total: 0, orders: [] });
+                    }
+                    const dayObj = dayMap.get(dateKey);
+                    dayObj.day_total += o.total_amount;
+                    dayObj.orders.push({
+                        order_id: o.order_id,
+                        meal_type: o.meal_type,
+                        order_time: o.order_time,
+                        total_amount: o.total_amount,
+                        items: o.items,
+                    });
+                });
+                breakdown = Array.from(dayMap.entries()).map(([date, data]) => ({
+                    date,
+                    day_total: data.day_total,
+                    orders: data.orders,
+                }));
+            }
             return {
                 ...bill.toObject(),
                 patient_name: patient ? patient.name : 'Unknown',
                 room_number: patient ? patient.room_number : 'N/A',
+                day_wise_breakdown: breakdown,
                 orders: ordersWithItems,
             };
         }));

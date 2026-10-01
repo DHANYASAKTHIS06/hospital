@@ -79,10 +79,23 @@ export interface FoodOrder {
   feedback_date?: string;
   has_feedback?: boolean;
   items?: OrderItem[];
+  is_cleared_from_active_view?: boolean;
   createdAt: string;
 }
 
 export type PaymentStatus = 'UNPAID' | 'ADVANCE' | 'PAID';
+
+export interface DayWiseBreakdown {
+  date: string;
+  day_total: number;
+  orders: Array<{
+    order_id: string;
+    meal_type: string;
+    order_time: string;
+    total_amount: number;
+    items?: OrderItem[];
+  }>;
+}
 
 export interface Bill {
   _id: string;
@@ -99,6 +112,7 @@ export interface Bill {
   due_date: string;
   orders_included: string[];
   orders?: FoodOrder[];
+  day_wise_breakdown?: DayWiseBreakdown[];
   createdAt: string;
 }
 

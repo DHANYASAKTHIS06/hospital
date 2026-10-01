@@ -2,6 +2,18 @@ import mongoose, { Schema, Document } from 'mongoose';
 
 export type PaymentStatus = 'UNPAID' | 'ADVANCE' | 'PAID';
 
+export interface IDayWiseBreakdown {
+  date: string;
+  day_total: number;
+  orders: Array<{
+    order_id: string;
+    meal_type: string;
+    order_time: string;
+    total_amount: number;
+    items?: any[];
+  }>;
+}
+
 export interface IBill extends Document {
   bill_id: string;
   patient_id: string;
@@ -13,6 +25,7 @@ export interface IBill extends Document {
   payment_status: PaymentStatus;
   due_date: string;
   orders_included: string[];
+  day_wise_breakdown?: IDayWiseBreakdown[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -34,6 +47,7 @@ const BillSchema: Schema = new Schema(
     },
     due_date: { type: String, required: true },
     orders_included: { type: [String], default: [] },
+    day_wise_breakdown: { type: Schema.Types.Mixed, default: [] },
   },
   {
     timestamps: true,

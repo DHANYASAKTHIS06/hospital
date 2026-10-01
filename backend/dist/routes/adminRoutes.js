@@ -16,6 +16,7 @@ router.get('/system-status', systemController_1.getSystemStatus);
 router.post('/toggle-ordering-lock', systemController_1.toggleOrderingLock);
 // Order Management
 router.get('/orders', orderController_1.getAllOrdersAdmin);
+router.post('/orders/clear-active-view', orderController_1.clearActiveOrdersView);
 router.post('/orders/:orderId/accept', orderController_1.acceptOrder);
 router.post('/orders/:orderId/cancel', orderController_1.cancelOrder);
 router.post('/orders/:orderId/confirm-delivery', orderController_1.adminConfirmDelivery);
