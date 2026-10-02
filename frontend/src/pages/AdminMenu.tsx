@@ -104,22 +104,25 @@ export const AdminMenu: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+      <div className="bg-white p-6 rounded-2xl border border-procare-200 shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <Utensils className="w-5 h-5 text-blue-600" />
+          <span className="text-[10px] font-black text-procare-800 uppercase tracking-wider">
+            PROCARE PHYSIOTHERAPY & REHABILITATION CENTRE
+          </span>
+          <h1 className="text-xl font-black text-slate-900 flex items-center gap-2 mt-0.5">
+            <Utensils className="w-5 h-5 text-procare-700" />
             Menu Management (Admin Only)
           </h1>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <p className="text-xs text-slate-500 mt-0.5 font-medium">
             Add, edit, delete menu items, modify prices, quantities, and day-wise availability.
           </p>
         </div>
 
         <button
           onClick={openAddModal}
-          className="bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs px-4 py-2.5 rounded-lg shadow-sm transition-colors flex items-center gap-1.5"
+          className="bg-celadon hover:bg-procare-400 text-slate-950 font-black text-xs px-4 py-2.5 rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
         >
-          <Plus className="w-4 h-4" />
+          <Plus className="w-4 h-4 text-slate-950" />
           <span>Add Menu Item</span>
         </button>
       </div>

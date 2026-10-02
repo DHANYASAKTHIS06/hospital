@@ -68,9 +68,9 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
       <div className="bg-white rounded-2xl max-w-4xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
         {/* Header Bar - No Print */}
-        <div className="no-print p-4 bg-slate-900 text-white flex justify-between items-center shrink-0 border-b border-slate-800">
+        <div className="no-print p-4 bg-procare-900 text-white flex justify-between items-center shrink-0 border-b border-procare-800">
           <div className="flex items-center space-x-3">
-            <div className="p-2 bg-blue-600/30 text-blue-400 rounded-lg">
+            <div className="p-2 bg-celadon text-slate-950 rounded-lg">
               {reportType === 'ROOM_WISE' ? (
                 <Building2 className="w-5 h-5" />
               ) : (
@@ -78,12 +78,12 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
               )}
             </div>
             <div>
-              <h2 className="text-base font-bold">
+              <h2 className="text-base font-bold text-white">
                 {reportType === 'ROOM_WISE'
                   ? 'Room-Wise Patient Order Report'
                   : 'Cooking Department - Items to Be Prepared'}
               </h2>
-              <p className="text-xs text-slate-300">
+              <p className="text-xs text-procare-200">
                 A4 Print Preview • Generated on {dateFormatted} at {timeFormatted}
               </p>
             </div>
@@ -92,14 +92,14 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
           <div className="flex items-center space-x-2">
             <button
               onClick={handlePrint}
-              className="bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer"
+              className="bg-celadon hover:bg-procare-400 text-slate-950 font-black text-xs px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer"
             >
               <Printer className="w-4 h-4" />
               <span>PRINT REPORT</span>
             </button>
             <button
               onClick={onClose}
-              className="text-slate-400 hover:text-white p-2 rounded-lg hover:bg-slate-800 transition-colors"
+              className="text-slate-300 hover:text-white p-2 rounded-lg hover:bg-procare-800 transition-colors"
             >
               <X className="w-5 h-5" />
             </button>
@@ -135,20 +135,27 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
             }
           `}</style>
 
-          {/* Hospital Print Header */}
-          <div className="border-b-2 border-slate-900 pb-4 mb-6">
+          {/* ProCare Print Header */}
+          <div className="border-b-2 border-procare-900 pb-4 mb-6">
             <div className="flex justify-between items-start">
-              <div>
-                <h1 className="text-xl font-black text-slate-900 tracking-tight uppercase">
-                  HOSPITAL CANTEEN MANAGEMENT SYSTEM
-                </h1>
-                <p className="text-xs text-slate-600 font-semibold mt-0.5">
-                  Official Kitchen & Dietary Delivery Operations Report
-                </p>
+              <div className="flex items-center space-x-3">
+                <img
+                  src="/procare-logo.png"
+                  alt="ProCare Logo"
+                  className="h-14 w-auto object-contain shrink-0"
+                />
+                <div>
+                  <h1 className="text-base sm:text-lg font-black text-slate-900 tracking-tight uppercase">
+                    PROCARE PHYSIOTHERAPY & REHABILITATION CENTRE
+                  </h1>
+                  <p className="text-xs text-procare-800 font-extrabold tracking-wide uppercase">
+                    Canteen Management System Report
+                  </p>
+                </div>
               </div>
               <div className="text-right text-xs text-slate-600">
                 <div className="flex items-center justify-end gap-1 font-bold text-slate-800">
-                  <Calendar className="w-3.5 h-3.5 text-slate-500" />
+                  <Calendar className="w-3.5 h-3.5 text-procare-700" />
                   <span>{dateFormatted}</span>
                 </div>
                 <div className="flex items-center justify-end gap-1 font-medium mt-0.5 text-slate-500">
@@ -159,12 +166,12 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
             </div>
 
             <div className="mt-3 pt-3 border-t border-slate-200 flex justify-between items-center">
-              <span className="text-sm font-extrabold text-blue-900 uppercase bg-blue-50 px-3 py-1 rounded-md border border-blue-200">
+              <span className="text-xs font-black text-procare-950 uppercase bg-procare-100 px-3 py-1 rounded-md border border-procare-300">
                 {reportType === 'ROOM_WISE'
                   ? '📋 ROOM-WISE ACTIVE PATIENT ORDER REPORT'
                   : '👨‍🍳 COOKING DEPARTMENT - TOTAL ITEMS TO BE PREPARED'}
               </span>
-              <span className="text-xs text-slate-500 font-bold">
+              <span className="text-xs text-slate-600 font-bold">
                 {reportType === 'ROOM_WISE'
                   ? `Total Active Rooms: ${sortedRooms.length} | Orders: ${activeOrders.length}`
                   : `Total Dishes to Cook: ${itemsNeedingPreparation.length} | Total Portion Count: ${totalItemsToCook}`}

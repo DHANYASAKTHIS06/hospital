@@ -45,17 +45,17 @@ export const BottomNav: React.FC = () => {
               className={({ isActive }) =>
                 `flex flex-col items-center justify-center flex-1 py-1 px-1 rounded-xl transition-all duration-200 ${
                   isActive
-                    ? 'text-blue-600 font-bold scale-105'
+                    ? 'text-procare-950 font-black scale-105'
                     : 'text-slate-500 hover:text-slate-800 font-medium'
                 }`
               }
             >
               {({ isActive }) => (
                 <>
-                  <div className={`p-1 rounded-xl transition-colors ${isActive ? 'bg-blue-50' : ''}`}>
+                  <div className={`p-1 rounded-xl transition-colors ${isActive ? 'bg-celadon text-slate-950 font-bold' : ''}`}>
                     <Icon className="w-5 h-5 shrink-0" />
                   </div>
-                  <span className="text-[10px] mt-0.5 tracking-tight truncate max-w-full">
+                  <span className="text-[10px] mt-0.5 tracking-tight truncate max-w-full font-bold">
                     {tab.name}
                   </span>
                 </>

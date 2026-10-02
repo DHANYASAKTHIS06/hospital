@@ -74,21 +74,24 @@ export const MyOrders: React.FC = () => {
 
   return (
     <div className="space-y-5 sm:space-y-6">
-      <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+      <div className="bg-white p-5 rounded-2xl border border-procare-200 shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600">
+          <span className="text-[10px] font-black text-procare-800 uppercase tracking-wider">
+            PROCARE PHYSIOTHERAPY & REHABILITATION CENTRE
+          </span>
+          <h1 className="text-xl font-black text-slate-900 flex items-center gap-2 mt-0.5">
+            <div className="p-1.5 rounded-lg bg-celadon text-slate-950">
               <ShoppingBag className="w-5 h-5" />
             </div>
-            My Food Orders
+            MY CANTEEN FOOD ORDERS
           </h1>
           <p className="text-xs text-slate-500 mt-0.5 font-medium">
             Track live food order status and share feedback on delivered orders.
           </p>
         </div>
 
-        <div className="text-xs bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-slate-600 font-semibold">
-          Total Orders: <strong className="text-slate-900">{orders.length}</strong>
+        <div className="text-xs bg-procare-50 border border-procare-200 px-3 py-1.5 rounded-xl text-procare-900 font-bold">
+          Total Orders: <strong className="text-procare-950 font-black">{orders.length}</strong>
         </div>
       </div>
 

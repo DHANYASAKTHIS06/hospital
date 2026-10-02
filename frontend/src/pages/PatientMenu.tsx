@@ -204,29 +204,32 @@ export const PatientMenu: React.FC = () => {
   return (
     <div className="space-y-5 sm:space-y-6 pb-32">
       {/* Header with Balance Badge */}
-      <div className="bg-white p-5 rounded-2xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="bg-white p-5 rounded-2xl border border-procare-200 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-xl font-bold text-slate-900 flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600">
+          <span className="text-[10px] font-black text-procare-800 uppercase tracking-wider">
+            PROCARE PHYSIOTHERAPY & REHABILITATION CENTRE
+          </span>
+          <h1 className="text-xl font-black text-slate-900 flex items-center gap-2 mt-0.5">
+            <div className="p-1.5 rounded-lg bg-celadon text-slate-950">
               <Utensils className="w-5 h-5" />
             </div>
-            Meal-Wise Canteen Food Menu
+            PROCARE CANTEEN MEAL MENU
           </h1>
           <p className="text-xs text-slate-500 mt-0.5 font-medium">
-            Order Breakfast, Lunch, and Dinner separately or all together in one transaction.
+            Order Breakfast, Lunch, and Dinner separately or together in one transaction.
           </p>
         </div>
 
         {/* Available Advance Balance Display Card */}
         <div className={`p-3.5 rounded-2xl border flex items-center gap-3 w-full md:w-auto shrink-0 ${
-          isLowBalance ? 'bg-rose-50 border-rose-300 text-rose-950 ring-2 ring-rose-400/50' : 'bg-emerald-50/80 border-emerald-200 text-emerald-950'
+          isLowBalance ? 'bg-rose-50 border-rose-300 text-rose-950 ring-2 ring-rose-400/50' : 'bg-procare-50 border-procare-300 text-procare-950'
         }`}>
-          <div className={`p-2.5 rounded-xl text-white font-bold ${isLowBalance ? 'bg-rose-600' : 'bg-emerald-700'}`}>
+          <div className={`p-2.5 rounded-xl font-bold ${isLowBalance ? 'bg-rose-600 text-white' : 'bg-celadon text-slate-950'}`}>
             <Wallet className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-[10px] uppercase tracking-wider font-extrabold text-slate-500">Available Advance Balance</div>
-            <div className="text-lg font-black font-mono">₹{advanceBalance}</div>
+            <div className="text-[10px] uppercase tracking-wider font-extrabold text-procare-800">Available Advance Balance</div>
+            <div className="text-lg font-black font-mono text-procare-950">₹{advanceBalance}</div>
           </div>
         </div>
       </div>
@@ -240,7 +243,7 @@ export const PatientMenu: React.FC = () => {
           <div className="space-y-0.5">
             <h3 className="font-extrabold text-sm text-rose-900">⚠️ LOW ADVANCE BALANCE ALERT (&lt; ₹500)</h3>
             <p className="text-xs text-rose-800 font-semibold">
-              Your remaining advance balance is <strong>₹{advanceBalance}</strong>, which is below ₹500. Please ask the canteen admin to recharge your account balance so you can continue ordering meals.
+              Your remaining advance balance is <strong>₹{advanceBalance}</strong>, which is below ₹500. Please ask the ProCare canteen admin to recharge your account balance so you can continue ordering meals.
             </p>
           </div>
         </div>
@@ -278,14 +281,14 @@ export const PatientMenu: React.FC = () => {
               onClick={() => setSelectedMealSession(keyVal as any)}
               className={`px-4 py-2.5 rounded-xl text-xs font-extrabold flex items-center gap-2 whitespace-nowrap transition-all cursor-pointer ${
                 isSelected
-                  ? 'bg-slate-900 text-white shadow-sm ring-2 ring-slate-700'
-                  : 'bg-white text-slate-700 hover:bg-slate-100 border border-slate-200/80'
+                  ? 'bg-celadon text-slate-950 shadow-xs ring-1 ring-procare-400'
+                  : 'bg-white text-slate-700 hover:bg-procare-50 border border-slate-200/80'
               }`}
             >
-              <Icon className={`w-4 h-4 ${isSelected ? 'text-amber-400' : 'text-slate-500'}`} />
+              <Icon className={`w-4 h-4 ${isSelected ? 'text-slate-950' : 'text-procare-700'}`} />
               <span>{session.label}</span>
               {countInMeal > 0 && (
-                <span className="bg-emerald-600 text-white text-[10px] font-mono px-2 py-0.5 rounded-full font-black">
+                <span className="bg-procare-800 text-white text-[10px] font-mono px-2 py-0.5 rounded-full font-black">
                   {countInMeal}
                 </span>
               )}
@@ -462,18 +465,18 @@ export const PatientMenu: React.FC = () => {
 
       {/* Floating Order Cart Bar with Advance Balance Summary */}
       {totalItemCount > 0 && (
-        <div className="fixed bottom-20 md:bottom-6 left-4 right-4 md:left-72 max-w-4xl mx-auto bg-slate-900/95 backdrop-blur-md text-white rounded-2xl p-4 shadow-2xl border border-slate-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 z-40">
+        <div className="fixed bottom-20 md:bottom-6 left-4 right-4 md:left-72 max-w-4xl mx-auto bg-procare-950/95 backdrop-blur-md text-white rounded-2xl p-4 shadow-2xl border border-procare-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 z-40">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center font-bold text-white shadow-xs shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-celadon text-slate-950 flex items-center justify-center font-black shadow-xs shrink-0">
               <ShoppingBag className="w-5 h-5" />
             </div>
             <div>
-              <div className="text-[11px] text-slate-300 font-semibold">
-                Items Selected: <strong className="text-white">{totalItemCount}</strong> | Balance: <strong className="text-emerald-400">₹{advanceBalance}</strong>
+              <div className="text-[11px] text-procare-200 font-semibold">
+                Items Selected: <strong className="text-white">{totalItemCount}</strong> | Balance: <strong className="text-celadon font-bold">₹{advanceBalance}</strong>
               </div>
               <div className="text-base sm:text-lg font-black text-white">
                 Order Total: ₹{grandTotal}{' '}
-                <span className="text-xs font-semibold text-slate-400">
+                <span className="text-xs font-semibold text-procare-300">
                   (Remaining Balance: ₹{advanceBalance - grandTotal})
                 </span>
               </div>
@@ -483,7 +486,7 @@ export const PatientMenu: React.FC = () => {
           <button
             onClick={handlePlaceOrder}
             disabled={submitting || isOrderingLocked || advanceBalance < grandTotal}
-            className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-black text-xs sm:text-sm px-6 py-3 rounded-xl shadow-md transition-colors disabled:opacity-50 cursor-pointer"
+            className="w-full sm:w-auto bg-celadon hover:bg-procare-400 active:bg-procare-500 text-slate-950 font-black text-xs sm:text-sm px-6 py-3 rounded-xl shadow-md transition-colors disabled:opacity-50 cursor-pointer"
           >
             {submitting
               ? 'Placing Order & Deducting Balance...'

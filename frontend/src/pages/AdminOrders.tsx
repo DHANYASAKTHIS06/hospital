@@ -128,13 +128,16 @@ export const AdminOrders: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header & Print Report Actions */}
-      <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="bg-white p-6 rounded-2xl border border-procare-200 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <ShoppingBag className="w-5 h-5 text-blue-600" />
+          <span className="text-[10px] font-black text-procare-800 uppercase tracking-wider">
+            PROCARE PHYSIOTHERAPY & REHABILITATION CENTRE
+          </span>
+          <h1 className="text-xl font-black text-slate-900 flex items-center gap-2 mt-0.5">
+            <ShoppingBag className="w-5 h-5 text-procare-700" />
             Admin Order Management (Meal-Wise View)
           </h1>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <p className="text-xs text-slate-500 mt-0.5 font-medium">
             View patient food orders grouped by Breakfast, Lunch, and Dinner with live balance alerts.
           </p>
         </div>
@@ -142,7 +145,7 @@ export const AdminOrders: React.FC = () => {
         <div className="flex flex-wrap items-center gap-2">
           <button
             onClick={() => openReport('ROOM_WISE')}
-            className="bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
+            className="bg-procare-800 hover:bg-procare-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer border border-procare-700"
           >
             <Building2 className="w-4 h-4" />
             <span>Print Room-Wise Report</span>
@@ -150,9 +153,9 @@ export const AdminOrders: React.FC = () => {
 
           <button
             onClick={() => openReport('ITEMS_TO_PREPARE')}
-            className="bg-emerald-700 hover:bg-emerald-600 text-white px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
+            className="bg-celadon hover:bg-procare-400 text-slate-950 px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
           >
-            <Printer className="w-4 h-4" />
+            <Printer className="w-4 h-4 text-slate-950" />
             <span>Print Items to Be Prepared</span>
           </button>
         </div>

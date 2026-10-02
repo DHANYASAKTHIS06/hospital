@@ -44,14 +44,17 @@ export const AdminFoodRecords: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div className="bg-white p-6 rounded-2xl border border-procare-200 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <History className="w-5 h-5 text-blue-600" />
+          <span className="text-[10px] font-black text-procare-800 uppercase tracking-wider">
+            PROCARE PHYSIOTHERAPY & REHABILITATION CENTRE
+          </span>
+          <h1 className="text-xl font-black text-slate-900 flex items-center gap-2 mt-0.5">
+            <History className="w-5 h-5 text-procare-700" />
             Admin Food Records Log
           </h1>
-          <p className="text-xs text-gray-500 mt-0.5">
-            Audit and filter all food orders placed across hospital rooms.
+          <p className="text-xs text-slate-500 mt-0.5 font-medium">
+            Audit and filter all canteen food orders placed across hospital rooms.
           </p>
         </div>
       </div>

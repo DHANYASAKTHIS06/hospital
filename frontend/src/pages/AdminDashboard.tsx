@@ -148,13 +148,20 @@ export const AdminDashboard: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Title & Lock Controls Bar */}
-      <div className="bg-slate-900 text-white p-6 rounded-2xl shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <span className="text-xs font-extrabold text-amber-400 uppercase tracking-wider">
-            Hospital Canteen Operations Manager
-          </span>
-          <h1 className="text-2xl font-bold mt-1">ADMIN DASHBOARD</h1>
-          <p className="text-xs text-slate-300">Live canteen order processing, preparation aggregation, and print reports.</p>
+      <div className="bg-procare-900 text-white p-6 rounded-2xl shadow-sm flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border border-procare-800">
+        <div className="flex items-center space-x-3">
+          <img
+            src="/procare-logo.png"
+            alt="ProCare Logo"
+            className="h-14 w-auto object-contain shrink-0 bg-white p-1 rounded-xl shadow-xs"
+          />
+          <div>
+            <span className="text-[10px] font-black text-celadon uppercase tracking-wider">
+              PROCARE PHYSIOTHERAPY & REHABILITATION CENTRE
+            </span>
+            <h1 className="text-xl font-black mt-0.5 tracking-tight text-white">ADMIN CANTEEN DASHBOARD</h1>
+            <p className="text-xs text-procare-200 font-medium">Live canteen order processing, preparation aggregation, and print reports.</p>
+          </div>
         </div>
 
         {/* Lock / Unlock Control, Refresh Active View & Report Action Buttons */}
@@ -162,10 +169,10 @@ export const AdminDashboard: React.FC = () => {
           {/* Lock / Unlock Toggle */}
           <button
             onClick={handleToggleLock}
-            className={`px-4 py-2.5 rounded-xl font-extrabold text-xs flex items-center gap-2 transition-all shadow-sm cursor-pointer ${
+            className={`px-4 py-2.5 rounded-xl font-black text-xs flex items-center gap-2 transition-all shadow-sm cursor-pointer ${
               isOrderingLocked
                 ? 'bg-rose-600 hover:bg-rose-500 text-white ring-2 ring-rose-400/50'
-                : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                : 'bg-celadon hover:bg-procare-400 text-slate-950'
             }`}
           >
             {isOrderingLocked ? (
@@ -184,7 +191,7 @@ export const AdminDashboard: React.FC = () => {
           {/* Refresh / Clear Active View Button */}
           <button
             onClick={() => setIsClearModalOpen(true)}
-            className="bg-purple-700 hover:bg-purple-600 text-white px-3.5 py-2.5 rounded-xl text-xs font-extrabold flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
+            className="bg-procare-700 hover:bg-procare-600 text-white px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer border border-procare-600"
             title="Clear current view for fresh preparation cycle (Historical DB records preserved)"
           >
             <RotateCcw className="w-4 h-4" />
@@ -194,7 +201,7 @@ export const AdminDashboard: React.FC = () => {
           {/* Printable Report Buttons */}
           <button
             onClick={() => openReport('ROOM_WISE')}
-            className="bg-blue-600 hover:bg-blue-500 text-white px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
+            className="bg-procare-800 hover:bg-procare-700 text-white px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer border border-procare-700"
           >
             <Building2 className="w-4 h-4" />
             <span>Print Room-Wise Report</span>
@@ -202,7 +209,7 @@ export const AdminDashboard: React.FC = () => {
 
           <button
             onClick={() => openReport('ITEMS_TO_PREPARE')}
-            className="bg-emerald-700 hover:bg-emerald-600 text-white px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
+            className="bg-celadon hover:bg-procare-400 text-slate-950 px-3.5 py-2.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
           >
             <Printer className="w-4 h-4" />
             <span>Print Items to Be Prepared</span>
@@ -302,10 +309,10 @@ export const AdminDashboard: React.FC = () => {
               <button
                 key={cat}
                 onClick={() => setSelectedCategory(cat)}
-                className={`text-xs font-semibold px-3 py-1.5 rounded-lg transition-colors ${
+                className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-colors cursor-pointer ${
                   selectedCategory === cat
-                    ? 'bg-emerald-700 text-white shadow-sm'
-                    : 'bg-white border border-gray-300 text-gray-700 hover:bg-gray-100'
+                    ? 'bg-celadon text-slate-950 font-black shadow-xs border border-procare-400'
+                    : 'bg-white border border-slate-300 text-slate-700 hover:bg-procare-50'
                 }`}
               >
                 {cat}
@@ -313,12 +320,12 @@ export const AdminDashboard: React.FC = () => {
             ))}
           </div>
 
-          <label className="inline-flex items-center cursor-pointer text-xs font-semibold text-gray-700 bg-white border border-gray-300 px-3 py-1.5 rounded-lg hover:bg-gray-100">
+          <label className="inline-flex items-center cursor-pointer text-xs font-semibold text-slate-700 bg-white border border-slate-300 px-3 py-1.5 rounded-lg hover:bg-slate-50">
             <input
               type="checkbox"
               checked={showOnlyRequired}
               onChange={(e) => setShowOnlyRequired(e.target.checked)}
-              className="rounded border-gray-300 text-emerald-600 focus:ring-emerald-500 mr-2"
+              className="rounded border-slate-300 text-procare-700 focus:ring-procare-500 mr-2"
             />
             Show Only Items Needing Preparation ({distinctItemsToPrepareCount})
           </label>
@@ -327,7 +334,7 @@ export const AdminDashboard: React.FC = () => {
         {/* Preparation Items Grid */}
         <div className="p-6">
           {filteredItems.length === 0 ? (
-            <div className="text-center py-8 text-gray-500 text-xs">
+            <div className="text-center py-8 text-slate-500 text-xs">
               No food items match the selected filter.
             </div>
           ) : (
@@ -339,22 +346,22 @@ export const AdminDashboard: React.FC = () => {
                     key={item.menu_id}
                     className={`p-4 rounded-xl border transition-all flex justify-between items-center ${
                       isRequired
-                        ? 'bg-emerald-50/70 border-emerald-400 shadow-sm ring-1 ring-emerald-400/50'
-                        : 'bg-white border-gray-200 opacity-75 hover:opacity-100'
+                        ? 'bg-procare-50/90 border-procare-400 shadow-xs ring-1 ring-procare-400/50'
+                        : 'bg-white border-slate-200 opacity-75 hover:opacity-100'
                     }`}
                   >
                     <div className="space-y-1 pr-2">
                       <div className="flex items-center gap-1.5">
-                        <Utensils className={`w-3.5 h-3.5 ${isRequired ? 'text-emerald-700' : 'text-gray-400'}`} />
-                        <span className={`text-xs font-bold ${isRequired ? 'text-emerald-950' : 'text-gray-700'}`}>
+                        <Utensils className={`w-3.5 h-3.5 ${isRequired ? 'text-procare-800' : 'text-slate-400'}`} />
+                        <span className={`text-xs font-bold ${isRequired ? 'text-procare-950' : 'text-slate-700'}`}>
                           {item.item_name}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-[10px] uppercase font-semibold text-gray-500 bg-gray-100 px-2 py-0.5 rounded">
+                        <span className="text-[10px] uppercase font-bold text-procare-800 bg-procare-100 px-2 py-0.5 rounded">
                           {item.category}
                         </span>
-                        <span className="text-[10px] text-gray-500">{item.portion_size}</span>
+                        <span className="text-[10px] text-slate-500">{item.portion_size}</span>
                       </div>
                     </div>
 
@@ -362,13 +369,13 @@ export const AdminDashboard: React.FC = () => {
                       <div
                         className={`text-lg font-black font-mono px-3 py-1 rounded-lg flex items-center justify-center min-w-[3rem] ${
                           isRequired
-                            ? 'bg-emerald-600 text-white shadow-sm'
-                            : 'bg-gray-100 text-gray-400 border border-gray-200'
+                            ? 'bg-celadon text-slate-950 shadow-xs'
+                            : 'bg-slate-100 text-slate-400 border border-slate-200'
                         }`}
                       >
                         {item.total_preparation_quantity}
                       </div>
-                      <span className="text-[9px] font-semibold text-gray-400 block mt-0.5">
+                      <span className="text-[9px] font-bold text-slate-500 block mt-0.5">
                         {isRequired ? 'REQUIRED' : 'NONE'}
                       </span>
                     </div>
@@ -381,30 +388,30 @@ export const AdminDashboard: React.FC = () => {
       </div>
 
       {/* ACTIVE PATIENT ORDERS SECTION */}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 bg-slate-900 text-white flex justify-between items-center">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-procare-800 bg-procare-950 text-white flex justify-between items-center">
           <div className="flex items-center gap-2">
-            <Clock className="w-4 h-4 text-blue-400" />
-            <h2 className="text-sm font-bold uppercase tracking-wide">
+            <Clock className="w-4 h-4 text-celadon" />
+            <h2 className="text-sm font-black uppercase tracking-wide">
               ACTIVE CYCLE PATIENT ORDERS
             </h2>
           </div>
           <div className="flex items-center space-x-2">
             <button
               onClick={() => setIsClearModalOpen(true)}
-              className="bg-purple-700 hover:bg-purple-600 text-white px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer"
+              className="bg-procare-700 hover:bg-procare-600 text-white px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
               <span>Clear / Refresh View</span>
             </button>
             <button
               onClick={() => openReport('ROOM_WISE')}
-              className="bg-blue-600 hover:bg-blue-500 text-white px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer"
+              className="bg-celadon hover:bg-procare-400 text-slate-950 px-3 py-1 rounded-lg text-xs font-black flex items-center gap-1 shadow-xs cursor-pointer"
             >
-              <Printer className="w-3.5 h-3.5" />
+              <Printer className="w-3.5 h-3.5 text-slate-950" />
               <span>Print Room-Wise Report</span>
             </button>
-            <span className="text-xs font-bold bg-blue-500/30 text-blue-200 px-2.5 py-0.5 rounded-full border border-blue-400/30">
+            <span className="text-xs font-black bg-celadon/30 text-celadon-light px-2.5 py-0.5 rounded-full border border-celadon/40">
               {activeOrdersList.length} Active Orders
             </span>
           </div>

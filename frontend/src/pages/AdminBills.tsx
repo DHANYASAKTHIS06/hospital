@@ -65,13 +65,16 @@ export const AdminBills: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print">
+      <div className="bg-white p-6 rounded-2xl border border-procare-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-            <FileText className="w-5 h-5 text-blue-600" />
+          <span className="text-[10px] font-black text-procare-800 uppercase tracking-wider">
+            PROCARE PHYSIOTHERAPY & REHABILITATION CENTRE
+          </span>
+          <h1 className="text-xl font-black text-slate-900 flex items-center gap-2 mt-0.5">
+            <FileText className="w-5 h-5 text-procare-700" />
             Day-Wise Patient Bill Management (Admin)
           </h1>
-          <p className="text-xs text-gray-500 mt-0.5">
+          <p className="text-xs text-slate-500 mt-0.5 font-medium">
             Compile historical patient food orders into day-wise billing statements upon patient discharge.
           </p>
         </div>
@@ -79,14 +82,14 @@ export const AdminBills: React.FC = () => {
         <div className="flex space-x-2">
           <button
             onClick={() => setModalOpen(true)}
-            className="bg-blue-700 hover:bg-blue-800 text-white font-bold text-xs px-4 py-2.5 rounded-xl shadow-sm transition-colors flex items-center gap-1.5 cursor-pointer"
+            className="bg-celadon hover:bg-procare-400 text-slate-950 font-black text-xs px-4 py-2.5 rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
           >
-            <Plus className="w-4 h-4" />
+            <Plus className="w-4 h-4 text-slate-950" />
             <span>Generate Discharge Bill</span>
           </button>
           <button
             onClick={() => window.print()}
-            className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-colors border border-slate-300 cursor-pointer"
+            className="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-4 py-2.5 rounded-xl text-xs flex items-center gap-1.5 transition-colors border border-slate-300 cursor-pointer"
           >
             <Printer className="w-4 h-4" />
             <span>Print All Bills</span>
@@ -95,9 +98,9 @@ export const AdminBills: React.FC = () => {
       </div>
 
       {loading ? (
-        <div className="text-center py-12 text-gray-500 text-xs font-semibold">Loading bill records...</div>
+        <div className="text-center py-12 text-slate-500 text-xs font-semibold">Loading bill records...</div>
       ) : bills.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center text-gray-500 text-xs">
+        <div className="bg-white rounded-2xl border border-slate-200 p-12 text-center text-slate-500 text-xs">
           No bills generated yet. Click "Generate Discharge Bill" to compile a patient's historical food orders.
         </div>
       ) : (
@@ -105,25 +108,37 @@ export const AdminBills: React.FC = () => {
           {bills.map((bill) => (
             <div
               key={bill._id}
-              className="bg-white border border-gray-200 rounded-2xl shadow-xs p-6 print-area space-y-5"
+              className="bg-white border border-slate-200 rounded-2xl shadow-xs p-6 print-area space-y-5"
             >
               {/* Header */}
-              <div className="flex justify-between items-start border-b border-gray-200 pb-4">
-                <div>
-                  <h2 className="text-lg font-black text-gray-900 tracking-tight">HOSPITAL CANTEEN FINAL BILL</h2>
-                  <div className="text-xs text-gray-700 font-semibold mt-1">
-                    Bill ID: <span className="font-mono text-blue-700 font-bold">{bill.bill_id}</span>
+              <div className="flex justify-between items-start border-b border-procare-200 pb-4">
+                <div className="flex items-center space-x-3">
+                  <img
+                    src="/procare-logo.png"
+                    alt="ProCare Logo"
+                    className="h-12 w-auto object-contain shrink-0"
+                  />
+                  <div>
+                    <h2 className="text-base sm:text-lg font-black text-slate-900 tracking-tight uppercase">
+                      PROCARE PHYSIOTHERAPY & REHABILITATION CENTRE
+                    </h2>
+                    <p className="text-xs text-procare-800 font-extrabold uppercase tracking-wide">
+                      CANTEEN FINAL DISCHARGE STATEMENT
+                    </p>
+                    <div className="text-xs text-slate-700 font-semibold mt-1">
+                      Bill ID: <span className="font-mono text-procare-900 font-bold">{bill.bill_id}</span>
+                    </div>
+                    <div className="text-xs text-slate-700 font-bold mt-0.5">
+                      Patient: <strong className="text-slate-900 font-black">{bill.patient_name}</strong> ({bill.patient_id}) • Room #{bill.room_number}
+                    </div>
+                    <div className="text-xs text-slate-500 font-medium">Billing Period: {bill.billing_period}</div>
                   </div>
-                  <div className="text-xs text-gray-700 font-bold mt-0.5">
-                    Patient: <strong className="text-gray-900 font-extrabold">{bill.patient_name}</strong> ({bill.patient_id}) • Room #{bill.room_number}
-                  </div>
-                  <div className="text-xs text-gray-500 font-medium">Billing Period: {bill.billing_period}</div>
                 </div>
 
                 <div className="text-right space-y-1">
                   <StatusBadge status={bill.payment_status} type="payment" />
-                  <div className="text-xs text-gray-500 font-medium">Bill Date: {bill.billing_date}</div>
-                  <div className="text-xs text-gray-500 font-medium">Due Date: {bill.due_date}</div>
+                  <div className="text-xs text-slate-500 font-medium">Bill Date: {bill.billing_date}</div>
+                  <div className="text-xs text-slate-500 font-medium">Due Date: {bill.due_date}</div>
                 </div>
               </div>
 

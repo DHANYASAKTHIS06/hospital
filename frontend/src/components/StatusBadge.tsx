@@ -11,28 +11,28 @@ export const StatusBadge: React.FC<StatusBadgeProps> = ({ status, type = 'order'
   let displayText = String(status);
 
   if (status === 'PENDING' || status === 'ACCEPTED') {
-    badgeStyle = 'bg-blue-50 text-blue-800 border-blue-300 font-medium';
+    badgeStyle = 'bg-procare-100 text-procare-950 border-procare-300 font-extrabold';
     displayText = '✓ ORDER ACTIVE';
   } else if (status === 'DELIVERY CONFIRMATION PENDING') {
-    badgeStyle = 'bg-purple-50 text-purple-800 border-purple-300 font-medium';
+    badgeStyle = 'bg-amber-50 text-amber-900 border-amber-300 font-extrabold';
     displayText = 'DELIVERY CONFIRMATION PENDING';
   } else if (status === 'DELIVERED') {
-    badgeStyle = 'bg-emerald-50 text-emerald-800 border-emerald-300 font-medium';
+    badgeStyle = 'bg-procare-100 text-procare-950 border-procare-300 font-extrabold';
     displayText = '✓ DELIVERED';
   } else if (status === 'CANCELLED') {
-    badgeStyle = 'bg-red-50 text-red-800 border-red-300 font-medium';
+    badgeStyle = 'bg-rose-50 text-rose-800 border-rose-300 font-extrabold';
     displayText = 'ORDER CANCELLED';
   } else if (status === 'UNPAID') {
-    badgeStyle = 'bg-rose-50 text-rose-800 border-rose-300 font-medium';
+    badgeStyle = 'bg-rose-50 text-rose-800 border-rose-300 font-extrabold';
   } else if (status === 'ADVANCE') {
-    badgeStyle = 'bg-indigo-50 text-indigo-800 border-indigo-300 font-medium';
+    badgeStyle = 'bg-procare-100 text-procare-950 border-procare-300 font-extrabold';
   } else if (status === 'PAID') {
-    badgeStyle = 'bg-emerald-50 text-emerald-800 border-emerald-300 font-medium';
+    badgeStyle = 'bg-procare-100 text-procare-950 border-procare-300 font-extrabold';
     displayText = '✓ PAID';
   } else if (status === 'AVAILABLE') {
-    badgeStyle = 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    badgeStyle = 'bg-procare-50 text-procare-900 border-procare-300 font-bold';
   } else if (status === 'UNAVAILABLE') {
-    badgeStyle = 'bg-gray-100 text-gray-500 border-gray-200';
+    badgeStyle = 'bg-slate-100 text-slate-500 border-slate-200';
   }
 
   return (

@@ -21,36 +21,40 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu, isMobileMenu
     <header className="bg-white/95 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30 no-print shadow-xs">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2">
         <div className="flex items-center space-x-2 sm:space-x-3">
-          {/* Prominent Blue Mobile Hamburger Menu Toggle Button */}
+          {/* Mobile Navigation Toggle Button */}
           {user && (
             <button
               type="button"
               onClick={onToggleMobileMenu}
-              className="px-2.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white md:hidden transition-all flex items-center gap-1.5 shadow-sm focus:outline-none shrink-0"
+              className="px-2.5 py-1.5 rounded-xl bg-celadon hover:bg-procare-500 active:bg-procare-600 text-slate-900 md:hidden transition-all flex items-center gap-1.5 shadow-xs focus:outline-none shrink-0 font-bold"
               aria-label="Toggle Navigation Sidebar"
               title="Open Sidebar Navigation Menu"
             >
               {isMobileMenuOpen ? (
-                <X className="w-5 h-5 text-white" />
+                <X className="w-5 h-5 text-slate-900" />
               ) : (
-                <Menu className="w-5 h-5 text-white" />
+                <Menu className="w-5 h-5 text-slate-900" />
               )}
-              <span className="text-xs font-bold text-white tracking-wide">Menu</span>
+              <span className="text-xs font-bold text-slate-900 tracking-wide">Menu</span>
             </button>
           )}
 
           <div
-            className="flex items-center space-x-2 sm:space-x-2.5 cursor-pointer select-none"
+            className="flex items-center space-x-2 sm:space-x-3 cursor-pointer select-none"
             onClick={() => navigate('/')}
           >
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-tr from-blue-700 to-indigo-600 text-white flex items-center justify-center font-bold text-xl shadow-xs shrink-0">
-              <UtensilsCrossed className="w-5 h-5 sm:w-6 sm:h-6" />
-            </div>
+            <img
+              src="/procare-logo.png"
+              alt="ProCare Logo"
+              className="h-10 w-auto object-contain shrink-0"
+            />
             <div>
-              <h1 className="text-sm sm:text-lg font-extrabold text-slate-900 leading-tight tracking-tight">
-                HOSPITAL CANTEEN
+              <h1 className="text-xs sm:text-base font-black text-slate-900 leading-tight tracking-tight uppercase">
+                PROCARE CANTEEN
               </h1>
-              <p className="text-[9px] sm:text-xs text-slate-500 font-medium">Management System</p>
+              <p className="text-[9px] sm:text-[10px] text-procare-800 font-bold uppercase tracking-wide">
+                Physiotherapy & Rehabilitation Centre
+              </p>
             </div>
           </div>
         </div>
@@ -58,17 +62,17 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu, isMobileMenu
         {user && (
           <div className="flex items-center space-x-1.5 sm:space-x-3">
             {/* User Badge / Info */}
-            <div className="flex items-center space-x-1.5 sm:space-x-2 bg-slate-50 px-2 sm:px-2.5 py-1.5 rounded-xl border border-slate-200/80 max-w-[120px] xs:max-w-[160px] sm:max-w-xs">
-              <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center shrink-0">
-                <UserIcon className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
+            <div className="flex items-center space-x-1.5 sm:space-x-2 bg-procare-50 px-2.5 py-1.5 rounded-xl border border-procare-200/80 max-w-[120px] xs:max-w-[160px] sm:max-w-xs">
+              <div className="w-6 h-6 rounded-full bg-celadon text-procare-900 flex items-center justify-center shrink-0 font-bold">
+                <UserIcon className="w-3.5 h-3.5 text-procare-950" />
               </div>
               <div className="text-[11px] sm:text-xs truncate">
-                <span className="font-bold text-slate-800 truncate block">
+                <span className="font-extrabold text-procare-950 truncate block">
                   {user.role === 'ADMIN' ? 'Admin' : user.name || user.patient_id}
                 </span>
                 {user.role === 'PATIENT' && (
-                  <span className="text-[9px] sm:text-[10px] text-slate-500 font-medium hidden sm:inline">
-                    Rm {user.room_number || 'N/A'}
+                  <span className="text-[9px] sm:text-[10px] text-procare-800 font-semibold hidden sm:inline">
+                    Rm #{user.room_number || 'N/A'}
                   </span>
                 )}
               </div>
@@ -77,7 +81,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu, isMobileMenu
             {/* Logout Button */}
             <button
               onClick={handleLogout}
-              className="inline-flex items-center space-x-1 text-xs font-bold text-rose-600 bg-rose-50 hover:bg-rose-100 border border-rose-200/80 px-2.5 sm:px-3 py-1.5 rounded-xl transition-colors shrink-0"
+              className="inline-flex items-center space-x-1 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200/80 px-2.5 sm:px-3 py-1.5 rounded-xl transition-colors shrink-0 cursor-pointer"
               title="Logout"
             >
               <LogOut className="w-3.5 h-3.5" />

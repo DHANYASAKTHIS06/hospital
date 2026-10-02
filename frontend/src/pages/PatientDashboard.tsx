@@ -53,43 +53,50 @@ export const PatientDashboard: React.FC = () => {
   return (
     <div className="space-y-5 sm:space-y-6">
       {/* Patient Welcome Header Card */}
-      <div className="bg-gradient-to-r from-blue-700 via-blue-800 to-indigo-800 text-white rounded-2xl p-5 sm:p-6 shadow-md relative overflow-hidden">
-        {/* Subtle decorative background circle */}
-        <div className="absolute -right-8 -bottom-8 w-40 h-40 bg-white/5 rounded-full blur-2xl pointer-events-none" />
+      <div className="bg-procare-900 text-white rounded-2xl p-5 sm:p-6 shadow-sm border border-procare-800 relative overflow-hidden">
+        {/* Decorative background glow */}
+        <div className="absolute -right-8 -bottom-8 w-40 h-40 bg-celadon/10 rounded-full blur-2xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-          <div className="space-y-2">
-            <span className="inline-flex items-center text-[10px] font-extrabold uppercase tracking-wider bg-white/15 text-blue-100 px-3 py-1 rounded-full backdrop-blur-md border border-white/10">
-              Patient Portal
-            </span>
-            <h1 className="text-xl sm:text-2xl font-black tracking-tight leading-snug">
-              Welcome, {user?.name || 'Patient'}
-            </h1>
+          <div className="flex items-center space-x-3">
+            <img
+              src="/procare-logo.png"
+              alt="ProCare Logo"
+              className="h-16 w-auto object-contain shrink-0 bg-white p-1 rounded-xl shadow-xs"
+            />
+            <div className="space-y-1">
+              <span className="inline-flex items-center text-[10px] font-black uppercase tracking-wider bg-celadon text-slate-950 px-2.5 py-0.5 rounded-full border border-celadon">
+                PROCARE CANTEEN PATIENT PORTAL
+              </span>
+              <h1 className="text-xl sm:text-2xl font-black tracking-tight leading-snug">
+                Welcome, {user?.name || 'Patient'}
+              </h1>
 
-            {/* Quick Details Chips */}
-            <div className="flex flex-wrap items-center gap-2 pt-1">
-              <div className="inline-flex items-center gap-1.5 bg-white/10 text-white text-xs font-semibold px-2.5 py-1 rounded-lg backdrop-blur-xs border border-white/10">
-                <UserCheck className="w-3.5 h-3.5 text-blue-200" />
-                <span>ID: <strong className="font-mono text-white">{user?.patient_id || 'N/A'}</strong></span>
-              </div>
-              <div className="inline-flex items-center gap-1.5 bg-white/10 text-white text-xs font-semibold px-2.5 py-1 rounded-lg backdrop-blur-xs border border-white/10">
-                <Bed className="w-3.5 h-3.5 text-blue-200" />
-                <span>Room: <strong className="text-white">{user?.room_number || 'N/A'}</strong></span>
-              </div>
-              {user?.mobile && (
-                <div className="inline-flex items-center gap-1.5 bg-white/10 text-white text-xs font-semibold px-2.5 py-1 rounded-lg backdrop-blur-xs border border-white/10">
-                  <Phone className="w-3.5 h-3.5 text-blue-200" />
-                  <span>Mob: <strong className="text-white">{user.mobile}</strong></span>
+              {/* Quick Details Chips */}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                <div className="inline-flex items-center gap-1.5 bg-procare-800/80 text-white text-xs font-semibold px-2.5 py-1 rounded-lg border border-procare-700">
+                  <UserCheck className="w-3.5 h-3.5 text-celadon" />
+                  <span>ID: <strong className="font-mono text-white">{user?.patient_id || 'N/A'}</strong></span>
                 </div>
-              )}
+                <div className="inline-flex items-center gap-1.5 bg-procare-800/80 text-white text-xs font-semibold px-2.5 py-1 rounded-lg border border-procare-700">
+                  <Bed className="w-3.5 h-3.5 text-celadon" />
+                  <span>Room: <strong className="text-white">#{user?.room_number || 'N/A'}</strong></span>
+                </div>
+                {user?.mobile && (
+                  <div className="inline-flex items-center gap-1.5 bg-procare-800/80 text-white text-xs font-semibold px-2.5 py-1 rounded-lg border border-procare-700">
+                    <Phone className="w-3.5 h-3.5 text-celadon" />
+                    <span>Mob: <strong className="text-white">{user.mobile}</strong></span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
           <Link
             to="/patient/menu"
-            className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 bg-white hover:bg-blue-50 text-blue-800 font-extrabold text-xs sm:text-sm px-5 py-3 rounded-xl shadow-md hover:shadow-lg transition-all transform active:scale-95 shrink-0"
+            className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 bg-celadon hover:bg-procare-400 text-slate-950 font-black text-xs sm:text-sm px-5 py-3 rounded-xl shadow-xs transition-all transform active:scale-95 shrink-0 cursor-pointer"
           >
-            <Utensils className="w-4 h-4 text-blue-700" />
+            <Utensils className="w-4 h-4 text-slate-950" />
             <span>View Menu & Order</span>
           </Link>
         </div>
