@@ -151,7 +151,9 @@ export const AdminMenu: React.FC = () => {
                   <tr key={item._id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-mono font-bold text-gray-600">#{item.menu_id}</td>
                     <td className="px-4 py-3 font-bold text-gray-900">{item.item_name}</td>
-                    <td className="px-4 py-3 font-semibold text-blue-700">{item.category}</td>
+                    <td className="px-4 py-3 font-semibold text-blue-700">
+                      {item.category === 'COMMON MENU' ? 'ALL MEALS (BREAKFAST / LUNCH / DINNER)' : item.category}
+                    </td>
                     <td className="px-4 py-3 text-gray-700">{item.quantity}</td>
                     <td className="px-4 py-3 font-bold text-gray-900">₹{item.price}</td>
                     <td className="px-4 py-3 text-gray-600">
@@ -225,7 +227,7 @@ export const AdminMenu: React.FC = () => {
                   >
                     {categories.map((c) => (
                       <option key={c} value={c}>
-                        {c}
+                        {c === 'COMMON MENU' ? 'ALL MEALS (BREAKFAST / LUNCH / DINNER)' : c}
                       </option>
                     ))}
                   </select>

@@ -121,14 +121,16 @@ export const AdminDashboard: React.FC = () => {
   }
 
   const foodItemsToPrepare: FoodItemToPrepare[] = stats?.foodItemsToPrepare || [];
-  const categories: string[] = ['ALL', 'COMMON MENU', 'TEA / MILK', 'BREAKFAST', 'LUNCH', 'DINNER', 'SNACKS'];
+  const categories: string[] = ['ALL', 'BREAKFAST', 'LUNCH', 'DINNER', 'TEA / MILK', 'SNACKS'];
 
   const filteredItems = foodItemsToPrepare.filter((item) => {
     const itemCat = (item.category || '').trim().toUpperCase();
+    const itemMeal = (item.meal_type || '').trim().toUpperCase();
     const selCat = selectedCategory.trim().toUpperCase();
     const matchesCategory =
       selCat === 'ALL' ||
       itemCat === selCat ||
+      itemMeal === selCat ||
       itemCat.replace(/\s+/g, '') === selCat.replace(/\s+/g, '');
     const matchesRequired = !showOnlyRequired || item.total_preparation_quantity > 0;
     return matchesCategory && matchesRequired;
@@ -343,7 +345,7 @@ export const AdminDashboard: React.FC = () => {
                 const isRequired = item.total_preparation_quantity > 0;
                 return (
                   <div
-                    key={item.menu_id}
+                    key={`${item.menu_id}-${item.meal_type || item.category}`}
                     className={`p-4 rounded-xl border transition-all flex justify-between items-center ${
                       isRequired
                         ? 'bg-procare-50/90 border-procare-400 shadow-xs ring-1 ring-procare-400/50'

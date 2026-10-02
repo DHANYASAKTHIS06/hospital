@@ -281,68 +281,104 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                   No food items currently require preparation.
                 </div>
               ) : (
-                <div className="space-y-4">
+                <div className="space-y-6">
                   {/* Summary Box */}
                   <div className="p-4 bg-emerald-50 border border-emerald-300 rounded-xl flex justify-between items-center text-xs text-emerald-950 font-bold">
                     <div>
-                      <span>Aggregate Kitchen Cooking List</span>
-                      <p className="text-[11px] text-emerald-800 font-normal mt-0.5">
-                        Quantities are summed across all current active orders.
+                      <span className="text-sm font-black uppercase text-emerald-900">
+                        👨‍🍳 MEAL-WISE KITCHEN COOKING & PREPARATION LIST
+                      </span>
+                      <p className="text-[11px] text-emerald-800 font-medium mt-0.5">
+                        Common Menu items are automatically merged into Breakfast, Lunch, and Dinner quantities.
                       </p>
                     </div>
                     <div className="text-right">
                       <span className="text-sm font-black text-emerald-900 bg-white px-3 py-1 rounded-lg border border-emerald-300 font-mono">
-                        TOTAL ITEMS TO COOK: {totalItemsToCook}
+                        TOTAL PORTIONS TO COOK: {totalItemsToCook}
                       </span>
                     </div>
                   </div>
 
-                  <table className="w-full text-xs border-2 border-slate-900 rounded-xl overflow-hidden">
-                    <thead>
-                      <tr className="bg-slate-900 text-white font-bold text-left">
-                        <th className="p-3 w-12 text-center border-r border-slate-700">#</th>
-                        <th className="p-3 border-r border-slate-700">Category</th>
-                        <th className="p-3 border-r border-slate-700">Food Item Name</th>
-                        <th className="p-3 border-r border-slate-700">Portion Size</th>
-                        <th className="p-3 text-center bg-emerald-800 text-white font-black text-sm w-36">
-                          TOTAL QTY TO COOK
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-300 font-medium text-slate-900">
-                      {itemsNeedingPreparation.map((item, index) => (
-                        <tr key={item.menu_id} className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50/80'}>
-                          <td className="p-3 text-center border-r border-slate-200 font-bold text-slate-500">
-                            {index + 1}
-                          </td>
-                          <td className="p-3 border-r border-slate-200">
-                            <span className="font-extrabold uppercase text-[10px] bg-slate-200 text-slate-800 px-2 py-0.5 rounded">
-                              {item.category}
-                            </span>
-                          </td>
-                          <td className="p-3 border-r border-slate-200 font-bold text-sm text-slate-900">
-                            {item.item_name}
-                          </td>
-                          <td className="p-3 border-r border-slate-200 text-slate-600">
-                            {item.portion_size}
-                          </td>
-                          <td className="p-3 text-center font-black text-base font-mono bg-emerald-100/70 text-emerald-950">
-                            {item.total_preparation_quantity}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                    <tfoot>
-                      <tr className="bg-slate-900 text-white font-bold text-xs">
-                        <td colSpan={4} className="p-3 text-right uppercase tracking-wider border-r border-slate-700">
-                          Total Prepared Portions Required:
-                        </td>
-                        <td className="p-3 text-center font-black text-lg font-mono bg-emerald-700 text-white">
-                          {totalItemsToCook}
-                        </td>
-                      </tr>
-                    </tfoot>
-                  </table>
+                  {/* Meal-Wise Preparation Breakdown */}
+                  {(() => {
+                    const mealOrder = ['BREAKFAST', 'LUNCH', 'DINNER', 'TEA / MILK', 'SNACKS'];
+                    const prepByMealGroup = mealOrder
+                      .map((mealCat) => {
+                        const items = itemsNeedingPreparation.filter((item) => {
+                          const c = (item.category || item.meal_type || '').trim().toUpperCase();
+                          return c === mealCat || c.replace(/\s+/g, '') === mealCat.replace(/\s+/g, '');
+                        });
+                        const subtotal = items.reduce((sum, item) => sum + item.total_preparation_quantity, 0);
+                        return { mealCat, items, subtotal };
+                      })
+                      .filter((group) => group.items.length > 0);
+
+                    const handledCategories = new Set(mealOrder);
+                    const otherPrepItems = itemsNeedingPreparation.filter((item) => {
+                      const c = (item.category || item.meal_type || '').trim().toUpperCase();
+                      return !handledCategories.has(c) && !handledCategories.has(c.replace(/\s+/g, ''));
+                    });
+                    if (otherPrepItems.length > 0) {
+                      prepByMealGroup.push({
+                        mealCat: 'OTHER MEALS',
+                        items: otherPrepItems,
+                        subtotal: otherPrepItems.reduce((sum, item) => sum + item.total_preparation_quantity, 0),
+                      });
+                    }
+
+                    return prepByMealGroup.map((group) => (
+                      <div key={group.mealCat} className="border-2 border-slate-800 rounded-xl overflow-hidden shadow-xs page-break-inside-avoid">
+                        <div className="bg-slate-900 text-white px-4 py-2.5 flex justify-between items-center text-xs font-black uppercase">
+                          <span className="flex items-center gap-2">
+                            <span className="w-2.5 h-2.5 rounded-full bg-celadon"></span>
+                            {group.mealCat} PREPARATION SECTION
+                          </span>
+                          <span className="bg-emerald-700 text-white text-[11px] font-bold px-2.5 py-0.5 rounded font-mono">
+                            Section Total: {group.subtotal} Portions
+                          </span>
+                        </div>
+
+                        <table className="w-full text-xs text-left">
+                          <thead>
+                            <tr className="bg-slate-100 text-slate-800 font-bold border-b border-slate-300">
+                              <th className="p-2.5 w-12 text-center border-r border-slate-200">#</th>
+                              <th className="p-2.5 border-r border-slate-200">Food Item Name</th>
+                              <th className="p-2.5 border-r border-slate-200">Portion Size</th>
+                              <th className="p-2.5 text-center bg-emerald-100 text-emerald-950 font-black text-xs w-36">
+                                QTY TO PREPARE
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-200 font-medium text-slate-900">
+                            {group.items.map((item, index) => (
+                              <tr key={`${item.menu_id}-${group.mealCat}`} className={index % 2 === 0 ? 'bg-white' : 'bg-slate-50/80'}>
+                                <td className="p-2.5 text-center border-r border-slate-200 font-bold text-slate-500">
+                                  {index + 1}
+                                </td>
+                                <td className="p-2.5 border-r border-slate-200 font-bold text-sm text-slate-900">
+                                  {item.item_name}
+                                </td>
+                                <td className="p-2.5 border-r border-slate-200 text-slate-600">
+                                  {item.portion_size}
+                                </td>
+                                <td className="p-2.5 text-center font-black text-base font-mono bg-emerald-50 text-emerald-950">
+                                  {item.total_preparation_quantity}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    ));
+                  })()}
+
+                  {/* Grand Total Footer */}
+                  <div className="p-4 bg-slate-900 text-white rounded-xl flex justify-between items-center text-xs font-bold">
+                    <span className="uppercase tracking-wider">Grand Total Prepared Portions Required:</span>
+                    <span className="text-lg font-black font-mono bg-emerald-600 text-white px-4 py-1 rounded-lg">
+                      {totalItemsToCook} PORTIONS
+                    </span>
+                  </div>
                 </div>
               )}
             </div>

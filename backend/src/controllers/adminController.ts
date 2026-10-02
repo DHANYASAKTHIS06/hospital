@@ -55,6 +55,7 @@ export const getAdminDashboardStats = async (req: Request, res: Response) => {
 
     // Food Items to Prepare aggregation:
     // Aggregates quantities from active (non-delivered, non-cancelled, non-cleared) orders
+    // Common Menu items are automatically split into Breakfast, Lunch, or Dinner based on order's meal_type
     let allMenuItems = await MenuItem.find().sort({ menu_id: 1 });
     if (!allMenuItems || allMenuItems.length === 0) {
       const { seedDatabase } = await import('../seed/seedData');
@@ -70,33 +71,73 @@ export const getAdminDashboardStats = async (req: Request, res: Response) => {
     const activeOrderIds = activeOrders.map((o) => o.order_id);
     const activeOrderItems = await OrderItem.find({ order_id: { $in: activeOrderIds } });
 
-    const quantityByMenuId = new Map<string, number>();
-    const quantityByName = new Map<string, number>();
+    // Map order_id -> meal_type
+    const orderMealMap = new Map<string, string>();
+    for (const o of activeOrders) {
+      orderMealMap.set(o.order_id, o.meal_type || 'Breakfast');
+    }
+
+    // Maps to aggregate quantities by (meal_type, menu_id) or (meal_type, item_name)
+    const qtyByMealAndMenuId = new Map<string, number>();
+    const qtyByMealAndName = new Map<string, number>();
 
     for (const item of activeOrderItems) {
+      const meal = orderMealMap.get(item.order_id) || 'Breakfast';
       if (item.menu_id !== undefined && item.menu_id !== null) {
-        const key = String(item.menu_id);
-        quantityByMenuId.set(key, (quantityByMenuId.get(key) || 0) + item.quantity);
+        const key = `${meal}::${item.menu_id}`;
+        qtyByMealAndMenuId.set(key, (qtyByMealAndMenuId.get(key) || 0) + item.quantity);
       }
       if (item.item_name_snapshot) {
-        const key = item.item_name_snapshot.trim().toLowerCase();
-        quantityByName.set(key, (quantityByName.get(key) || 0) + item.quantity);
+        const key = `${meal}::${item.item_name_snapshot.trim().toLowerCase()}`;
+        qtyByMealAndName.set(key, (qtyByMealAndName.get(key) || 0) + item.quantity);
       }
     }
 
-    const foodItemsToPrepare = allMenuItems.map((item) => {
-      const byId = quantityByMenuId.get(String(item.menu_id)) || 0;
-      const byName = quantityByName.get(item.item_name.trim().toLowerCase()) || 0;
-      const totalQty = Math.max(byId, byName);
+    const foodItemsToPrepare: any[] = [];
 
-      return {
-        menu_id: item.menu_id,
-        item_name: item.item_name,
-        category: item.category,
-        portion_size: item.quantity,
-        total_preparation_quantity: totalQty,
-      };
-    });
+    for (const item of allMenuItems) {
+      const origCategory = (item.category || '').trim().toUpperCase();
+
+      if (origCategory === 'COMMON MENU') {
+        // Common Menu items are split into Breakfast, Lunch, and Dinner
+        const commonMealSessions = ['Breakfast', 'Lunch', 'Dinner'];
+        for (const meal of commonMealSessions) {
+          const byId = qtyByMealAndMenuId.get(`${meal}::${item.menu_id}`) || 0;
+          const byName = qtyByMealAndName.get(`${meal}::${item.item_name.trim().toLowerCase()}`) || 0;
+          const totalQty = Math.max(byId, byName);
+
+          foodItemsToPrepare.push({
+            menu_id: item.menu_id,
+            item_name: item.item_name,
+            meal_type: meal,
+            category: meal.toUpperCase(), // 'BREAKFAST', 'LUNCH', 'DINNER'
+            portion_size: item.quantity,
+            total_preparation_quantity: totalQty,
+          });
+        }
+      } else {
+        // Items with specific category (e.g. BREAKFAST, LUNCH, DINNER, TEA / MILK, SNACKS)
+        let targetMeal = 'Breakfast';
+        if (origCategory === 'LUNCH') targetMeal = 'Lunch';
+        else if (origCategory === 'DINNER') targetMeal = 'Dinner';
+        else if (origCategory === 'TEA / MILK') targetMeal = 'Tea / Milk';
+        else if (origCategory === 'SNACKS') targetMeal = 'Snacks';
+        else if (origCategory === 'BREAKFAST') targetMeal = 'Breakfast';
+
+        const byId = qtyByMealAndMenuId.get(`${targetMeal}::${item.menu_id}`) || 0;
+        const byName = qtyByMealAndName.get(`${targetMeal}::${item.item_name.trim().toLowerCase()}`) || 0;
+        const totalQty = Math.max(byId, byName);
+
+        foodItemsToPrepare.push({
+          menu_id: item.menu_id,
+          item_name: item.item_name,
+          meal_type: targetMeal,
+          category: origCategory,
+          portion_size: item.quantity,
+          total_preparation_quantity: totalQty,
+        });
+      }
+    }
 
     return res.status(200).json({
       is_ordering_locked,

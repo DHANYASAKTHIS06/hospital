@@ -18,9 +18,10 @@ export type Category = 'TEA / MILK' | 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACKS
 export interface FoodItemToPrepare {
   menu_id: number;
   item_name: string;
-  category: Category;
+  category: Category | string;
   portion_size: string;
   total_preparation_quantity: number;
+  meal_type?: string;
 }
 
 export interface MenuItem {
