@@ -3,7 +3,7 @@ import { api } from '../services/api';
 import { useSocket } from '../context/SocketContext';
 import { MenuItem, Category } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
-import { ShoppingBag, Plus, Minus, Check, Utensils, AlertCircle, Lock, Wallet, AlertTriangle, Coffee, Sun, Moon, Cookie } from 'lucide-react';
+import { ShoppingBag, Plus, Minus, Check, Utensils, AlertCircle, Lock, Wallet, AlertTriangle, Coffee, Sun, Moon, Cookie, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const PatientMenu: React.FC = () => {

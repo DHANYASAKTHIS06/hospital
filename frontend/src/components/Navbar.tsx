@@ -1,7 +1,21 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, User as UserIcon, UtensilsCrossed, Menu, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
+import {
+  LogOut,
+  User as UserIcon,
+  Menu,
+  X,
+  LayoutDashboard,
+  Utensils,
+  ShoppingBag,
+  History,
+  FileText,
+  CreditCard,
+  User,
+  Users,
+  Home,
+} from 'lucide-react';
 
 interface NavbarProps {
   onToggleMobileMenu?: () => void;
@@ -17,6 +31,29 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu, isMobileMenu
     navigate('/');
   };
 
+  const patientNavLinks = [
+    { name: 'Dashboard', path: '/patient/dashboard', icon: LayoutDashboard },
+    { name: 'Menu', path: '/patient/menu', icon: Utensils },
+    { name: 'My Orders', path: '/patient/orders', icon: ShoppingBag },
+    { name: 'Food History', path: '/patient/food-history', icon: History },
+    { name: 'My Bills', path: '/patient/bills', icon: FileText },
+    { name: 'Payment Status', path: '/patient/payment-status', icon: CreditCard },
+    { name: 'Profile', path: '/patient/profile', icon: User },
+  ];
+
+  const adminNavLinks = [
+    { name: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard },
+    { name: 'Orders', path: '/admin/orders', icon: ShoppingBag },
+    { name: 'Menu', path: '/admin/menu', icon: Utensils },
+    { name: 'Patients', path: '/admin/patients', icon: Users },
+    { name: 'Food Records', path: '/admin/food-records', icon: History },
+    { name: 'Bills', path: '/admin/bills', icon: FileText },
+    { name: 'Payments', path: '/admin/payments', icon: CreditCard },
+    { name: 'Room View', path: '/admin/room-view', icon: Home },
+  ];
+
+  const navLinks = user?.role === 'ADMIN' ? adminNavLinks : patientNavLinks;
+
   return (
     <header className="bg-white/95 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-30 no-print shadow-xs">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2">
@@ -26,9 +63,9 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu, isMobileMenu
             <button
               type="button"
               onClick={onToggleMobileMenu}
-              className="px-2.5 py-1.5 rounded-xl bg-celadon hover:bg-procare-500 active:bg-procare-600 text-slate-900 md:hidden transition-all flex items-center gap-1.5 shadow-xs focus:outline-none shrink-0 font-bold"
+              className="px-2.5 py-1.5 rounded-xl bg-celadon hover:bg-procare-500 active:bg-procare-600 text-slate-900 md:hidden transition-all flex items-center gap-1.5 shadow-xs focus:outline-none shrink-0 font-bold cursor-pointer"
               aria-label="Toggle Navigation Sidebar"
-              title="Open Sidebar Navigation Menu"
+              title="Open Navigation Menu"
             >
               {isMobileMenuOpen ? (
                 <X className="w-5 h-5 text-slate-900" />
@@ -90,6 +127,33 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu, isMobileMenu
           </div>
         )}
       </div>
+
+      {/* Top Header Navigation Tabs for logged in users */}
+      {user && (
+        <div className="bg-slate-100/80 border-t border-slate-200/70 overflow-x-auto scrollbar-none no-scrollbar">
+          <nav className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 flex items-center gap-1 py-1.5 min-w-max">
+            {navLinks.map((link) => {
+              const Icon = link.icon;
+              return (
+                <NavLink
+                  key={link.path}
+                  to={link.path}
+                  className={({ isActive }) =>
+                    `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all whitespace-nowrap ${
+                      isActive
+                        ? 'bg-celadon text-slate-950 shadow-xs ring-1 ring-procare-400'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
+                    }`
+                  }
+                >
+                  <Icon className="w-3.5 h-3.5 shrink-0" />
+                  <span>{link.name}</span>
+                </NavLink>
+              );
+            })}
+          </nav>
+        </div>
+      )}
     </header>
   );
 };

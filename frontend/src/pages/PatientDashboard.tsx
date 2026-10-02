@@ -5,7 +5,19 @@ import { api } from '../services/api';
 import { FoodOrder, Bill } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
 import { Link } from 'react-router-dom';
-import { Utensils, ShoppingBag, CreditCard, Clock, FileText, ArrowRight, UserCheck, Phone, Bed } from 'lucide-react';
+import {
+  Utensils,
+  ShoppingBag,
+  CreditCard,
+  Clock,
+  FileText,
+  ArrowRight,
+  UserCheck,
+  Phone,
+  Bed,
+  History,
+  User,
+} from 'lucide-react';
 
 export const PatientDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -49,6 +61,15 @@ export const PatientDashboard: React.FC = () => {
       };
     }
   }, [socket]);
+
+  const quickNavTabs = [
+    { title: 'Meal Menu', path: '/patient/menu', icon: Utensils, desc: 'Order fresh breakfast, lunch & dinner', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+    { title: 'My Orders', path: '/patient/orders', icon: ShoppingBag, desc: 'Track live order status & submit feedback', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+    { title: 'Food History', path: '/patient/food-history', icon: History, desc: 'View past ordered meals & dates', color: 'bg-purple-50 text-purple-700 border-purple-200' },
+    { title: 'My Bills', path: '/patient/bills', icon: FileText, desc: 'View day-wise bills & print receipts', color: 'bg-amber-50 text-amber-700 border-amber-200' },
+    { title: 'Payment Status', path: '/patient/payment-status', icon: CreditCard, desc: 'Check advance balance & billing summary', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+    { title: 'Profile Details', path: '/patient/profile', icon: User, desc: 'Manage your patient profile & room details', color: 'bg-rose-50 text-rose-700 border-rose-200' },
+  ];
 
   return (
     <div className="space-y-5 sm:space-y-6">
@@ -99,6 +120,36 @@ export const PatientDashboard: React.FC = () => {
             <Utensils className="w-4 h-4 text-slate-950" />
             <span>View Menu & Order</span>
           </Link>
+        </div>
+      </div>
+
+      {/* Quick Access Navigation Tabs Grid */}
+      <div className="space-y-2">
+        <h2 className="text-xs font-extrabold text-slate-400 uppercase tracking-wider px-1">
+          Patient Portal Navigation Tabs
+        </h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {quickNavTabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <Link
+                key={tab.path}
+                to={tab.path}
+                className="bg-white border border-slate-200/80 hover:border-procare-400 p-3.5 rounded-2xl shadow-xs hover:shadow-md transition-all flex flex-col justify-between space-y-2 group cursor-pointer"
+              >
+                <div className="flex items-center justify-between">
+                  <div className={`p-2 rounded-xl border ${tab.color}`}>
+                    <Icon className="w-4 h-4" />
+                  </div>
+                  <ArrowRight className="w-3.5 h-3.5 text-slate-300 group-hover:text-procare-900 group-hover:translate-x-0.5 transition-all" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-black text-slate-900 group-hover:text-procare-950">{tab.title}</h3>
+                  <p className="text-[10px] text-slate-500 font-medium leading-tight mt-0.5">{tab.desc}</p>
+                </div>
+              </Link>
+            );
+          })}
         </div>
       </div>
 
