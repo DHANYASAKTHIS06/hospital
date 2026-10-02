@@ -3,7 +3,7 @@ import mongoose, { Schema, Document } from 'mongoose';
 export interface IMenuItem extends Document {
   menu_id: number;
   item_name: string;
-  category: 'TEA / MILK' | 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACKS';
+  category: 'TEA / MILK' | 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACKS' | 'COMMON MENU';
   description?: string;
   quantity: string;
   price: number;
@@ -20,7 +20,7 @@ const MenuItemSchema: Schema = new Schema(
     category: {
       type: String,
       required: true,
-      enum: ['TEA / MILK', 'BREAKFAST', 'LUNCH', 'DINNER', 'SNACKS'],
+      enum: ['TEA / MILK', 'BREAKFAST', 'LUNCH', 'DINNER', 'SNACKS', 'COMMON MENU'],
     },
     description: { type: String, default: '' },
     quantity: { type: String, required: true },

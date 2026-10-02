@@ -11,7 +11,7 @@ export const AdminMenu: React.FC = () => {
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
 
   const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
-  const categories: Category[] = ['TEA / MILK', 'BREAKFAST', 'LUNCH', 'DINNER', 'SNACKS'];
+  const categories: Category[] = ['COMMON MENU', 'TEA / MILK', 'BREAKFAST', 'LUNCH', 'DINNER', 'SNACKS'];
 
   const [formData, setFormData] = useState({
     item_name: '',

@@ -41,7 +41,7 @@ const MenuItemSchema = new mongoose_1.Schema({
     category: {
         type: String,
         required: true,
-        enum: ['TEA / MILK', 'BREAKFAST', 'LUNCH', 'DINNER', 'SNACKS'],
+        enum: ['TEA / MILK', 'BREAKFAST', 'LUNCH', 'DINNER', 'SNACKS', 'COMMON MENU'],
     },
     description: { type: String, default: '' },
     quantity: { type: String, required: true },

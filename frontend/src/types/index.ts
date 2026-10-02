@@ -13,7 +13,7 @@ export interface User {
   advance_balance?: number;
 }
 
-export type Category = 'TEA / MILK' | 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACKS';
+export type Category = 'TEA / MILK' | 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'SNACKS' | 'COMMON MENU';
 
 export interface FoodItemToPrepare {
   menu_id: number;

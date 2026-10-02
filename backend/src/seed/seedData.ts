@@ -140,7 +140,7 @@ export const seedDatabase = async () => {
         {
           menu_id: 13,
           item_name: 'Omlet',
-          category: 'LUNCH',
+          category: 'COMMON MENU',
           quantity: '1 No',
           price: 20,
           availability: true,
@@ -149,7 +149,7 @@ export const seedDatabase = async () => {
         {
           menu_id: 14,
           item_name: 'Boiled Egg',
-          category: 'LUNCH',
+          category: 'COMMON MENU',
           quantity: '2 Nos',
           price: 25,
           availability: true,
@@ -295,6 +295,12 @@ export const seedDatabase = async () => {
       );
       console.log('Seeded initial menu items successfully.');
     }
+
+    // Ensure common menu items in existing database are assigned category 'COMMON MENU'
+    await MenuItem.updateMany(
+      { item_name: { $in: ['Omlet', 'Omelet', 'Boiled Egg'] } },
+      { $set: { category: 'COMMON MENU' } }
+    );
   } catch (error) {
     console.error('Error seeding database:', error);
   }

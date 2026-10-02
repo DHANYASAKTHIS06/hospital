@@ -121,7 +121,7 @@ export const AdminDashboard: React.FC = () => {
   }
 
   const foodItemsToPrepare: FoodItemToPrepare[] = stats?.foodItemsToPrepare || [];
-  const categories: string[] = ['ALL', 'TEA / MILK', 'BREAKFAST', 'LUNCH', 'DINNER', 'SNACKS'];
+  const categories: string[] = ['ALL', 'COMMON MENU', 'TEA / MILK', 'BREAKFAST', 'LUNCH', 'DINNER', 'SNACKS'];
 
   const filteredItems = foodItemsToPrepare.filter((item) => {
     const itemCat = (item.category || '').trim().toUpperCase();

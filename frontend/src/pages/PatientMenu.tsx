@@ -11,7 +11,7 @@ export const PatientMenu: React.FC = () => {
   const { socket } = useSocket();
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
-  const [selectedMealSession, setSelectedMealSession] = useState<'BREAKFAST' | 'LUNCH' | 'DINNER' | 'TEA / MILK' | 'SNACKS' | 'ALL'>('BREAKFAST');
+  const [selectedMealSession, setSelectedMealSession] = useState<'COMMON MENU' | 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'TEA / MILK' | 'SNACKS' | 'ALL'>('COMMON MENU');
   
   // Cart structure: { [meal_type]: { [menu_id]: quantity } }
   const [cartByMeal, setCartByMeal] = useState<{ [mealType: string]: { [menuId: number]: number } }>({
@@ -30,6 +30,7 @@ export const PatientMenu: React.FC = () => {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const mealSessions: Array<{ label: string; value: string; icon: any; categoryFilter: Category | 'ALL' }> = [
+    { label: 'Common Menu', value: 'Common Menu', icon: Sparkles, categoryFilter: 'COMMON MENU' },
     { label: 'Breakfast', value: 'Breakfast', icon: Coffee, categoryFilter: 'BREAKFAST' },
     { label: 'Lunch', value: 'Lunch', icon: Sun, categoryFilter: 'LUNCH' },
     { label: 'Dinner', value: 'Dinner', icon: Moon, categoryFilter: 'DINNER' },
@@ -361,45 +362,92 @@ export const PatientMenu: React.FC = () => {
                   )}
                 </div>
 
-                {/* Patient Quantity Selector for current meal session */}
+                {/* Patient Quantity Selector */}
                 <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
                   {isAvailable ? (
-                    <div className="flex items-center space-x-2 w-full justify-between">
-                      <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
+                    item.category === 'COMMON MENU' ? (
+                      <div className="space-y-2 w-full">
+                        <div className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">
+                          Select Quantities Per Meal Session:
+                        </div>
+                        {[
+                          { mealName: 'Breakfast', icon: Coffee, color: 'text-amber-700 bg-amber-50 border-amber-200' },
+                          { mealName: 'Lunch', icon: Sun, color: 'text-orange-700 bg-orange-50 border-orange-200' },
+                          { mealName: 'Dinner', icon: Moon, color: 'text-indigo-700 bg-indigo-50 border-indigo-200' },
+                        ].map(({ mealName, icon: MealIcon, color }) => {
+                          const mealCart = cartByMeal[mealName] || {};
+                          const q = mealCart[item.menu_id] || 0;
+                          return (
+                            <div key={mealName} className="flex items-center justify-between bg-slate-50/80 p-2 rounded-xl border border-slate-200/80">
+                              <div className="flex items-center gap-1.5">
+                                <div className={`p-1 rounded-md border ${color}`}>
+                                  <MealIcon className="w-3.5 h-3.5" />
+                                </div>
+                                <span className="text-xs font-extrabold text-slate-800">{mealName} Qty</span>
+                              </div>
+                              <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-white">
+                                <button
+                                  type="button"
+                                  onClick={() => handleQtyChange(item.menu_id, -1, mealName)}
+                                  disabled={q === 0 || isOrderingLocked}
+                                  className="px-2.5 py-1 text-slate-600 hover:bg-slate-100 disabled:opacity-30 transition-colors cursor-pointer"
+                                >
+                                  <Minus className="w-3 h-3" />
+                                </button>
+                                <span className="px-2.5 py-1 text-xs font-black text-slate-900 min-w-[1.75rem] text-center font-mono">
+                                  {q}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleQtyChange(item.menu_id, 1, mealName)}
+                                  disabled={isOrderingLocked}
+                                  className="px-2.5 py-1 text-slate-600 hover:bg-slate-100 disabled:opacity-30 transition-colors cursor-pointer"
+                                >
+                                  <Plus className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <div className="flex items-center space-x-2 w-full justify-between">
+                        <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
+                          <button
+                            type="button"
+                            onClick={() => handleQtyChange(item.menu_id, -1, currentMealName)}
+                            disabled={qtyInCart === 0 || isOrderingLocked}
+                            className="px-3 py-1.5 text-slate-600 hover:bg-slate-200 active:bg-slate-300 disabled:opacity-30 transition-colors cursor-pointer"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </button>
+                          <span className="px-3 py-1.5 text-xs font-black text-slate-800 min-w-[2rem] text-center font-mono">
+                            {qtyInCart}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleQtyChange(item.menu_id, 1, currentMealName)}
+                            disabled={isOrderingLocked}
+                            className="px-3 py-1.5 text-slate-600 hover:bg-slate-200 active:bg-slate-300 disabled:opacity-30 transition-colors cursor-pointer"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+
                         <button
                           type="button"
-                          onClick={() => handleQtyChange(item.menu_id, -1, currentMealName)}
-                          disabled={qtyInCart === 0 || isOrderingLocked}
-                          className="px-3 py-1.5 text-slate-600 hover:bg-slate-200 active:bg-slate-300 disabled:opacity-30 transition-colors cursor-pointer"
-                        >
-                          <Minus className="w-3.5 h-3.5" />
-                        </button>
-                        <span className="px-3 py-1.5 text-xs font-black text-slate-800 min-w-[2rem] text-center font-mono">
-                          {qtyInCart}
-                        </span>
-                        <button
-                          type="button"
-                          onClick={() => handleQtyChange(item.menu_id, 1, currentMealName)}
                           disabled={isOrderingLocked}
-                          className="px-3 py-1.5 text-slate-600 hover:bg-slate-200 active:bg-slate-300 disabled:opacity-30 transition-colors cursor-pointer"
+                          onClick={() => handleQtyChange(item.menu_id, qtyInCart > 0 ? -qtyInCart : 1, currentMealName)}
+                          className={`text-xs font-extrabold px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
+                            qtyInCart > 0
+                              ? 'bg-emerald-600 text-white shadow-xs'
+                              : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200/80'
+                          }`}
                         >
-                          <Plus className="w-3.5 h-3.5" />
+                          {qtyInCart > 0 ? `Added for ${currentMealName} ✓` : `Add for ${currentMealName}`}
                         </button>
                       </div>
-
-                      <button
-                        type="button"
-                        disabled={isOrderingLocked}
-                        onClick={() => handleQtyChange(item.menu_id, qtyInCart > 0 ? -qtyInCart : 1, currentMealName)}
-                        className={`text-xs font-extrabold px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
-                          qtyInCart > 0
-                            ? 'bg-emerald-600 text-white shadow-xs'
-                            : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200/80'
-                        }`}
-                      >
-                        {qtyInCart > 0 ? `Added for ${currentMealName} ✓` : `Add for ${currentMealName}`}
-                      </button>
-                    </div>
+                    )
                   ) : (
                     <span className="text-xs text-rose-500 font-extrabold italic">
                       {isOrderingLocked ? 'Ordering Closed' : 'Unavailable Today'}
