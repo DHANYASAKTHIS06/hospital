@@ -77,18 +77,31 @@ export const getAdminDashboardStats = async (req: Request, res: Response) => {
       orderMealMap.set(o.order_id, o.meal_type || 'Breakfast');
     }
 
-    // Maps to aggregate quantities by (meal_type, menu_id) or (meal_type, item_name)
+    // Function to standardize meal name & key
+    const normalizeMeal = (raw: string): { mealName: string; mealKey: string } => {
+      const trimmed = (raw || 'Breakfast').trim();
+      if (/^breakfast$/i.test(trimmed)) return { mealName: 'Breakfast', mealKey: 'BREAKFAST' };
+      if (/^lunch$/i.test(trimmed)) return { mealName: 'Lunch', mealKey: 'LUNCH' };
+      if (/^dinner$/i.test(trimmed)) return { mealName: 'Dinner', mealKey: 'DINNER' };
+      if (/^tea/i.test(trimmed)) return { mealName: 'Tea / Milk', mealKey: 'TEA / MILK' };
+      if (/^snack/i.test(trimmed)) return { mealName: 'Snacks', mealKey: 'SNACKS' };
+      return { mealName: trimmed, mealKey: trimmed.toUpperCase() };
+    };
+
+    // Maps to aggregate quantities by (meal_key, menu_id) or (meal_key, item_name)
     const qtyByMealAndMenuId = new Map<string, number>();
     const qtyByMealAndName = new Map<string, number>();
 
     for (const item of activeOrderItems) {
-      const meal = orderMealMap.get(item.order_id) || 'Breakfast';
+      const rawMeal = orderMealMap.get(item.order_id) || 'Breakfast';
+      const { mealKey } = normalizeMeal(rawMeal);
+
       if (item.menu_id !== undefined && item.menu_id !== null) {
-        const key = `${meal}::${item.menu_id}`;
+        const key = `${mealKey}::${item.menu_id}`;
         qtyByMealAndMenuId.set(key, (qtyByMealAndMenuId.get(key) || 0) + item.quantity);
       }
       if (item.item_name_snapshot) {
-        const key = `${meal}::${item.item_name_snapshot.trim().toLowerCase()}`;
+        const key = `${mealKey}::${item.item_name_snapshot.trim().toLowerCase()}`;
         qtyByMealAndName.set(key, (qtyByMealAndName.get(key) || 0) + item.quantity);
       }
     }
@@ -102,15 +115,16 @@ export const getAdminDashboardStats = async (req: Request, res: Response) => {
         // Common Menu items are split into Breakfast, Lunch, and Dinner
         const commonMealSessions = ['Breakfast', 'Lunch', 'Dinner'];
         for (const meal of commonMealSessions) {
-          const byId = qtyByMealAndMenuId.get(`${meal}::${item.menu_id}`) || 0;
-          const byName = qtyByMealAndName.get(`${meal}::${item.item_name.trim().toLowerCase()}`) || 0;
+          const mealKey = meal.toUpperCase();
+          const byId = qtyByMealAndMenuId.get(`${mealKey}::${item.menu_id}`) || 0;
+          const byName = qtyByMealAndName.get(`${mealKey}::${item.item_name.trim().toLowerCase()}`) || 0;
           const totalQty = Math.max(byId, byName);
 
           foodItemsToPrepare.push({
             menu_id: item.menu_id,
             item_name: item.item_name,
             meal_type: meal,
-            category: meal.toUpperCase(), // 'BREAKFAST', 'LUNCH', 'DINNER'
+            category: mealKey, // 'BREAKFAST', 'LUNCH', 'DINNER'
             portion_size: item.quantity,
             total_preparation_quantity: totalQty,
           });
@@ -124,8 +138,9 @@ export const getAdminDashboardStats = async (req: Request, res: Response) => {
         else if (origCategory === 'SNACKS') targetMeal = 'Snacks';
         else if (origCategory === 'BREAKFAST') targetMeal = 'Breakfast';
 
-        const byId = qtyByMealAndMenuId.get(`${targetMeal}::${item.menu_id}`) || 0;
-        const byName = qtyByMealAndName.get(`${targetMeal}::${item.item_name.trim().toLowerCase()}`) || 0;
+        const mealKey = targetMeal.toUpperCase();
+        const byId = qtyByMealAndMenuId.get(`${mealKey}::${item.menu_id}`) || 0;
+        const byName = qtyByMealAndName.get(`${mealKey}::${item.item_name.trim().toLowerCase()}`) || 0;
         const totalQty = Math.max(byId, byName);
 
         foodItemsToPrepare.push({

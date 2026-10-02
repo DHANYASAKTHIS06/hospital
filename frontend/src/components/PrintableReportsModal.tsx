@@ -51,10 +51,66 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
     a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
   );
 
-  // Filter items needing preparation (qty > 0)
-  const itemsNeedingPreparation = foodItemsToPrepare.filter(
-    (item) => item.total_preparation_quantity > 0
-  );
+  // Calculate meal-wise preparation list directly from active orders & foodItemsToPrepare prop
+  const activeOrderPrepMap = new Map<string, { menu_id: number; item_name: string; meal_type: string; category: string; portion_size: string; total_preparation_quantity: number }>();
+
+  // 1. Populate directly from active orders
+  activeOrders.forEach((o) => {
+    const rawMeal = (o.meal_type || 'Breakfast').trim();
+    let mealName = rawMeal;
+    if (/^breakfast$/i.test(rawMeal)) mealName = 'Breakfast';
+    else if (/^lunch$/i.test(rawMeal)) mealName = 'Lunch';
+    else if (/^dinner$/i.test(rawMeal)) mealName = 'Dinner';
+    else if (/^tea/i.test(rawMeal)) mealName = 'Tea / Milk';
+    else if (/^snack/i.test(rawMeal)) mealName = 'Snacks';
+
+    const mealCategory = mealName.toUpperCase();
+
+    o.items?.forEach((it) => {
+      const key = `${mealCategory}::${it.item_name_snapshot.trim().toLowerCase()}`;
+      const existing = activeOrderPrepMap.get(key);
+      if (existing) {
+        existing.total_preparation_quantity += it.quantity;
+      } else {
+        activeOrderPrepMap.set(key, {
+          menu_id: it.menu_id || 0,
+          item_name: it.item_name_snapshot,
+          meal_type: mealName,
+          category: mealCategory,
+          portion_size: '1 portion',
+          total_preparation_quantity: it.quantity,
+        });
+      }
+    });
+  });
+
+  // 2. Also merge from foodItemsToPrepare prop if items with qty > 0 are present
+  foodItemsToPrepare.forEach((item) => {
+    if (item.total_preparation_quantity > 0) {
+      const rawMeal = (item.meal_type || item.category || 'Breakfast').trim();
+      let mealName = rawMeal;
+      if (/^breakfast$/i.test(rawMeal)) mealName = 'Breakfast';
+      else if (/^lunch$/i.test(rawMeal)) mealName = 'Lunch';
+      else if (/^dinner$/i.test(rawMeal)) mealName = 'Dinner';
+      else if (/^tea/i.test(rawMeal)) mealName = 'Tea / Milk';
+      else if (/^snack/i.test(rawMeal)) mealName = 'Snacks';
+
+      const mealCategory = mealName.toUpperCase();
+      const key = `${mealCategory}::${item.item_name.trim().toLowerCase()}`;
+      if (!activeOrderPrepMap.has(key)) {
+        activeOrderPrepMap.set(key, {
+          menu_id: item.menu_id,
+          item_name: item.item_name,
+          meal_type: mealName,
+          category: mealCategory,
+          portion_size: item.portion_size || '1 portion',
+          total_preparation_quantity: item.total_preparation_quantity,
+        });
+      }
+    }
+  });
+
+  const itemsNeedingPreparation = Array.from(activeOrderPrepMap.values());
   const totalItemsToCook = itemsNeedingPreparation.reduce(
     (sum, item) => sum + item.total_preparation_quantity,
     0
@@ -331,11 +387,23 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                         <div className="bg-slate-900 text-white px-4 py-2.5 flex justify-between items-center text-xs font-black uppercase">
                           <span className="flex items-center gap-2">
                             <span className="w-2.5 h-2.5 rounded-full bg-celadon"></span>
-                            {group.mealCat} PREPARATION SECTION
+                            {group.mealCat}
                           </span>
                           <span className="bg-emerald-700 text-white text-[11px] font-bold px-2.5 py-0.5 rounded font-mono">
                             Section Total: {group.subtotal} Portions
                           </span>
+                        </div>
+
+                        {/* Bulleted Preparation Summary */}
+                        <div className="p-3 bg-slate-50 border-b border-slate-200">
+                          <ul className="space-y-1 text-xs font-extrabold text-slate-900">
+                            {group.items.map((item) => (
+                              <li key={`bullet-${item.item_name}`} className="flex items-center gap-2">
+                                <span className="text-slate-400 font-bold">•</span>
+                                <span>{item.item_name} – <strong className="text-emerald-800 font-mono text-sm">{item.total_preparation_quantity}</strong></span>
+                              </li>
+                            ))}
+                          </ul>
                         </div>
 
                         <table className="w-full text-xs text-left">
