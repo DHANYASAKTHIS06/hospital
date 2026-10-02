@@ -87,13 +87,18 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
   // 2. Also merge from foodItemsToPrepare prop if items with qty > 0 are present
   foodItemsToPrepare.forEach((item) => {
     if (item.total_preparation_quantity > 0) {
-      const rawMeal = (item.meal_type || item.category || 'Breakfast').trim();
+      let rawMeal = (item.meal_type || '').trim();
+      if (!rawMeal || /^common/i.test(rawMeal) || /^common/i.test(item.category || '')) {
+        rawMeal = (item.meal_type || 'Breakfast').trim();
+        if (/^common/i.test(rawMeal)) rawMeal = 'Breakfast';
+      }
       let mealName = rawMeal;
       if (/^breakfast$/i.test(rawMeal)) mealName = 'Breakfast';
       else if (/^lunch$/i.test(rawMeal)) mealName = 'Lunch';
       else if (/^dinner$/i.test(rawMeal)) mealName = 'Dinner';
       else if (/^tea/i.test(rawMeal)) mealName = 'Tea / Milk';
       else if (/^snack/i.test(rawMeal)) mealName = 'Snacks';
+      else mealName = 'Breakfast';
 
       const mealCategory = mealName.toUpperCase();
       const key = `${mealCategory}::${item.item_name.trim().toLowerCase()}`;
@@ -361,26 +366,14 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                     const prepByMealGroup = mealOrder
                       .map((mealCat) => {
                         const items = itemsNeedingPreparation.filter((item) => {
-                          const c = (item.category || item.meal_type || '').trim().toUpperCase();
+                          let c = (item.category || item.meal_type || '').trim().toUpperCase();
+                          if (/^COMMON/i.test(c)) c = 'BREAKFAST';
                           return c === mealCat || c.replace(/\s+/g, '') === mealCat.replace(/\s+/g, '');
                         });
                         const subtotal = items.reduce((sum, item) => sum + item.total_preparation_quantity, 0);
                         return { mealCat, items, subtotal };
                       })
                       .filter((group) => group.items.length > 0);
-
-                    const handledCategories = new Set(mealOrder);
-                    const otherPrepItems = itemsNeedingPreparation.filter((item) => {
-                      const c = (item.category || item.meal_type || '').trim().toUpperCase();
-                      return !handledCategories.has(c) && !handledCategories.has(c.replace(/\s+/g, ''));
-                    });
-                    if (otherPrepItems.length > 0) {
-                      prepByMealGroup.push({
-                        mealCat: 'OTHER MEALS',
-                        items: otherPrepItems,
-                        subtotal: otherPrepItems.reduce((sum, item) => sum + item.total_preparation_quantity, 0),
-                      });
-                    }
 
                     return prepByMealGroup.map((group) => (
                       <div key={group.mealCat} className="border-2 border-slate-800 rounded-xl overflow-hidden shadow-xs page-break-inside-avoid">
