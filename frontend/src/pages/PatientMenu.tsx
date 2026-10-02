@@ -194,6 +194,9 @@ export const PatientMenu: React.FC = () => {
       : menuItems.filter((item) => {
           const cat = (item.category || '').trim().toUpperCase();
           const sel = selectedMealSession.trim().toUpperCase();
+          if (cat === 'COMMON MENU' || cat === 'COMMONMENU') {
+            return true;
+          }
           return cat === sel || cat.replace(/\s+/g, '') === sel.replace(/\s+/g, '');
         });
 
