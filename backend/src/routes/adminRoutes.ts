@@ -5,8 +5,11 @@ import {
   getPatientsList,
   getPatientById,
   createPatient,
+  updatePatient,
   deletePatient,
   rechargePatientBalance,
+  adjustPatientBalance,
+  deductPatientBalance,
   getFoodRecords,
   getRoomFoodRecords,
 } from '../controllers/adminController';
@@ -49,11 +52,18 @@ router.post('/menu', addMenuItem);
 router.put('/menu/:menuId', updateMenuItem);
 router.delete('/menu/:menuId', deleteMenuItem);
 
-// Patient Management
+// Patient Management & Amount Adjustment
 router.get('/patients', getPatientsList);
 router.post('/patients', createPatient);
 router.get('/patients/:patientId', getPatientById);
+router.put('/patients/:patientId', updatePatient);
+router.patch('/patients/:patientId', updatePatient);
 router.post('/patients/:patientId/recharge', rechargePatientBalance);
+router.post('/patients/:patientId/adjust-balance', adjustPatientBalance);
+router.post('/patients/:patientId/deduct', deductPatientBalance);
+router.post('/patients/:patientId/deduct-balance', deductPatientBalance);
+router.patch('/patients/:patientId/balance', adjustPatientBalance);
+router.put('/patients/:patientId/balance', adjustPatientBalance);
 router.delete('/patients/:patientId', deletePatient);
 
 // Food Records & Room-wise view

@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.rechargePatientBalance = exports.createPatient = exports.getRoomFoodRecords = exports.getFoodRecords = exports.deletePatient = exports.getPatientById = exports.getPatientsList = exports.getAdminDashboardStats = void 0;
+exports.updatePatient = exports.deductPatientBalance = exports.adjustPatientBalance = exports.rechargePatientBalance = exports.createPatient = exports.getRoomFoodRecords = exports.getFoodRecords = exports.deletePatient = exports.getPatientById = exports.getPatientsList = exports.getAdminDashboardStats = exports.parseAdjustmentAmount = void 0;
 const mongoose_1 = __importDefault(require("mongoose"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const Patient_1 = require("../models/Patient");
@@ -46,6 +46,27 @@ const Bill_1 = require("../models/Bill");
 const MenuItem_1 = require("../models/MenuItem");
 const Counter_1 = require("../models/Counter");
 const systemController_1 = require("./systemController");
+const socketService_1 = require("../services/socketService");
+/**
+ * Helper to parse any valid numeric amount from number or string (including currency symbols/commas).
+ * Removes any restrictions so amounts like ₹125, ₹275, ₹1,235, ₹5,250 are fully valid.
+ */
+const parseAdjustmentAmount = (val) => {
+    if (val === undefined || val === null || val === '')
+        return null;
+    if (typeof val === 'number') {
+        return !isNaN(val) && isFinite(val) ? val : null;
+    }
+    if (typeof val === 'string') {
+        const cleaned = val.replace(/[₹$,\s]/g, '').trim();
+        if (!cleaned)
+            return null;
+        const parsed = Number(cleaned);
+        return !isNaN(parsed) && isFinite(parsed) ? parsed : null;
+    }
+    return null;
+};
+exports.parseAdjustmentAmount = parseAdjustmentAmount;
 const getAdminDashboardStats = async (req, res) => {
     try {
         const is_ordering_locked = await (0, systemController_1.getOrderingLockedStatus)();
@@ -382,7 +403,8 @@ const createPatient = async (req, res) => {
             return res.status(400).json({ message: `Patient ID "${finalPatientId}" already exists. Please use a unique Patient ID.` });
         }
         const password_hash = await bcryptjs_1.default.hash(password, 10);
-        const initialAdvance = Number(advance_balance) >= 0 ? Number(advance_balance) : 0;
+        const parsedAdvance = (0, exports.parseAdjustmentAmount)(advance_balance);
+        const initialAdvance = parsedAdvance !== null && parsedAdvance >= 0 ? Math.round(parsedAdvance * 100) / 100 : 0;
         const newPatient = await Patient_1.Patient.create({
             patient_id: finalPatientId,
             name: name.trim(),
@@ -414,13 +436,52 @@ const createPatient = async (req, res) => {
     }
 };
 exports.createPatient = createPatient;
+/**
+ * Adjust patient advance balance (Admin Panel only).
+ * Allows admin to add or deduct ANY valid amount (e.g. ₹125, ₹275, ₹1,235, ₹5,250, etc.).
+ * Removes all restrictions to multiples of 50 or 100.
+ * Supports positive/negative amount, action ('add' | 'deduct'), deduct_amount, and socket broadcasts.
+ */
 const rechargePatientBalance = async (req, res) => {
     try {
         const { patientId } = req.params;
-        const { amount } = req.body;
-        const rechargeAmount = Number(amount);
-        if (isNaN(rechargeAmount) || rechargeAmount <= 0) {
-            return res.status(400).json({ message: 'Recharge amount must be a positive number.' });
+        const { amount, adjustment, recharge_amount, deduct_amount, deduction, action, type, operation, } = req.body;
+        // Detect if this is explicitly a deduction action
+        const isExplicitDeductAction = String(action || type || operation || '').toLowerCase().trim() === 'deduct' ||
+            String(action || type || operation || '').toLowerCase().trim() === 'subtract' ||
+            String(action || type || operation || '').toLowerCase().trim() === 'minus';
+        // Parse the adjustment amount from any supplied field
+        let rawAmount = null;
+        let isDeduct = isExplicitDeductAction;
+        if (deduct_amount !== undefined || deduction !== undefined) {
+            rawAmount = (0, exports.parseAdjustmentAmount)(deduct_amount !== undefined ? deduct_amount : deduction);
+            isDeduct = true;
+        }
+        else if (recharge_amount !== undefined) {
+            rawAmount = (0, exports.parseAdjustmentAmount)(recharge_amount);
+            if (!isExplicitDeductAction)
+                isDeduct = false;
+        }
+        else if (adjustment !== undefined) {
+            rawAmount = (0, exports.parseAdjustmentAmount)(adjustment);
+        }
+        else if (amount !== undefined) {
+            rawAmount = (0, exports.parseAdjustmentAmount)(amount);
+        }
+        if (rawAmount === null) {
+            return res.status(400).json({
+                message: 'Please provide a valid adjustment amount (e.g. ₹125, ₹275, ₹1,235, ₹5,250).',
+            });
+        }
+        // Negative amounts represent deductions
+        if (rawAmount < 0) {
+            isDeduct = true;
+        }
+        const absAmount = Math.round(Math.abs(rawAmount) * 100) / 100;
+        if (absAmount <= 0) {
+            return res.status(400).json({
+                message: 'Adjustment amount must be a valid number greater than zero.',
+            });
         }
         const patient = await Patient_1.Patient.findOne({
             $or: [
@@ -432,17 +493,127 @@ const rechargePatientBalance = async (req, res) => {
         if (!patient) {
             return res.status(404).json({ message: 'Patient record not found.' });
         }
-        patient.advance_balance = (patient.advance_balance || 0) + rechargeAmount;
+        const currentBalance = Math.round((patient.advance_balance || 0) * 100) / 100;
+        let newBalance = currentBalance;
+        const actionType = isDeduct ? 'deduct' : 'add';
+        let message = '';
+        if (isDeduct) {
+            if (currentBalance < absAmount) {
+                return res.status(400).json({
+                    message: `Cannot deduct ₹${absAmount}. Patient's current advance balance is only ₹${currentBalance}.`,
+                    current_balance: currentBalance,
+                });
+            }
+            newBalance = Math.round((currentBalance - absAmount) * 100) / 100;
+            message = `Successfully deducted ₹${absAmount} from patient ${patient.name} (${patient.patient_id}). Remaining balance: ₹${newBalance}.`;
+        }
+        else {
+            newBalance = Math.round((currentBalance + absAmount) * 100) / 100;
+            message = `Successfully recharged ₹${absAmount} for patient ${patient.name} (${patient.patient_id}). Updated balance: ₹${newBalance}.`;
+        }
+        patient.advance_balance = newBalance;
         await patient.save();
+        // Emit real-time balance updates
+        try {
+            (0, socketService_1.emitToPatient)(patient.patient_id, 'patient_balance_updated', {
+                patient_id: patient.patient_id,
+                advance_balance: newBalance,
+                previous_balance: currentBalance,
+                action: actionType,
+                amount: absAmount,
+            });
+            (0, socketService_1.emitToAdmin)('patient_balance_updated', {
+                patient_id: patient.patient_id,
+                advance_balance: newBalance,
+                previous_balance: currentBalance,
+                action: actionType,
+                amount: absAmount,
+            });
+        }
+        catch (socketErr) {
+            console.warn('Socket emission error during balance adjustment:', socketErr);
+        }
         return res.status(200).json({
-            message: `Successfully recharged ₹${rechargeAmount} for patient ${patient.name} (${patient.patient_id}).`,
+            message,
             patient_id: patient.patient_id,
-            advance_balance: patient.advance_balance,
+            advance_balance: newBalance,
+            previous_balance: currentBalance,
+            action: actionType,
+            amount: absAmount,
+            patient: {
+                _id: patient._id,
+                patient_id: patient.patient_id,
+                name: patient.name,
+                room_number: patient.room_number,
+                advance_balance: newBalance,
+            },
         });
     }
     catch (error) {
-        console.error('Recharge Patient Balance Error:', error);
-        return res.status(500).json({ message: 'Error recharging patient balance.' });
+        console.error('Adjust Patient Balance Error:', error);
+        return res.status(500).json({ message: 'Error adjusting patient balance.', error: error.message });
     }
 };
 exports.rechargePatientBalance = rechargePatientBalance;
+exports.adjustPatientBalance = exports.rechargePatientBalance;
+const deductPatientBalance = async (req, res) => {
+    req.body = { ...req.body, action: 'deduct' };
+    return (0, exports.rechargePatientBalance)(req, res);
+};
+exports.deductPatientBalance = deductPatientBalance;
+const updatePatient = async (req, res) => {
+    try {
+        const { patientId } = req.params;
+        const { name, age, address, room_number, mobile, advance_balance } = req.body;
+        const patient = await Patient_1.Patient.findOne({
+            $or: [
+                { patient_id: String(patientId).toUpperCase().trim() },
+                { patient_id: String(patientId).trim() },
+                ...(mongoose_1.default.isValidObjectId(patientId) ? [{ _id: patientId }] : []),
+            ],
+        });
+        if (!patient) {
+            return res.status(404).json({ message: 'Patient record not found.' });
+        }
+        if (name !== undefined)
+            patient.name = String(name).trim();
+        if (age !== undefined)
+            patient.age = Number(age);
+        if (address !== undefined)
+            patient.address = String(address).trim();
+        if (room_number !== undefined)
+            patient.room_number = String(room_number).trim();
+        if (mobile !== undefined)
+            patient.mobile = String(mobile).trim();
+        if (advance_balance !== undefined) {
+            const parsedBalance = (0, exports.parseAdjustmentAmount)(advance_balance);
+            if (parsedBalance === null || parsedBalance < 0) {
+                return res.status(400).json({ message: 'Advance balance must be a valid non-negative amount.' });
+            }
+            patient.advance_balance = Math.round(parsedBalance * 100) / 100;
+        }
+        await patient.save();
+        try {
+            (0, socketService_1.emitToPatient)(patient.patient_id, 'patient_balance_updated', {
+                patient_id: patient.patient_id,
+                advance_balance: patient.advance_balance,
+            });
+            (0, socketService_1.emitToAdmin)('patient_balance_updated', {
+                patient_id: patient.patient_id,
+                advance_balance: patient.advance_balance,
+            });
+        }
+        catch (socketErr) {
+            console.warn('Socket emission error during patient update:', socketErr);
+        }
+        return res.status(200).json({
+            message: 'Patient record updated successfully.',
+            patient,
+        });
+    }
+    catch (error) {
+        console.error('Update Patient Error:', error);
+        return res.status(500).json({ message: 'Error updating patient record.', error: error.message });
+    }
+};
+exports.updatePatient = updatePatient;

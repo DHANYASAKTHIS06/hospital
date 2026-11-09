@@ -25,11 +25,18 @@ router.get('/menu', menuController_1.getMenuItems);
 router.post('/menu', menuController_1.addMenuItem);
 router.put('/menu/:menuId', menuController_1.updateMenuItem);
 router.delete('/menu/:menuId', menuController_1.deleteMenuItem);
-// Patient Management
+// Patient Management & Amount Adjustment
 router.get('/patients', adminController_1.getPatientsList);
 router.post('/patients', adminController_1.createPatient);
 router.get('/patients/:patientId', adminController_1.getPatientById);
+router.put('/patients/:patientId', adminController_1.updatePatient);
+router.patch('/patients/:patientId', adminController_1.updatePatient);
 router.post('/patients/:patientId/recharge', adminController_1.rechargePatientBalance);
+router.post('/patients/:patientId/adjust-balance', adminController_1.adjustPatientBalance);
+router.post('/patients/:patientId/deduct', adminController_1.deductPatientBalance);
+router.post('/patients/:patientId/deduct-balance', adminController_1.deductPatientBalance);
+router.patch('/patients/:patientId/balance', adminController_1.adjustPatientBalance);
+router.put('/patients/:patientId/balance', adminController_1.adjustPatientBalance);
 router.delete('/patients/:patientId', adminController_1.deletePatient);
 // Food Records & Room-wise view
 router.get('/food-records', adminController_1.getFoodRecords);
