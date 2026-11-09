@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { PatientRecord } from '../types';
-import { Users, Search, Eye, X, UserPlus, KeyRound, CheckCircle2, Copy, Check, Trash2, AlertTriangle, Wallet, PlusCircle } from 'lucide-react';
+import { Users, Search, Eye, X, UserPlus, KeyRound, CheckCircle2, Copy, Check, Trash2, AlertTriangle, Wallet, PlusCircle, MinusCircle } from 'lucide-react';
 
 export const AdminPatients: React.FC = () => {
   const [patients, setPatients] = useState<PatientRecord[]>([]);
@@ -37,9 +37,10 @@ export const AdminPatients: React.FC = () => {
 
   const [copied, setCopied] = useState(false);
 
-  // Recharge Balance Modal state
+  // Recharge / Adjust Balance Modal state
   const [rechargingPatient, setRechargingPatient] = useState<PatientRecord | null>(null);
   const [rechargeAmount, setRechargeAmount] = useState('1000');
+  const [adjustmentAction, setAdjustmentAction] = useState<'add' | 'deduct'>('add');
   const [rechargeLoading, setRechargeLoading] = useState(false);
   const [rechargeError, setRechargeError] = useState<string | null>(null);
 
@@ -115,11 +116,12 @@ export const AdminPatients: React.FC = () => {
     try {
       await api.post(`/admin/patients/${rechargingPatient.patient_id}/recharge`, {
         amount: Number(rechargeAmount),
+        action: adjustmentAction,
       });
       setRechargingPatient(null);
       fetchPatients();
     } catch (err: any) {
-      setRechargeError(err.response?.data?.message || 'Failed to recharge patient balance.');
+      setRechargeError(err.response?.data?.message || 'Failed to adjust patient balance.');
     } finally {
       setRechargeLoading(false);
     }
@@ -260,10 +262,12 @@ export const AdminPatients: React.FC = () => {
                         <button
                           onClick={() => {
                             setRechargeError(null);
+                            setAdjustmentAction('add');
+                            setRechargeAmount('1000');
                             setRechargingPatient(p);
                           }}
                           className="px-2.5 py-1.5 bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-[11px] rounded-lg transition-colors flex items-center gap-1 shadow-xs cursor-pointer"
-                          title="Top Up / Recharge Balance"
+                          title="Top Up / Adjust Balance"
                         >
                           <PlusCircle className="w-3.5 h-3.5" />
                           <span>Recharge</span>
@@ -395,7 +399,7 @@ export const AdminPatients: React.FC = () => {
                   name="advance_balance"
                   required
                   min="0"
-                  step="100"
+                  step="any"
                   value={formData.advance_balance}
                   onChange={handleInputChange}
                   placeholder="5000"
@@ -546,8 +550,12 @@ export const AdminPatients: React.FC = () => {
                   <Wallet className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-extrabold text-slate-900">Recharge Advance Balance</h3>
-                  <p className="text-[11px] text-slate-500 font-medium">Add food order funds for patient</p>
+                  <h3 className="text-base font-extrabold text-slate-900">
+                    {adjustmentAction === 'deduct' ? 'Deduct Advance Balance' : 'Recharge Advance Balance'}
+                  </h3>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    {adjustmentAction === 'deduct' ? 'Deduct funds from patient account' : 'Add food order funds for patient'}
+                  </p>
                 </div>
               </div>
               <button
@@ -580,32 +588,65 @@ export const AdminPatients: React.FC = () => {
             )}
 
             <form onSubmit={handleRechargeSubmit} className="space-y-4">
+              {/* Action Selector: Add or Deduct */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Top-Up Amount (₹) *</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">Adjustment Action</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setAdjustmentAction('add')}
+                    className={`py-2 px-3 text-xs font-bold rounded-xl border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      adjustmentAction === 'add'
+                        ? 'bg-emerald-700 text-white border-emerald-700 shadow-xs'
+                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <PlusCircle className="w-3.5 h-3.5" />
+                    <span>Add Balance (+)</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAdjustmentAction('deduct')}
+                    className={`py-2 px-3 text-xs font-bold rounded-xl border transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                      adjustmentAction === 'deduct'
+                        ? 'bg-rose-700 text-white border-rose-700 shadow-xs'
+                        : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    <MinusCircle className="w-3.5 h-3.5" />
+                    <span>Deduct Balance (-)</span>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  {adjustmentAction === 'deduct' ? 'Deduct Amount (₹) *' : 'Top-Up Amount (₹) *'}
+                </label>
                 <div className="flex gap-2 mb-2">
                   {['500', '1000', '2000', '5000'].map((amt) => (
                     <button
                       key={amt}
                       type="button"
                       onClick={() => setRechargeAmount(amt)}
-                      className={`flex-1 py-1.5 text-xs font-bold rounded-lg border transition-colors ${
+                      className={`flex-1 py-1.5 text-xs font-bold rounded-lg border transition-colors cursor-pointer ${
                         rechargeAmount === amt
-                          ? 'bg-emerald-700 text-white border-emerald-700'
+                          ? (adjustmentAction === 'deduct' ? 'bg-rose-700 text-white border-rose-700' : 'bg-emerald-700 text-white border-emerald-700')
                           : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
                       }`}
                     >
-                      +₹{amt}
+                      {adjustmentAction === 'deduct' ? `-₹${amt}` : `+₹${amt}`}
                     </button>
                   ))}
                 </div>
                 <input
                   type="number"
                   required
-                  min="1"
-                  step="50"
+                  min="0.01"
+                  step="any"
                   value={rechargeAmount}
                   onChange={(e) => setRechargeAmount(e.target.value)}
-                  placeholder="Enter recharge amount"
+                  placeholder="Enter amount (e.g. 1050, 125, 275)"
                   className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-base font-mono font-black text-slate-900 focus:ring-2 focus:ring-emerald-500 outline-none"
                 />
               </div>
@@ -621,9 +662,17 @@ export const AdminPatients: React.FC = () => {
                 <button
                   type="submit"
                   disabled={rechargeLoading}
-                  className="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-800 text-white font-extrabold text-xs rounded-xl transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
+                  className={`flex-1 py-2.5 text-white font-extrabold text-xs rounded-xl transition-colors shadow-sm disabled:opacity-50 cursor-pointer ${
+                    adjustmentAction === 'deduct'
+                      ? 'bg-rose-700 hover:bg-rose-800'
+                      : 'bg-emerald-700 hover:bg-emerald-800'
+                  }`}
                 >
-                  {rechargeLoading ? 'Recharging...' : 'Confirm Recharge'}
+                  {rechargeLoading
+                    ? 'Processing...'
+                    : adjustmentAction === 'deduct'
+                    ? 'Confirm Deduction'
+                    : 'Confirm Recharge'}
                 </button>
               </div>
             </form>
