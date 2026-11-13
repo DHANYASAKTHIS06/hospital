@@ -84,7 +84,7 @@ export const getAdminDashboardStats = async (req: Request, res: Response) => {
     }
 
     const activeOrders = await FoodOrder.find({
-      order_status: { $nin: ['DELIVERED', 'CANCELLED'] },
+      order_status: { $nin: ['PENDING', 'DELIVERED', 'CANCELLED'] },
       is_cleared_from_active_view: { $ne: true },
     });
 
@@ -363,6 +363,136 @@ export const getRoomFoodRecords = async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Get Room Food Records Error:', error);
     return res.status(500).json({ message: 'Error fetching room food records.' });
+  }
+};
+
+/**
+ * Generates the aggregated Kitchen Cooking & Preparation Report.
+ * Groups active orders into 5 distinct meal categories:
+ * - TEA / MILK
+ * - BREAKFAST
+ * - LUNCH
+ * - DINNER
+ * - SNACKS
+ * Common Menu items are classified automatically under the meal session chosen by the patient.
+ * Strictly excludes pending, cancelled, cleared, and delivered orders.
+ */
+export const getKitchenReport = async (req: Request, res: Response) => {
+  try {
+    const activeOrders = await FoodOrder.find({
+      order_status: { $nin: ['PENDING', 'DELIVERED', 'CANCELLED'] },
+      is_cleared_from_active_view: { $ne: true },
+    }).sort({ createdAt: -1 });
+
+    const activeOrderIds = activeOrders.map((o) => o.order_id);
+    const activeOrderItems = await OrderItem.find({ order_id: { $in: activeOrderIds } });
+
+    // Map order_id -> meal_type
+    const orderMealMap = new Map<string, string>();
+    for (const o of activeOrders) {
+      orderMealMap.set(o.order_id, o.meal_type || 'Breakfast');
+    }
+
+    const allMenuItems = await MenuItem.find().sort({ menu_id: 1 });
+    const menuMap = new Map<number, any>();
+    const menuNameMap = new Map<string, any>();
+    for (const m of allMenuItems) {
+      menuMap.set(m.menu_id, m);
+      menuNameMap.set(m.item_name.trim().toLowerCase(), m);
+    }
+
+    const normalizeCategory = (rawMeal: string, fallbackCat?: string): string => {
+      let trimmed = (rawMeal || '').trim().toUpperCase();
+      if (!trimmed || trimmed === 'GENERAL' || trimmed === 'COMMON MENU') {
+        trimmed = (fallbackCat || 'BREAKFAST').trim().toUpperCase();
+      }
+      if (/^TEA/i.test(trimmed) || /^MILK/i.test(trimmed) || /^COFFEE/i.test(trimmed)) return 'TEA / MILK';
+      if (/^BREAKFAST/i.test(trimmed)) return 'BREAKFAST';
+      if (/^LUNCH/i.test(trimmed)) return 'LUNCH';
+      if (/^DINNER/i.test(trimmed)) return 'DINNER';
+      if (/^SNACK/i.test(trimmed)) return 'SNACKS';
+      return 'BREAKFAST';
+    };
+
+    // Aggregate identical food items across all patients by (category, item_name)
+    const prepMap = new Map<string, {
+      menu_id: number;
+      item_name: string;
+      category: string;
+      portion_size: string;
+      unit: string;
+      total_quantity: number;
+      order_count: number;
+    }>();
+
+    for (const item of activeOrderItems) {
+      const orderMeal = orderMealMap.get(item.order_id) || 'Breakfast';
+      const menuDoc = (item.menu_id ? menuMap.get(item.menu_id) : null) || menuNameMap.get((item.item_name_snapshot || '').trim().toLowerCase());
+      const cat = normalizeCategory(orderMeal, menuDoc?.category);
+      const itemName = (item.item_name_snapshot || menuDoc?.item_name || 'Food Item').trim();
+      const key = `${cat}::${itemName.toLowerCase()}`;
+
+      const portionSize = menuDoc ? menuDoc.quantity : '1 portion';
+      let unit = 'Nos';
+      if (portionSize) {
+        if (/ml/i.test(portionSize)) unit = 'ml';
+        else if (/plate/i.test(portionSize)) unit = 'Plate(s)';
+        else if (/cup/i.test(portionSize)) unit = 'Cup(s)';
+        else if (/nos/i.test(portionSize) || /no\b/i.test(portionSize)) unit = 'Nos';
+      }
+
+      const existing = prepMap.get(key);
+      if (existing) {
+        existing.total_quantity += item.quantity;
+        existing.order_count += 1;
+      } else {
+        prepMap.set(key, {
+          menu_id: item.menu_id || (menuDoc ? menuDoc.menu_id : 0),
+          item_name: itemName,
+          category: cat,
+          portion_size: portionSize,
+          unit,
+          total_quantity: item.quantity,
+          order_count: 1,
+        });
+      }
+    }
+
+    const standardSections = [
+      { key: 'TEA / MILK', title: 'Tea / Milk', icon: 'coffee' },
+      { key: 'BREAKFAST', title: 'Breakfast', icon: 'sun' },
+      { key: 'LUNCH', title: 'Lunch', icon: 'utensils' },
+      { key: 'DINNER', title: 'Dinner', icon: 'moon' },
+      { key: 'SNACKS', title: 'Snacks', icon: 'cookie' },
+    ];
+
+    const sections = standardSections.map((sec) => {
+      const items = Array.from(prepMap.values())
+        .filter((it) => it.category === sec.key)
+        .sort((a, b) => a.item_name.localeCompare(b.item_name));
+      const subtotal = items.reduce((sum, it) => sum + it.total_quantity, 0);
+      return {
+        category: sec.key,
+        title: sec.title,
+        icon: sec.icon,
+        items,
+        subtotal,
+      };
+    });
+
+    const totalPortions = sections.reduce((sum, sec) => sum + sec.subtotal, 0);
+    const now = new Date();
+
+    return res.status(200).json({
+      report_date: now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
+      generation_time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+      active_orders_count: activeOrders.length,
+      total_portions_to_cook: totalPortions,
+      sections,
+    });
+  } catch (error: any) {
+    console.error('Get Kitchen Report Error:', error);
+    return res.status(500).json({ message: 'Error generating kitchen report.' });
   }
 };
 

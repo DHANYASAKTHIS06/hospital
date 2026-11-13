@@ -38,9 +38,10 @@ router.post('/patients/:patientId/deduct-balance', adminController_1.deductPatie
 router.patch('/patients/:patientId/balance', adminController_1.adjustPatientBalance);
 router.put('/patients/:patientId/balance', adminController_1.adjustPatientBalance);
 router.delete('/patients/:patientId', adminController_1.deletePatient);
-// Food Records & Room-wise view
+// Food Records & Room-wise view & Kitchen Report
 router.get('/food-records', adminController_1.getFoodRecords);
 router.get('/room-food-records', adminController_1.getRoomFoodRecords);
+router.get('/kitchen-report', adminController_1.getKitchenReport);
 // Bill & Payment Management
 router.get('/bills', billController_1.getAllBillsAdmin);
 router.post('/bills/generate', billController_1.generateBill);

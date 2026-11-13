@@ -12,6 +12,7 @@ import {
   deductPatientBalance,
   getFoodRecords,
   getRoomFoodRecords,
+  getKitchenReport,
 } from '../controllers/adminController';
 import {
   getMenuItems,
@@ -66,9 +67,10 @@ router.patch('/patients/:patientId/balance', adjustPatientBalance);
 router.put('/patients/:patientId/balance', adjustPatientBalance);
 router.delete('/patients/:patientId', deletePatient);
 
-// Food Records & Room-wise view
+// Food Records & Room-wise view & Kitchen Report
 router.get('/food-records', getFoodRecords);
 router.get('/room-food-records', getRoomFoodRecords);
+router.get('/kitchen-report', getKitchenReport);
 
 // Bill & Payment Management
 router.get('/bills', getAllBillsAdmin);

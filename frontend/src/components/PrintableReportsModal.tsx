@@ -1,6 +1,21 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { api } from '../services/api';
 import { FoodOrder, FoodItemToPrepare } from '../types';
-import { Printer, X, ChefHat, Building2, Calendar, Clock } from 'lucide-react';
+import {
+  Printer,
+  X,
+  ChefHat,
+  Building2,
+  Calendar,
+  Clock,
+  Coffee,
+  Sun,
+  Utensils,
+  Moon,
+  Cookie,
+  CheckSquare,
+  RefreshCw,
+} from 'lucide-react';
 
 interface PrintableReportsModalProps {
   isOpen: boolean;
@@ -8,6 +23,26 @@ interface PrintableReportsModalProps {
   reportType: 'ROOM_WISE' | 'ITEMS_TO_PREPARE';
   orders: FoodOrder[];
   foodItemsToPrepare: FoodItemToPrepare[];
+  autoPrint?: boolean;
+}
+
+interface KitchenItem {
+  menu_id: number;
+  item_name: string;
+  category: string;
+  portion_size: string;
+  unit: string;
+  total_quantity: number;
+  order_count?: number;
+}
+
+interface KitchenSection {
+  category: string;
+  title: string;
+  desc: string;
+  icon: React.ComponentType<{ className?: string }>;
+  items: KitchenItem[];
+  subtotal: number;
 }
 
 export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
@@ -16,10 +51,44 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
   reportType,
   orders,
   foodItemsToPrepare,
+  autoPrint = true,
 }) => {
+  const [kitchenReportData, setKitchenReportData] = useState<any>(null);
+  const [loadingReport, setLoadingReport] = useState<boolean>(false);
+
+  // Fetch direct database-calculated kitchen report whenever modal is opened for items to prepare
+  const fetchKitchenReportData = async () => {
+    try {
+      setLoadingReport(true);
+      const res = await api.get('/admin/kitchen-report');
+      if (res.data) {
+        setKitchenReportData(res.data);
+      }
+    } catch (err) {
+      console.warn('Could not fetch /admin/kitchen-report, relying on active orders prop:', err);
+    } finally {
+      setLoadingReport(false);
+    }
+  };
+
+  useEffect(() => {
+    if (isOpen && reportType === 'ITEMS_TO_PREPARE') {
+      fetchKitchenReportData();
+    }
+  }, [isOpen, reportType]);
+
+  // Auto-trigger browser print dialog when Kitchen Report is opened
+  useEffect(() => {
+    if (isOpen && reportType === 'ITEMS_TO_PREPARE' && autoPrint) {
+      const timer = setTimeout(() => {
+        window.print();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isOpen, reportType, autoPrint]);
+
   if (!isOpen) return null;
 
-  const activeOrders = orders.filter((o) => o.order_status !== 'DELIVERED' && o.order_status !== 'CANCELLED');
   const now = new Date();
   const dateFormatted = now.toLocaleDateString('en-GB', {
     day: '2-digit',
@@ -32,9 +101,18 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
     hour12: true,
   });
 
-  // Group active orders by room number
+  // Filter valid active orders: strictly exclude PENDING, CANCELLED, DELIVERED, and cleared orders
+  const validActiveOrders = (orders || []).filter((o) => {
+    const status = (o.order_status || '').toUpperCase().trim();
+    const isCleared = (o as any).is_cleared_from_active_view === true;
+    return !isCleared && status !== 'PENDING' && status !== 'CANCELLED' && status !== 'DELIVERED';
+  });
+
+  // ----------------------------------------------------
+  // ROOM-WISE DATA CALCULATION
+  // ----------------------------------------------------
   const roomMap = new Map<string, Array<{ order: FoodOrder; patient_name: string; patient_id: string }>>();
-  activeOrders.forEach((order) => {
+  validActiveOrders.forEach((order) => {
     const room = order.room_number || 'Unassigned';
     if (!roomMap.has(room)) {
       roomMap.set(room, []);
@@ -46,80 +124,131 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
     });
   });
 
-  // Sort rooms numerically/alphabetically
   const sortedRooms = Array.from(roomMap.keys()).sort((a, b) =>
     a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
   );
 
-  // Calculate meal-wise preparation list directly from active orders & foodItemsToPrepare prop
-  const activeOrderPrepMap = new Map<string, { menu_id: number; item_name: string; meal_type: string; category: string; portion_size: string; total_preparation_quantity: number }>();
+  // ----------------------------------------------------
+  // KITCHEN PREPARATION SECTIONS (5 Standard Meal Sessions)
+  // 1. Tea / Milk
+  // 2. Breakfast
+  // 3. Lunch
+  // 4. Dinner
+  // 5. Snacks
+  // ----------------------------------------------------
+  const standardSectionMeta: Array<{
+    key: string;
+    title: string;
+    desc: string;
+    icon: React.ComponentType<{ className?: string }>;
+  }> = [
+    { key: 'TEA / MILK', title: 'Tea / Milk', desc: 'Hot Beverages & Milk Service (Morning & Evening)', icon: Coffee },
+    { key: 'BREAKFAST', title: 'Breakfast', desc: 'Morning Meal Preparation (Includes Common Menu items ordered for Breakfast)', icon: Sun },
+    { key: 'LUNCH', title: 'Lunch', desc: 'Afternoon Meal Preparation (Includes Common Menu items ordered for Lunch)', icon: Utensils },
+    { key: 'DINNER', title: 'Dinner', desc: 'Night Meal Preparation (Includes Common Menu items ordered for Dinner)', icon: Moon },
+    { key: 'SNACKS', title: 'Snacks', desc: 'Evening Snacks & Light Refreshments', icon: Cookie },
+  ];
 
-  // 1. Populate directly from active orders
-  activeOrders.forEach((o) => {
-    const rawMeal = (o.meal_type || 'Breakfast').trim();
-    let mealName = rawMeal;
-    if (/^breakfast$/i.test(rawMeal)) mealName = 'Breakfast';
-    else if (/^lunch$/i.test(rawMeal)) mealName = 'Lunch';
-    else if (/^dinner$/i.test(rawMeal)) mealName = 'Dinner';
-    else if (/^tea/i.test(rawMeal)) mealName = 'Tea / Milk';
-    else if (/^snack/i.test(rawMeal)) mealName = 'Snacks';
+  const normalizeMealCategory = (rawMeal: string, fallbackCat?: string): string => {
+    let t = (rawMeal || '').trim().toUpperCase();
+    if (!t || t === 'GENERAL' || t === 'COMMON MENU') {
+      t = (fallbackCat || 'BREAKFAST').trim().toUpperCase();
+    }
+    if (/^TEA/i.test(t) || /^MILK/i.test(t) || /^COFFEE/i.test(t)) return 'TEA / MILK';
+    if (/^BREAKFAST/i.test(t)) return 'BREAKFAST';
+    if (/^LUNCH/i.test(t)) return 'LUNCH';
+    if (/^DINNER/i.test(t)) return 'DINNER';
+    if (/^SNACK/i.test(t)) return 'SNACKS';
+    return 'BREAKFAST';
+  };
 
-    const mealCategory = mealName.toUpperCase();
+  // Build lookup map for menu item portion sizes and units from foodItemsToPrepare prop
+  const itemMetaMap = new Map<string, { portion_size: string; unit: string; menu_id: number }>();
+  (foodItemsToPrepare || []).forEach((f) => {
+    const key = f.item_name.trim().toLowerCase();
+    const portionSize = f.portion_size || '1 portion';
+    let unit = 'Nos';
+    if (/ml/i.test(portionSize)) unit = 'ml';
+    else if (/plate/i.test(portionSize)) unit = 'Plate(s)';
+    else if (/cup/i.test(portionSize)) unit = 'Cup(s)';
+    else if (/nos/i.test(portionSize) || /no\b/i.test(portionSize)) unit = 'Nos';
+
+    itemMetaMap.set(key, { portion_size: portionSize, unit, menu_id: f.menu_id });
+  });
+
+  // Calculate local aggregation from active orders (ensures 100% sync and offline availability)
+  const localPrepMap = new Map<string, KitchenItem>();
+
+  validActiveOrders.forEach((o) => {
+    const orderCategory = normalizeMealCategory(o.meal_type);
 
     o.items?.forEach((it) => {
-      const key = `${mealCategory}::${it.item_name_snapshot.trim().toLowerCase()}`;
-      const existing = activeOrderPrepMap.get(key);
+      const itemName = (it.item_name_snapshot || '').trim();
+      const cat = orderCategory;
+      const key = `${cat}::${itemName.toLowerCase()}`;
+      const meta = itemMetaMap.get(itemName.toLowerCase());
+      const portionSize = meta?.portion_size || '1 portion';
+      let unit = meta?.unit || 'Nos';
+      if (/ml/i.test(portionSize)) unit = 'ml';
+      else if (/plate/i.test(portionSize)) unit = 'Plate(s)';
+      else if (/cup/i.test(portionSize)) unit = 'Cup(s)';
+      else if (/nos/i.test(portionSize) || /no\b/i.test(portionSize)) unit = 'Nos';
+
+      const existing = localPrepMap.get(key);
       if (existing) {
-        existing.total_preparation_quantity += it.quantity;
+        existing.total_quantity += it.quantity;
+        existing.order_count = (existing.order_count || 1) + 1;
       } else {
-        activeOrderPrepMap.set(key, {
-          menu_id: it.menu_id || 0,
-          item_name: it.item_name_snapshot,
-          meal_type: mealName,
-          category: mealCategory,
-          portion_size: '1 portion',
-          total_preparation_quantity: it.quantity,
+        localPrepMap.set(key, {
+          menu_id: it.menu_id || meta?.menu_id || 0,
+          item_name: itemName,
+          category: cat,
+          portion_size: portionSize,
+          unit,
+          total_quantity: it.quantity,
+          order_count: 1,
         });
       }
     });
   });
 
-  // 2. Also merge from foodItemsToPrepare prop if items with qty > 0 are present
-  foodItemsToPrepare.forEach((item) => {
-    if (item.total_preparation_quantity > 0) {
-      let rawMeal = (item.meal_type || '').trim();
-      if (!rawMeal || /^common/i.test(rawMeal) || /^common/i.test(item.category || '')) {
-        rawMeal = (item.meal_type || 'Breakfast').trim();
-        if (/^common/i.test(rawMeal)) rawMeal = 'Breakfast';
-      }
-      let mealName = rawMeal;
-      if (/^breakfast$/i.test(rawMeal)) mealName = 'Breakfast';
-      else if (/^lunch$/i.test(rawMeal)) mealName = 'Lunch';
-      else if (/^dinner$/i.test(rawMeal)) mealName = 'Dinner';
-      else if (/^tea/i.test(rawMeal)) mealName = 'Tea / Milk';
-      else if (/^snack/i.test(rawMeal)) mealName = 'Snacks';
-      else mealName = 'Breakfast';
+  // Construct the 5 sections using backend data if available, or fallback to local calculation
+  const kitchenSections: KitchenSection[] = standardSectionMeta.map((meta) => {
+    const backendSec = kitchenReportData?.sections?.find((s: any) => s.category === meta.key);
 
-      const mealCategory = mealName.toUpperCase();
-      const key = `${mealCategory}::${item.item_name.trim().toLowerCase()}`;
-      if (!activeOrderPrepMap.has(key)) {
-        activeOrderPrepMap.set(key, {
-          menu_id: item.menu_id,
-          item_name: item.item_name,
-          meal_type: mealName,
-          category: mealCategory,
-          portion_size: item.portion_size || '1 portion',
-          total_preparation_quantity: item.total_preparation_quantity,
-        });
-      }
+    let items: KitchenItem[] = [];
+    let subtotal = 0;
+
+    if (backendSec && Array.isArray(backendSec.items)) {
+      items = backendSec.items.map((it: any) => ({
+        menu_id: it.menu_id || 0,
+        item_name: it.item_name,
+        category: meta.key,
+        portion_size: it.portion_size || '1 portion',
+        unit: it.unit || 'Nos',
+        total_quantity: it.total_quantity,
+        order_count: it.order_count,
+      }));
+      subtotal = backendSec.subtotal || items.reduce((sum, it) => sum + it.total_quantity, 0);
+    } else {
+      items = Array.from(localPrepMap.values())
+        .filter((it) => it.category === meta.key)
+        .sort((a, b) => a.item_name.localeCompare(b.item_name));
+      subtotal = items.reduce((sum, it) => sum + it.total_quantity, 0);
     }
+
+    return {
+      category: meta.key,
+      title: meta.title,
+      desc: meta.desc,
+      icon: meta.icon,
+      items,
+      subtotal,
+    };
   });
 
-  const itemsNeedingPreparation = Array.from(activeOrderPrepMap.values());
-  const totalItemsToCook = itemsNeedingPreparation.reduce(
-    (sum, item) => sum + item.total_preparation_quantity,
-    0
-  );
+  const overallTotalPortions = kitchenSections.reduce((sum, s) => sum + s.subtotal, 0);
+  const overallDistinctDishes = kitchenSections.reduce((sum, s) => sum + s.items.length, 0);
 
   const handlePrint = () => {
     window.print();
@@ -127,8 +256,8 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto">
-      <div className="bg-white rounded-2xl max-w-4xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[90vh]">
-        {/* Header Bar - No Print */}
+      <div className="bg-white rounded-2xl max-w-4xl w-full shadow-2xl border border-slate-200 overflow-hidden flex flex-col max-h-[92vh]">
+        {/* Header Bar - Excluded from Print */}
         <div className="no-print p-4 bg-procare-900 text-white flex justify-between items-center shrink-0 border-b border-procare-800">
           <div className="flex items-center space-x-3">
             <div className="p-2 bg-celadon text-slate-950 rounded-lg">
@@ -142,21 +271,33 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
               <h2 className="text-base font-bold text-white">
                 {reportType === 'ROOM_WISE'
                   ? 'Room-Wise Patient Order Report'
-                  : 'Cooking Department - Items to Be Prepared'}
+                  : 'Cooking Department – Kitchen Preparation Report'}
               </h2>
               <p className="text-xs text-procare-200">
-                A4 Print Preview • Generated on {dateFormatted} at {timeFormatted}
+                Print-ready A4 Sheet • Generated on {dateFormatted} at {timeFormatted}
               </p>
             </div>
           </div>
 
           <div className="flex items-center space-x-2">
+            {reportType === 'ITEMS_TO_PREPARE' && (
+              <button
+                onClick={fetchKitchenReportData}
+                disabled={loadingReport}
+                className="bg-procare-800 hover:bg-procare-700 text-white font-bold text-xs px-3 py-2 rounded-xl transition-colors flex items-center gap-1.5 border border-procare-700 cursor-pointer disabled:opacity-50"
+                title="Refresh Kitchen Report Data"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loadingReport ? 'animate-spin' : ''}`} />
+                <span className="hidden sm:inline">Refresh</span>
+              </button>
+            )}
+
             <button
               onClick={handlePrint}
               className="bg-celadon hover:bg-procare-400 text-slate-950 font-black text-xs px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer"
             >
               <Printer className="w-4 h-4" />
-              <span>PRINT REPORT</span>
+              <span>PRINT REPORT (A4)</span>
             </button>
             <button
               onClick={onClose}
@@ -167,7 +308,7 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
           </div>
         </div>
 
-        {/* PRINTABLE AREA */}
+        {/* PRINTABLE A4 AREA */}
         <div className="p-6 md:p-8 overflow-y-auto bg-white flex-1" id="printable-report-area">
           <style>{`
             @media print {
@@ -183,7 +324,7 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                 top: 0 !important;
                 width: 100% !important;
                 margin: 0 !important;
-                padding: 10mm !important;
+                padding: 6mm 8mm !important;
                 background: white !important;
               }
               .no-print {
@@ -191,51 +332,51 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
               }
               @page {
                 size: A4 portrait;
-                margin: 10mm;
+                margin: 8mm;
               }
             }
           `}</style>
 
           {/* ProCare Print Header */}
-          <div className="border-b-2 border-procare-900 pb-4 mb-6">
+          <div className="border-b-2 border-procare-900 pb-3 mb-4">
             <div className="flex justify-between items-start">
               <div className="flex items-center space-x-3">
                 <img
                   src="/procare-logo.png"
                   alt="ProCare Logo"
-                  className="h-14 w-auto object-contain shrink-0"
+                  className="h-12 w-auto object-contain shrink-0"
                 />
                 <div>
                   <h1 className="text-base sm:text-lg font-black text-slate-900 tracking-tight uppercase">
                     PROCARE PHYSIOTHERAPY & REHABILITATION CENTRE
                   </h1>
                   <p className="text-xs text-procare-800 font-extrabold tracking-wide uppercase">
-                    Canteen Management System Report
+                    Canteen Management System • Department of Dietary & Kitchen Services
                   </p>
                 </div>
               </div>
               <div className="text-right text-xs text-slate-600">
-                <div className="flex items-center justify-end gap-1 font-bold text-slate-800">
+                <div className="flex items-center justify-end gap-1 font-extrabold text-slate-900">
                   <Calendar className="w-3.5 h-3.5 text-procare-700" />
                   <span>{dateFormatted}</span>
                 </div>
-                <div className="flex items-center justify-end gap-1 font-medium mt-0.5 text-slate-500">
-                  <Clock className="w-3.5 h-3.5" />
+                <div className="flex items-center justify-end gap-1 font-semibold mt-0.5 text-slate-600">
+                  <Clock className="w-3.5 h-3.5 text-procare-700" />
                   <span>{timeFormatted}</span>
                 </div>
               </div>
             </div>
 
-            <div className="mt-3 pt-3 border-t border-slate-200 flex justify-between items-center">
+            <div className="mt-2.5 pt-2.5 border-t border-slate-200 flex justify-between items-center">
               <span className="text-xs font-black text-procare-950 uppercase bg-procare-100 px-3 py-1 rounded-md border border-procare-300">
                 {reportType === 'ROOM_WISE'
                   ? '📋 ROOM-WISE ACTIVE PATIENT ORDER REPORT'
-                  : '👨‍🍳 COOKING DEPARTMENT - TOTAL ITEMS TO BE PREPARED'}
+                  : '👨‍🍳 KITCHEN COOKING & PREPARATION AGGREGATE REPORT'}
               </span>
-              <span className="text-xs text-slate-600 font-bold">
+              <span className="text-xs text-slate-700 font-extrabold font-mono">
                 {reportType === 'ROOM_WISE'
-                  ? `Total Active Rooms: ${sortedRooms.length} | Orders: ${activeOrders.length}`
-                  : `Total Dishes to Cook: ${itemsNeedingPreparation.length} | Total Portion Count: ${totalItemsToCook}`}
+                  ? `Active Rooms: ${sortedRooms.length} | Orders: ${validActiveOrders.length}`
+                  : `Total Portions to Cook: ${overallTotalPortions} Nos | Total Dishes: ${overallDistinctDishes}`}
               </span>
             </div>
           </div>
@@ -256,9 +397,9 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                         key={roomNum}
                         className="border border-slate-300 rounded-xl overflow-hidden page-break-inside-avoid shadow-xs"
                       >
-                        <div className="bg-slate-900 text-white px-4 py-2.5 flex justify-between items-center">
+                        <div className="bg-slate-900 text-white px-4 py-2 flex justify-between items-center">
                           <div className="flex items-center space-x-2">
-                            <span className="bg-blue-600 text-white text-xs font-black px-2.5 py-1 rounded-md">
+                            <span className="bg-blue-600 text-white text-xs font-black px-2.5 py-0.5 rounded-md">
                               ROOM #{roomNum}
                             </span>
                             <span className="text-xs font-semibold text-slate-300">
@@ -269,7 +410,7 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
 
                         <div className="divide-y divide-slate-200">
                           {roomEntries.map(({ order, patient_name, patient_id }) => (
-                            <div key={order._id} className="p-4 bg-white space-y-3">
+                            <div key={order._id} className="p-3 bg-white space-y-2">
                               <div className="flex justify-between items-start text-xs">
                                 <div>
                                   <span className="font-extrabold text-slate-900 text-sm">
@@ -289,35 +430,35 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
 
                               <table className="w-full text-xs border border-slate-200 rounded-lg overflow-hidden">
                                 <thead>
-                                  <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 text-left">
-                                    <th className="p-2 border-r border-slate-200">Food Item</th>
-                                    <th className="p-2 text-center border-r border-slate-200 w-16">Qty</th>
-                                    <th className="p-2 text-right border-r border-slate-200 w-20">Unit Price</th>
-                                    <th className="p-2 text-right w-24">Subtotal</th>
+                                  <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 text-left text-[11px]">
+                                    <th className="p-1.5 border-r border-slate-200">Food Item</th>
+                                    <th className="p-1.5 text-center border-r border-slate-200 w-16">Qty</th>
+                                    <th className="p-1.5 text-right border-r border-slate-200 w-20">Unit Price</th>
+                                    <th className="p-1.5 text-right w-24">Subtotal</th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-200 font-medium text-slate-800">
                                   {order.items?.map((item) => (
                                     <tr key={item._id} className="hover:bg-slate-50">
-                                      <td className="p-2 border-r border-slate-200 font-semibold">
+                                      <td className="p-1.5 border-r border-slate-200 font-semibold">
                                         {item.item_name_snapshot}
                                       </td>
-                                      <td className="p-2 text-center border-r border-slate-200 font-bold bg-slate-50">
+                                      <td className="p-1.5 text-center border-r border-slate-200 font-bold bg-slate-50">
                                         {item.quantity}
                                       </td>
-                                      <td className="p-2 text-right border-r border-slate-200 text-slate-600">
+                                      <td className="p-1.5 text-right border-r border-slate-200 text-slate-600">
                                         ₹{item.unit_price}
                                       </td>
-                                      <td className="p-2 text-right font-bold">₹{item.subtotal}</td>
+                                      <td className="p-1.5 text-right font-bold">₹{item.subtotal}</td>
                                     </tr>
                                   ))}
                                 </tbody>
                                 <tfoot>
                                   <tr className="bg-slate-50 text-slate-900 font-bold text-xs border-t border-slate-200">
-                                    <td colSpan={3} className="p-2 text-right border-r border-slate-200">
+                                    <td colSpan={3} className="p-1.5 text-right border-r border-slate-200">
                                       Order Total:
                                     </td>
-                                    <td className="p-2 text-right font-black text-blue-800">
+                                    <td className="p-1.5 text-right font-black text-blue-800">
                                       ₹{order.total_amount}
                                     </td>
                                   </tr>
@@ -334,97 +475,192 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
             </div>
           )}
 
-          {/* REPORT 2: ITEMS TO BE PREPARED REPORT */}
+          {/* REPORT 2: KITCHEN REPORT (5 Separate Meal Sections) */}
           {reportType === 'ITEMS_TO_PREPARE' && (
-            <div>
-              {itemsNeedingPreparation.length === 0 ? (
-                <div className="text-center py-12 text-slate-500 text-sm font-semibold border-2 border-dashed border-slate-200 rounded-xl">
-                  No food items currently require preparation.
+            <div className="space-y-4">
+              {/* Top Overview Box */}
+              <div className="p-3.5 bg-procare-50 border-2 border-procare-200 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs text-procare-950 font-bold">
+                <div>
+                  <span className="text-sm font-black uppercase text-procare-900 flex items-center gap-1.5">
+                    <ChefHat className="w-4 h-4 text-emerald-700" />
+                    DAILY COOKING & PREPARATION LIST BY MEAL SESSIONS
+                  </span>
+                  <p className="text-[11px] text-procare-800 font-medium mt-0.5">
+                    Aggregated across all valid active orders. Common Menu items are classified automatically under their corresponding meal sessions.
+                  </p>
                 </div>
-              ) : (
-                <div className="space-y-6">
-                  {/* Summary Box */}
-                  <div className="p-4 bg-procare-50 border border-procare-300 rounded-xl flex justify-between items-center text-xs text-procare-950 font-bold">
-                    <div>
-                      <span className="text-sm font-black uppercase text-procare-900">
-                        👨‍🍳 KITCHEN COOKING & PREPARATION AGGREGATE LIST
-                      </span>
-                      <p className="text-[11px] text-procare-800 font-medium mt-0.5">
-                        Total quantities aggregated across all current active orders for the cooking department.
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <span className="text-sm font-black text-procare-950 bg-white px-3.5 py-1.5 rounded-lg border border-procare-300 font-mono shadow-2xs">
-                        TOTAL PORTIONS TO COOK: {totalItemsToCook}
-                      </span>
-                    </div>
-                  </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-black text-procare-950 bg-white px-3 py-1.5 rounded-lg border border-procare-300 font-mono shadow-2xs">
+                    ACTIVE ORDERS: {validActiveOrders.length}
+                  </span>
+                  <span className="text-xs font-black text-emerald-950 bg-emerald-100 px-3 py-1.5 rounded-lg border border-emerald-300 font-mono shadow-2xs">
+                    TOTAL PORTIONS: {overallTotalPortions} Nos
+                  </span>
+                </div>
+              </div>
 
-                  {/* Clean Aggregated Items Table */}
-                  <div className="border-2 border-slate-900 rounded-xl overflow-hidden shadow-xs">
-                    <table className="w-full text-xs text-left">
-                      <thead>
-                        <tr className="bg-procare-950 text-white font-bold">
-                          <th className="p-3 w-12 text-center border-r border-procare-800">#</th>
-                          <th className="p-3 border-r border-procare-800">Category</th>
-                          <th className="p-3 border-r border-procare-800">Food Item Name</th>
-                          <th className="p-3 border-r border-procare-800">Portion Size</th>
-                          <th className="p-3 text-center bg-celadon text-slate-950 font-black text-xs w-40">
-                            TOTAL QTY TO COOK
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-200 font-medium text-slate-900">
-                        {itemsNeedingPreparation.map((item, index) => (
-                          <tr key={item.menu_id} className={index % 2 === 0 ? 'bg-white' : 'bg-procare-50/50'}>
-                            <td className="p-3 text-center border-r border-slate-200 font-bold text-slate-500 font-mono">
-                              {index + 1}
-                            </td>
-                            <td className="p-3 border-r border-slate-200">
-                              <span className="font-extrabold uppercase text-[10px] bg-procare-100 text-procare-950 px-2 py-0.5 rounded border border-procare-200">
-                                {item.category}
-                              </span>
-                            </td>
-                            <td className="p-3 border-r border-slate-200 font-extrabold text-sm text-slate-900">
-                              {item.item_name}
-                            </td>
-                            <td className="p-3 border-r border-slate-200 text-slate-600 font-semibold">
-                              {item.portion_size}
-                            </td>
-                            <td className="p-3 text-center font-black text-base font-mono bg-procare-100/70 text-procare-950">
-                              {item.total_preparation_quantity}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                      <tfoot>
-                        <tr className="bg-procare-950 text-white font-bold text-xs">
-                          <td colSpan={4} className="p-3 text-right uppercase tracking-wider border-r border-procare-800">
-                            Grand Total Prepared Portions Required:
-                          </td>
-                          <td className="p-3 text-center font-black text-base font-mono bg-celadon text-slate-950">
-                            {totalItemsToCook} PORTIONS
-                          </td>
-                        </tr>
-                      </tfoot>
-                    </table>
+              {/* 5 Distinct Meal Category Sections */}
+              <div className="space-y-4">
+                {kitchenSections.map((sec, secIdx) => {
+                  const IconComp = sec.icon || ChefHat;
+                  return (
+                    <div
+                      key={sec.category}
+                      className="border-2 border-slate-900 rounded-xl overflow-hidden shadow-2xs page-break-inside-avoid bg-white"
+                    >
+                      {/* Section Header */}
+                      <div className="bg-slate-900 text-white px-4 py-2 flex justify-between items-center">
+                        <div className="flex items-center gap-2.5">
+                          <span className="p-1 bg-emerald-600 text-white rounded-md">
+                            <IconComp className="w-3.5 h-3.5" />
+                          </span>
+                          <div>
+                            <h3 className="text-xs font-black uppercase tracking-wider text-white">
+                              {secIdx + 1}. {sec.title}
+                            </h3>
+                            <p className="text-[10px] text-slate-300 font-medium">
+                              {sec.desc}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-bold bg-slate-800 text-slate-200 px-2 py-0.5 rounded border border-slate-700">
+                            {sec.items.length} {sec.items.length === 1 ? 'Dish' : 'Dishes'}
+                          </span>
+                          <span className="text-xs font-black bg-emerald-600 text-white px-2.5 py-0.5 rounded font-mono">
+                            Total: {sec.subtotal} Nos
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Items Table */}
+                      {sec.items.length === 0 ? (
+                        <div className="py-3 px-4 text-center text-xs font-semibold text-slate-400 bg-slate-50">
+                          No items ordered for {sec.title} session (0 portions required)
+                        </div>
+                      ) : (
+                        <table className="w-full text-xs text-left border-collapse">
+                          <thead>
+                            <tr className="bg-slate-100 text-slate-800 font-bold border-b border-slate-300 text-[11px] uppercase">
+                              <th className="p-2 w-10 text-center border-r border-slate-200">#</th>
+                              <th className="p-2 border-r border-slate-200">Food Item Name</th>
+                              <th className="p-2 border-r border-slate-200 w-36">Portion / Unit Size</th>
+                              <th className="p-2 text-center bg-emerald-100/70 text-emerald-950 font-black w-36 border-r border-slate-200">
+                                Total Required
+                              </th>
+                              <th className="p-2 text-center w-28 bg-slate-100 text-slate-700 font-bold">
+                                Kitchen Status
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-200 font-medium text-slate-900">
+                            {sec.items.map((it, itIdx) => (
+                              <tr key={it.item_name} className={itIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/70'}>
+                                <td className="p-2 text-center border-r border-slate-200 font-bold text-slate-500 font-mono">
+                                  {itIdx + 1}
+                                </td>
+                                <td className="p-2 border-r border-slate-200 font-extrabold text-xs text-slate-900">
+                                  <span>{it.item_name}</span>
+                                </td>
+                                <td className="p-2 border-r border-slate-200 text-slate-600 font-medium text-[11px]">
+                                  {it.portion_size}
+                                </td>
+                                <td className="p-2 text-center font-black text-sm font-mono bg-emerald-50 text-emerald-950 border-r border-slate-200">
+                                  {it.total_quantity} Nos
+                                </td>
+                                <td className="p-2 text-center">
+                                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 border border-slate-300 rounded px-2 py-0.5 bg-white">
+                                    <span className="inline-block w-3 h-3 border border-slate-400 rounded-xs"></span>
+                                    <span>Ready</span>
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                          <tfoot>
+                            <tr className="bg-slate-100 text-slate-900 font-bold text-xs border-t-2 border-slate-300">
+                              <td colSpan={3} className="p-2 text-right uppercase tracking-wider border-r border-slate-200">
+                                {sec.title} Subtotal Required:
+                              </td>
+                              <td className="p-2 text-center font-black text-xs font-mono bg-emerald-100 text-emerald-950 border-r border-slate-200">
+                                {sec.subtotal} Nos
+                              </td>
+                              <td className="p-2 text-center text-[10px] text-slate-500 font-semibold">
+                                {sec.items.length} items
+                              </td>
+                            </tr>
+                          </tfoot>
+                        </table>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Overall Grand Total & Sign-off Block */}
+              <div className="mt-6 border-2 border-slate-900 rounded-xl p-4 bg-slate-50 page-break-inside-avoid">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 border-b border-slate-300">
+                  <div>
+                    <h4 className="text-xs font-black uppercase text-slate-900 tracking-wider">
+                      Overall Cooking & Preparation Summary
+                    </h4>
+                    <p className="text-[11px] text-slate-600 font-medium">
+                      Calculated from valid active patient orders. Excludes cancelled, pending, cleared, and delivered orders.
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-xs font-extrabold uppercase text-slate-600 mr-2">Grand Total Portions:</span>
+                    <span className="text-base font-black bg-emerald-700 text-white px-3 py-1 rounded-lg font-mono">
+                      {overallTotalPortions} Nos
+                    </span>
                   </div>
                 </div>
-              )}
+
+                {/* Session Breakdown Grid */}
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 my-3 text-xs">
+                  {kitchenSections.map((s) => (
+                    <div key={s.category} className="bg-white p-2 rounded-lg border border-slate-200 text-center">
+                      <span className="block text-[10px] font-bold text-slate-500 uppercase">{s.title}</span>
+                      <span className="block text-sm font-black text-slate-900 font-mono mt-0.5">{s.subtotal} Nos</span>
+                      <span className="block text-[10px] text-slate-400 font-medium">{s.items.length} items</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Signatures */}
+                <div className="pt-6 mt-2 border-t border-slate-300 text-xs text-slate-700 flex justify-between items-end">
+                  <div>
+                    <p className="font-extrabold text-slate-900">Report Generated: {dateFormatted} at {timeFormatted}</p>
+                    <p className="text-[11px] text-slate-500">Hospital Canteen Management System • ProCare Dietary Services</p>
+                  </div>
+                  <div className="flex gap-8 text-center">
+                    <div>
+                      <div className="w-40 border-b border-slate-400 mb-1"></div>
+                      <p className="font-bold text-slate-700 text-[11px]">Dietary / Canteen Admin</p>
+                    </div>
+                    <div>
+                      <div className="w-40 border-b border-slate-400 mb-1"></div>
+                      <p className="font-bold text-slate-700 text-[11px]">Kitchen Supervisor / Chef</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
-          {/* Footer Signature Block for Printed Sheet */}
-          <div className="mt-12 pt-6 border-t border-slate-300 text-xs text-slate-600 flex justify-between items-end page-break-inside-avoid">
-            <div>
-              <p className="font-bold text-slate-800">Generated By: Canteen Admin System</p>
-              <p className="text-[11px] text-slate-500">Hospital Canteen Management Portal</p>
+          {/* Footer for Room-Wise Sheet */}
+          {reportType === 'ROOM_WISE' && (
+            <div className="mt-8 pt-4 border-t border-slate-300 text-xs text-slate-600 flex justify-between items-end page-break-inside-avoid">
+              <div>
+                <p className="font-bold text-slate-800">Generated By: Canteen Admin System</p>
+                <p className="text-[11px] text-slate-500">Hospital Canteen Management Portal</p>
+              </div>
+              <div className="text-center">
+                <div className="w-44 border-b border-slate-400 mb-1"></div>
+                <p className="font-bold text-slate-700">Delivery Supervisor Signature</p>
+              </div>
             </div>
-            <div className="text-center">
-              <div className="w-48 border-b border-slate-400 mb-1"></div>
-              <p className="font-bold text-slate-700">Kitchen Supervisor Signature</p>
-            </div>
-          </div>
+          )}
         </div>
       </div>
     </div>
