@@ -4,7 +4,7 @@ import { useSocket } from '../context/SocketContext';
 import { FoodOrder, FoodItemToPrepare } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
 import { PrintableReportsModal } from '../components/PrintableReportsModal';
-import { ShoppingBag, Truck, Star, MessageSquare, Printer, Building2, Coffee, Sun, Moon, Cookie, AlertTriangle, Wallet } from 'lucide-react';
+import { ShoppingBag, Truck, Star, MessageSquare, Printer, Building2, Coffee, Sun, Moon, Cookie, AlertTriangle, Wallet, Clock } from 'lucide-react';
 
 export const AdminOrders: React.FC = () => {
   const [orders, setOrders] = useState<FoodOrder[]>([]);
@@ -295,8 +295,14 @@ export const AdminOrders: React.FC = () => {
                               )}
                             </div>
 
-                            <div className="text-xs text-gray-500 font-medium">
-                              Date: {order.order_date} • Time: {order.order_time} • Meal Session: <strong className="text-slate-800">{order.meal_type}</strong>
+                            <div className="text-xs text-gray-500 font-medium flex flex-wrap items-center gap-1.5">
+                              <span>Date: {order.order_date} • Time: {order.order_time} • Meal Session: <strong className="text-slate-800">{order.meal_type}</strong></span>
+                              {order.serving_time && (
+                                <span className="bg-amber-50 border border-amber-300 text-amber-900 font-bold px-2 py-0.5 rounded text-[11px] inline-flex items-center gap-1">
+                                  <Clock className="w-3 h-3 text-amber-700" />
+                                  Serving Time: {order.serving_time}
+                                </span>
+                              )}
                             </div>
                           </div>
 
@@ -317,7 +323,15 @@ export const AdminOrders: React.FC = () => {
                             <tbody className="divide-y divide-gray-200/60">
                               {order.items?.map((it) => (
                                 <tr key={it._id} className="text-gray-800 font-medium">
-                                  <td className="py-1.5 font-bold">{it.item_name_snapshot}</td>
+                                  <td className="py-1.5 font-bold">
+                                    {it.item_name_snapshot}
+                                    {it.serving_time && (
+                                      <span className="text-[10px] bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-mono font-bold ml-1.5 inline-flex items-center gap-0.5">
+                                        <Clock className="w-2.5 h-2.5 text-amber-700" />
+                                        {it.serving_time}
+                                      </span>
+                                    )}
+                                  </td>
                                   <td className="py-1.5 text-center font-bold bg-slate-50">{it.quantity}</td>
                                   <td className="py-1.5 text-right text-gray-600">₹{it.unit_price}</td>
                                   <td className="py-1.5 text-right font-bold">₹{it.subtotal}</td>

@@ -13,6 +13,7 @@ export interface IFoodOrder extends Document {
   order_date: string;
   order_time: string;
   meal_type: string;
+  serving_time?: string;
   total_amount: number;
   order_status: OrderStatus;
   cancellation_reason?: string;
@@ -38,6 +39,7 @@ const FoodOrderSchema: Schema = new Schema(
     order_date: { type: String, required: true },
     order_time: { type: String, required: true },
     meal_type: { type: String, required: true },
+    serving_time: { type: String, default: '' },
     total_amount: { type: Number, required: true, min: 0 },
     order_status: {
       type: String,

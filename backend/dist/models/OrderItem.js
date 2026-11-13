@@ -43,6 +43,7 @@ const OrderItemSchema = new mongoose_1.Schema({
     quantity: { type: Number, required: true, min: 1 },
     unit_price: { type: Number, required: true, min: 0 },
     subtotal: { type: Number, required: true, min: 0 },
+    serving_time: { type: String, default: '' },
 }, {
     timestamps: true,
     collection: 'orderitems',

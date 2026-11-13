@@ -140,9 +140,39 @@ const getAdminDashboardStats = async (req, res) => {
         // Maps to aggregate quantities by (meal_key, menu_id) or (meal_key, item_name)
         const qtyByMealAndMenuId = new Map();
         const qtyByMealAndName = new Map();
+        const qtyBySlotAndMenuId = new Map();
+        const qtyBySlotAndName = new Map();
+        const normalizeSlotHelper = (rawSlot) => {
+            const s = (rawSlot || '').trim().toUpperCase();
+            if (/^7(\.00|:00)?\s*AM/i.test(s) || /^07:00/i.test(s))
+                return '7:00 AM';
+            if (/^11(\.00|:00)?\s*AM/i.test(s))
+                return '11:00 AM';
+            if (/^4(\.00|:00)?\s*PM/i.test(s) || /^16:00/i.test(s))
+                return '4:00 PM';
+            if (/^7(\.00|:00)?\s*PM/i.test(s) || /^19:00/i.test(s))
+                return '7:00 PM';
+            return '7:00 AM';
+        };
+        const activeOrderMap = new Map();
+        for (const o of activeOrders) {
+            activeOrderMap.set(o.order_id, o);
+        }
         for (const item of activeOrderItems) {
             const rawMeal = orderMealMap.get(item.order_id) || 'Breakfast';
             const { mealKey } = normalizeMeal(rawMeal);
+            const parentOrder = activeOrderMap.get(item.order_id);
+            if (mealKey === 'TEA / MILK') {
+                const slot = normalizeSlotHelper(item.serving_time || parentOrder?.serving_time || '7:00 AM');
+                if (item.menu_id !== undefined && item.menu_id !== null) {
+                    const key = `${slot}::${item.menu_id}`;
+                    qtyBySlotAndMenuId.set(key, (qtyBySlotAndMenuId.get(key) || 0) + item.quantity);
+                }
+                if (item.item_name_snapshot) {
+                    const key = `${slot}::${item.item_name_snapshot.trim().toLowerCase()}`;
+                    qtyBySlotAndName.set(key, (qtyBySlotAndName.get(key) || 0) + item.quantity);
+                }
+            }
             if (item.menu_id !== undefined && item.menu_id !== null) {
                 const key = `${mealKey}::${item.menu_id}`;
                 qtyByMealAndMenuId.set(key, (qtyByMealAndMenuId.get(key) || 0) + item.quantity);
@@ -153,6 +183,7 @@ const getAdminDashboardStats = async (req, res) => {
             }
         }
         const foodItemsToPrepare = [];
+        const teaSlots = ['7:00 AM', '11:00 AM', '4:00 PM', '7:00 PM'];
         for (const item of allMenuItems) {
             const origCategory = (item.category || '').trim().toUpperCase();
             if (origCategory === 'COMMON MENU') {
@@ -173,15 +204,30 @@ const getAdminDashboardStats = async (req, res) => {
                     });
                 }
             }
+            else if (origCategory === 'TEA / MILK') {
+                // Tea / Milk and Coffee items are split into 4 serving time slots: 7:00 AM, 11:00 AM, 4:00 PM, 7:00 PM
+                for (const slot of teaSlots) {
+                    const byId = qtyBySlotAndMenuId.get(`${slot}::${item.menu_id}`) || 0;
+                    const byName = qtyBySlotAndName.get(`${slot}::${item.item_name.trim().toLowerCase()}`) || 0;
+                    const totalQty = Math.max(byId, byName);
+                    foodItemsToPrepare.push({
+                        menu_id: item.menu_id,
+                        item_name: item.item_name,
+                        meal_type: `Tea / Milk (${slot})`,
+                        serving_time: slot,
+                        category: 'TEA / MILK',
+                        portion_size: item.quantity,
+                        total_preparation_quantity: totalQty,
+                    });
+                }
+            }
             else {
-                // Items with specific category (e.g. BREAKFAST, LUNCH, DINNER, TEA / MILK, SNACKS)
+                // Items with specific category (e.g. BREAKFAST, LUNCH, DINNER, SNACKS)
                 let targetMeal = 'Breakfast';
                 if (origCategory === 'LUNCH')
                     targetMeal = 'Lunch';
                 else if (origCategory === 'DINNER')
                     targetMeal = 'Dinner';
-                else if (origCategory === 'TEA / MILK')
-                    targetMeal = 'Tea / Milk';
                 else if (origCategory === 'SNACKS')
                     targetMeal = 'Snacks';
                 else if (origCategory === 'BREAKFAST')
@@ -200,6 +246,27 @@ const getAdminDashboardStats = async (req, res) => {
                 });
             }
         }
+        const teaCoffeeSlots = teaSlots.map((slot) => {
+            const items = allMenuItems
+                .filter((m) => (m.category || '').trim().toUpperCase() === 'TEA / MILK')
+                .map((m) => {
+                const byId = qtyBySlotAndMenuId.get(`${slot}::${m.menu_id}`) || 0;
+                const byName = qtyBySlotAndName.get(`${slot}::${m.item_name.trim().toLowerCase()}`) || 0;
+                return {
+                    menu_id: m.menu_id,
+                    item_name: m.item_name,
+                    serving_time: slot,
+                    total_quantity: Math.max(byId, byName),
+                    portion_size: m.quantity,
+                };
+            });
+            const subtotal = items.reduce((sum, it) => sum + it.total_quantity, 0);
+            return {
+                serving_time: slot,
+                items,
+                subtotal,
+            };
+        });
         return res.status(200).json({
             is_ordering_locked,
             totalPatients,
@@ -212,6 +279,7 @@ const getAdminDashboardStats = async (req, res) => {
             recentPendingOrders: enrichedRecentActiveOrders,
             recentActiveOrders: enrichedRecentActiveOrders,
             foodItemsToPrepare,
+            teaCoffeeSlots,
         });
     }
     catch (error) {
@@ -376,11 +444,11 @@ exports.getRoomFoodRecords = getRoomFoodRecords;
 /**
  * Generates the aggregated Kitchen Cooking & Preparation Report.
  * Groups active orders into 5 distinct meal categories:
- * - TEA / MILK
- * - BREAKFAST
- * - LUNCH
- * - DINNER
- * - SNACKS
+ * 1. Tea / Milk and Coffee Preparation (separated by 7:00 AM, 11:00 AM, 4:00 PM, 7:00 PM)
+ * 2. Breakfast Preparation
+ * 3. Lunch Preparation
+ * 4. Dinner Preparation
+ * 5. Snacks Preparation
  * Common Menu items are classified automatically under the meal session chosen by the patient.
  * Strictly excludes pending, cancelled, cleared, and delivered orders.
  */
@@ -392,9 +460,12 @@ const getKitchenReport = async (req, res) => {
         }).sort({ createdAt: -1 });
         const activeOrderIds = activeOrders.map((o) => o.order_id);
         const activeOrderItems = await OrderItem_1.OrderItem.find({ order_id: { $in: activeOrderIds } });
-        // Map order_id -> meal_type
+        const patients = await Patient_1.Patient.find();
+        const patientMap = new Map(patients.map((p) => [p.patient_id, p]));
+        const orderMap = new Map();
         const orderMealMap = new Map();
         for (const o of activeOrders) {
+            orderMap.set(o.order_id, o);
             orderMealMap.set(o.order_id, o.meal_type || 'Breakfast');
         }
         const allMenuItems = await MenuItem_1.MenuItem.find().sort({ menu_id: 1 });
@@ -404,6 +475,18 @@ const getKitchenReport = async (req, res) => {
             menuMap.set(m.menu_id, m);
             menuNameMap.set(m.item_name.trim().toLowerCase(), m);
         }
+        const normalizeSlot = (rawSlot) => {
+            const s = (rawSlot || '').trim().toUpperCase();
+            if (/^7(\.00|:00)?\s*AM/i.test(s) || /^07:00/i.test(s))
+                return '7:00 AM';
+            if (/^11(\.00|:00)?\s*AM/i.test(s))
+                return '11:00 AM';
+            if (/^4(\.00|:00)?\s*PM/i.test(s) || /^16:00/i.test(s))
+                return '4:00 PM';
+            if (/^7(\.00|:00)?\s*PM/i.test(s) || /^19:00/i.test(s))
+                return '7:00 PM';
+            return '7:00 AM';
+        };
         const normalizeCategory = (rawMeal, fallbackCat) => {
             let trimmed = (rawMeal || '').trim().toUpperCase();
             if (!trimmed || trimmed === 'GENERAL' || trimmed === 'COMMON MENU') {
@@ -421,14 +504,16 @@ const getKitchenReport = async (req, res) => {
                 return 'SNACKS';
             return 'BREAKFAST';
         };
-        // Aggregate identical food items across all patients by (category, item_name)
+        // 1. Dedicated aggregation for Tea/Milk and Coffee by serving time slot (7:00 AM, 11:00 AM, 4:00 PM, 7:00 PM)
+        const teaSlotPrepMap = new Map();
+        // 2. Aggregation for other food items (Breakfast, Lunch, Dinner, Snacks)
         const prepMap = new Map();
         for (const item of activeOrderItems) {
+            const order = orderMap.get(item.order_id);
             const orderMeal = orderMealMap.get(item.order_id) || 'Breakfast';
             const menuDoc = (item.menu_id ? menuMap.get(item.menu_id) : null) || menuNameMap.get((item.item_name_snapshot || '').trim().toLowerCase());
             const cat = normalizeCategory(orderMeal, menuDoc?.category);
             const itemName = (item.item_name_snapshot || menuDoc?.item_name || 'Food Item').trim();
-            const key = `${cat}::${itemName.toLowerCase()}`;
             const portionSize = menuDoc ? menuDoc.quantity : '1 portion';
             let unit = 'Nos';
             if (portionSize) {
@@ -441,51 +526,146 @@ const getKitchenReport = async (req, res) => {
                 else if (/nos/i.test(portionSize) || /no\b/i.test(portionSize))
                     unit = 'Nos';
             }
-            const existing = prepMap.get(key);
-            if (existing) {
-                existing.total_quantity += item.quantity;
-                existing.order_count += 1;
+            if (cat === 'TEA / MILK') {
+                const slot = normalizeSlot(item.serving_time || order?.serving_time || '7:00 AM');
+                const key = `${slot}::${itemName.toLowerCase()}`;
+                const patient = order ? patientMap.get(order.patient_id) : null;
+                const patientEntry = {
+                    patient_id: order?.patient_id || 'N/A',
+                    patient_name: patient?.name || 'Patient',
+                    room_number: patient?.room_number || 'N/A',
+                    quantity: item.quantity,
+                    order_id: item.order_id,
+                };
+                const existing = teaSlotPrepMap.get(key);
+                if (existing) {
+                    existing.total_quantity += item.quantity;
+                    existing.order_count += 1;
+                    existing.patients.push(patientEntry);
+                }
+                else {
+                    teaSlotPrepMap.set(key, {
+                        menu_id: item.menu_id || (menuDoc ? menuDoc.menu_id : 0),
+                        item_name: itemName,
+                        serving_time: slot,
+                        category: 'TEA / MILK',
+                        portion_size: portionSize,
+                        unit,
+                        total_quantity: item.quantity,
+                        order_count: 1,
+                        patients: [patientEntry],
+                    });
+                }
             }
             else {
-                prepMap.set(key, {
-                    menu_id: item.menu_id || (menuDoc ? menuDoc.menu_id : 0),
-                    item_name: itemName,
-                    category: cat,
-                    portion_size: portionSize,
-                    unit,
-                    total_quantity: item.quantity,
-                    order_count: 1,
-                });
+                const key = `${cat}::${itemName.toLowerCase()}`;
+                const existing = prepMap.get(key);
+                if (existing) {
+                    existing.total_quantity += item.quantity;
+                    existing.order_count += 1;
+                }
+                else {
+                    prepMap.set(key, {
+                        menu_id: item.menu_id || (menuDoc ? menuDoc.menu_id : 0),
+                        item_name: itemName,
+                        category: cat,
+                        portion_size: portionSize,
+                        unit,
+                        total_quantity: item.quantity,
+                        order_count: 1,
+                    });
+                }
             }
         }
-        const standardSections = [
-            { key: 'TEA / MILK', title: 'Tea / Milk', icon: 'coffee' },
-            { key: 'BREAKFAST', title: 'Breakfast', icon: 'sun' },
-            { key: 'LUNCH', title: 'Lunch', icon: 'utensils' },
-            { key: 'DINNER', title: 'Dinner', icon: 'moon' },
-            { key: 'SNACKS', title: 'Snacks', icon: 'cookie' },
-        ];
-        const sections = standardSections.map((sec) => {
-            const items = Array.from(prepMap.values())
-                .filter((it) => it.category === sec.key)
+        const standardTimeSlots = ['7:00 AM', '11:00 AM', '4:00 PM', '7:00 PM'];
+        const teaCoffeeSlots = standardTimeSlots.map((slot) => {
+            const items = Array.from(teaSlotPrepMap.values())
+                .filter((it) => it.serving_time === slot)
                 .sort((a, b) => a.item_name.localeCompare(b.item_name));
             const subtotal = items.reduce((sum, it) => sum + it.total_quantity, 0);
             return {
-                category: sec.key,
-                title: sec.title,
-                icon: sec.icon,
+                serving_time: slot,
                 items,
                 subtotal,
             };
         });
-        const totalPortions = sections.reduce((sum, sec) => sum + sec.subtotal, 0);
+        const totalTeaCoffeeQuantity = teaCoffeeSlots.reduce((sum, s) => sum + s.subtotal, 0);
+        // Flat items for Tea / Milk section sorted by slot order then item name
+        const teaPreparationItems = [];
+        standardTimeSlots.forEach((slot) => {
+            const slotItems = Array.from(teaSlotPrepMap.values())
+                .filter((it) => it.serving_time === slot)
+                .sort((a, b) => a.item_name.localeCompare(b.item_name));
+            teaPreparationItems.push(...slotItems);
+        });
+        const standardSections = [
+            {
+                key: 'TEA / MILK',
+                title: 'Tea / Milk & Coffee Preparation',
+                icon: 'coffee',
+                is_tea_coffee: true,
+                time_slots: teaCoffeeSlots,
+                items: teaPreparationItems,
+                subtotal: totalTeaCoffeeQuantity,
+            },
+            {
+                key: 'BREAKFAST',
+                title: 'Breakfast Preparation',
+                icon: 'sun',
+                is_tea_coffee: false,
+                items: Array.from(prepMap.values())
+                    .filter((it) => it.category === 'BREAKFAST')
+                    .sort((a, b) => a.item_name.localeCompare(b.item_name)),
+                subtotal: Array.from(prepMap.values())
+                    .filter((it) => it.category === 'BREAKFAST')
+                    .reduce((sum, it) => sum + it.total_quantity, 0),
+            },
+            {
+                key: 'LUNCH',
+                title: 'Lunch Preparation',
+                icon: 'utensils',
+                is_tea_coffee: false,
+                items: Array.from(prepMap.values())
+                    .filter((it) => it.category === 'LUNCH')
+                    .sort((a, b) => a.item_name.localeCompare(b.item_name)),
+                subtotal: Array.from(prepMap.values())
+                    .filter((it) => it.category === 'LUNCH')
+                    .reduce((sum, it) => sum + it.total_quantity, 0),
+            },
+            {
+                key: 'DINNER',
+                title: 'Dinner Preparation',
+                icon: 'moon',
+                is_tea_coffee: false,
+                items: Array.from(prepMap.values())
+                    .filter((it) => it.category === 'DINNER')
+                    .sort((a, b) => a.item_name.localeCompare(b.item_name)),
+                subtotal: Array.from(prepMap.values())
+                    .filter((it) => it.category === 'DINNER')
+                    .reduce((sum, it) => sum + it.total_quantity, 0),
+            },
+            {
+                key: 'SNACKS',
+                title: 'Snacks Preparation',
+                icon: 'cookie',
+                is_tea_coffee: false,
+                items: Array.from(prepMap.values())
+                    .filter((it) => it.category === 'SNACKS')
+                    .sort((a, b) => a.item_name.localeCompare(b.item_name)),
+                subtotal: Array.from(prepMap.values())
+                    .filter((it) => it.category === 'SNACKS')
+                    .reduce((sum, it) => sum + it.total_quantity, 0),
+            },
+        ];
+        const totalPortions = standardSections.reduce((sum, sec) => sum + sec.subtotal, 0);
         const now = new Date();
         return res.status(200).json({
             report_date: now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
             generation_time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
             active_orders_count: activeOrders.length,
             total_portions_to_cook: totalPortions,
-            sections,
+            tea_coffee_slots: teaCoffeeSlots,
+            sections: standardSections,
         });
     }
     catch (error) {

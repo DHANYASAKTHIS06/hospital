@@ -41,6 +41,7 @@ const FoodOrderSchema = new mongoose_1.Schema({
     order_date: { type: String, required: true },
     order_time: { type: String, required: true },
     meal_type: { type: String, required: true },
+    serving_time: { type: String, default: '' },
     total_amount: { type: Number, required: true, min: 0 },
     order_status: {
         type: String,

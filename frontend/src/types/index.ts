@@ -22,6 +22,7 @@ export interface FoodItemToPrepare {
   portion_size: string;
   total_preparation_quantity: number;
   meal_type?: string;
+  serving_time?: string;
 }
 
 export interface MenuItem {
@@ -54,6 +55,7 @@ export interface OrderItem {
   quantity: number;
   unit_price: number;
   subtotal: number;
+  serving_time?: string;
 }
 
 export interface FoodOrder {
@@ -66,6 +68,7 @@ export interface FoodOrder {
   order_date: string;
   order_time: string;
   meal_type: string;
+  serving_time?: string;
   total_amount: number;
   order_status: OrderStatus;
   cancellation_reason?: string;
@@ -82,6 +85,28 @@ export interface FoodOrder {
   items?: OrderItem[];
   is_cleared_from_active_view?: boolean;
   createdAt: string;
+}
+
+export interface TeaCoffeeSlotItem {
+  menu_id: number;
+  item_name: string;
+  serving_time: string;
+  total_quantity: number;
+  portion_size?: string;
+  unit?: string;
+  patient_details?: Array<{
+    patient_id: string;
+    patient_name: string;
+    room_number: string;
+    quantity: number;
+    order_id?: string;
+  }>;
+}
+
+export interface TeaCoffeeSlot {
+  serving_time: string;
+  items: TeaCoffeeSlotItem[];
+  subtotal: number;
 }
 
 export type PaymentStatus = 'UNPAID' | 'ADVANCE' | 'PAID';

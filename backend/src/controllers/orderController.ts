@@ -22,8 +22,12 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
 
     const { items, meal_type, meals } = req.body;
 
-    // Normalize into array of meal requests: [{ meal_type, items }]
-    let requestedMeals: Array<{ meal_type: string; items: Array<{ menu_id: number; quantity: number }> }> = [];
+    // Normalize into array of meal requests: [{ meal_type, serving_time, items }]
+    let requestedMeals: Array<{
+      meal_type: string;
+      serving_time?: string;
+      items: Array<{ menu_id: number; quantity: number; serving_time?: string }>;
+    }> = [];
 
     if (meals && Array.isArray(meals) && meals.length > 0) {
       requestedMeals = meals.filter((m: any) => m.items && Array.isArray(m.items) && m.items.length > 0);
@@ -48,6 +52,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
     let grandTotalAmount = 0;
     const validatedMealPayloads: Array<{
       meal_type: string;
+      serving_time?: string;
       total_amount: number;
       snapshots: any[];
     }> = [];
@@ -55,6 +60,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
     for (const mealReq of requestedMeals) {
       let mealTotal = 0;
       const snapshots: any[] = [];
+      const mealServingTime = mealReq.serving_time || '';
 
       for (const item of mealReq.items) {
         const menuDoc = await MenuItem.findOne({ menu_id: item.menu_id });
@@ -82,12 +88,14 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
           quantity: qty,
           unit_price: menuDoc.price,
           subtotal,
+          serving_time: item.serving_time || mealServingTime,
         });
       }
 
       grandTotalAmount += mealTotal;
       validatedMealPayloads.push({
         meal_type: mealReq.meal_type || 'General',
+        serving_time: mealServingTime,
         total_amount: mealTotal,
         snapshots,
       });
@@ -126,6 +134,7 @@ export const createOrder = async (req: AuthRequest, res: Response) => {
         order_date,
         order_time,
         meal_type: mealData.meal_type,
+        serving_time: mealData.serving_time || '',
         total_amount: mealData.total_amount,
         order_status: 'ACCEPTED',
         admin_delivery_confirmed: false,

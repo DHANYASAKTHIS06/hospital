@@ -3,8 +3,15 @@ import { api } from '../services/api';
 import { useSocket } from '../context/SocketContext';
 import { MenuItem, Category } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
-import { ShoppingBag, Plus, Minus, Check, Utensils, AlertCircle, Lock, Wallet, AlertTriangle, Coffee, Sun, Moon, Cookie, Sparkles } from 'lucide-react';
+import { ShoppingBag, Plus, Minus, Check, Utensils, AlertCircle, Lock, Wallet, AlertTriangle, Coffee, Sun, Moon, Cookie, Sparkles, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+
+export const TEA_TIME_SLOTS = [
+  { slot: '7:00 AM', label: '7:00 AM', period: 'Morning Service', color: 'text-amber-800 bg-amber-50 border-amber-200' },
+  { slot: '11:00 AM', label: '11:00 AM', period: 'Mid-Morning Service', color: 'text-sky-800 bg-sky-50 border-sky-200' },
+  { slot: '4:00 PM', label: '4:00 PM', period: 'Evening Service', color: 'text-orange-800 bg-orange-50 border-orange-200' },
+  { slot: '7:00 PM', label: '7:00 PM', period: 'Night Service', color: 'text-indigo-800 bg-indigo-50 border-indigo-200' },
+] as const;
 
 export const PatientMenu: React.FC = () => {
   const navigate = useNavigate();
@@ -13,7 +20,7 @@ export const PatientMenu: React.FC = () => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [selectedMealSession, setSelectedMealSession] = useState<'COMMON MENU' | 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'TEA / MILK' | 'SNACKS' | 'ALL'>('COMMON MENU');
   
-  // Cart structure: { [meal_type]: { [menu_id]: quantity } }
+  // Cart structure for meal sessions: { [meal_type]: { [menu_id]: quantity } }
   const [cartByMeal, setCartByMeal] = useState<{ [mealType: string]: { [menuId: number]: number } }>({
     Breakfast: {},
     Lunch: {},
@@ -21,6 +28,9 @@ export const PatientMenu: React.FC = () => {
     'Tea / Milk': {},
     Snacks: {},
   });
+
+  // Dedicated time-slot cart for Tea/Milk and Coffee items: { [menu_id]: { [slot]: quantity } }
+  const [teaSlotsCart, setTeaSlotsCart] = useState<{ [menuId: number]: { [slot: string]: number } }>({});
 
   const [advanceBalance, setAdvanceBalance] = useState<number>(0);
   const [isOrderingLocked, setIsOrderingLocked] = useState(false);
@@ -75,6 +85,15 @@ export const PatientMenu: React.FC = () => {
     }
   }, [socket]);
 
+  // Helper to identify Tea / Milk & Coffee items
+  const isTeaMilkOrCoffee = (item: MenuItem): boolean => {
+    const cat = (item.category || '').trim().toUpperCase();
+    if (cat === 'TEA / MILK' || cat === 'TEA/MILK' || cat === 'TEA' || cat === 'COFFEE') return true;
+    const name = (item.item_name || '').trim().toLowerCase();
+    if (/\b(tea|coffee|milk|boost|horlicks)\b/i.test(name)) return true;
+    return false;
+  };
+
   // Current active meal tab name
   const currentMealName = selectedMealSession === 'ALL' ? 'Breakfast' : selectedMealSession === 'TEA / MILK' ? 'Tea / Milk' : selectedMealSession.charAt(0) + selectedMealSession.slice(1).toLowerCase();
 
@@ -100,10 +119,39 @@ export const PatientMenu: React.FC = () => {
     });
   };
 
-  // Calculate total price across all meal sessions in cart
+  // Quantity change for Tea/Milk and Coffee items with specific serving time slots
+  const handleTeaSlotQtyChange = (menu_id: number, slot: string, delta: number) => {
+    if (isOrderingLocked) return;
+
+    setTeaSlotsCart((prev) => {
+      const itemSlots = prev[menu_id] || {};
+      const currentQty = itemSlots[slot] || 0;
+      const nextQty = Math.max(0, currentQty + delta);
+
+      const updatedItemSlots = { ...itemSlots };
+      if (nextQty === 0) {
+        delete updatedItemSlots[slot];
+      } else {
+        updatedItemSlots[slot] = nextQty;
+      }
+
+      const updated = { ...prev };
+      if (Object.keys(updatedItemSlots).length === 0) {
+        delete updated[menu_id];
+      } else {
+        updated[menu_id] = updatedItemSlots;
+      }
+      return updated;
+    });
+  };
+
+  // Calculate total price across all meal sessions and tea time slots
   const calculateGrandTotal = () => {
     let grandTotal = 0;
-    Object.entries(cartByMeal).forEach(([_, mealCart]) => {
+
+    // Regular meals (exclude 'Tea / Milk' key from cartByMeal to prevent any conflict)
+    Object.entries(cartByMeal).forEach(([mealType, mealCart]) => {
+      if (mealType === 'Tea / Milk') return;
       Object.entries(mealCart).forEach(([menuIdStr, qty]) => {
         const item = menuItems.find((m) => m.menu_id === Number(menuIdStr));
         if (item) {
@@ -111,17 +159,35 @@ export const PatientMenu: React.FC = () => {
         }
       });
     });
+
+    // Tea / Milk and Coffee items across all selected serving times
+    Object.entries(teaSlotsCart).forEach(([menuIdStr, slots]) => {
+      const item = menuItems.find((m) => m.menu_id === Number(menuIdStr));
+      const price = item?.price || 0;
+      Object.values(slots).forEach((qty) => {
+        grandTotal += price * qty;
+      });
+    });
+
     return grandTotal;
   };
 
-  // Calculate total item count across all meal sessions
+  // Calculate total item count across all meal sessions and tea time slots
   const calculateTotalItemCount = () => {
     let count = 0;
-    Object.values(cartByMeal).forEach((mealCart) => {
+    Object.entries(cartByMeal).forEach(([mealType, mealCart]) => {
+      if (mealType === 'Tea / Milk') return;
       Object.values(mealCart).forEach((qty) => {
         count += qty;
       });
     });
+
+    Object.values(teaSlotsCart).forEach((slots) => {
+      Object.values(slots).forEach((qty) => {
+        count += qty;
+      });
+    });
+
     return count;
   };
 
@@ -145,10 +211,16 @@ export const PatientMenu: React.FC = () => {
       return;
     }
 
-    // Format multi-meal order payload: [{ meal_type, items: [{ menu_id, quantity }] }]
-    const mealsPayload: Array<{ meal_type: string; items: Array<{ menu_id: number; quantity: number }> }> = [];
+    // Format multi-meal order payload: [{ meal_type, serving_time, items: [{ menu_id, quantity, serving_time }] }]
+    const mealsPayload: Array<{
+      meal_type: string;
+      serving_time?: string;
+      items: Array<{ menu_id: number; quantity: number; serving_time?: string }>;
+    }> = [];
 
+    // 1. Regular meal sessions (Breakfast, Lunch, Dinner, Snacks)
     Object.entries(cartByMeal).forEach(([mealType, mealCart]) => {
+      if (mealType === 'Tea / Milk') return;
       const mealItems = Object.entries(mealCart).map(([menuIdStr, qty]) => ({
         menu_id: Number(menuIdStr),
         quantity: qty,
@@ -162,13 +234,37 @@ export const PatientMenu: React.FC = () => {
       }
     });
 
+    // 2. Tea / Milk and Coffee items grouped separately by each selected serving time slot
+    TEA_TIME_SLOTS.forEach(({ slot }) => {
+      const slotItems: Array<{ menu_id: number; quantity: number; serving_time: string }> = [];
+
+      Object.entries(teaSlotsCart).forEach(([menuIdStr, slots]) => {
+        const qty = slots[slot] || 0;
+        if (qty > 0) {
+          slotItems.push({
+            menu_id: Number(menuIdStr),
+            quantity: qty,
+            serving_time: slot,
+          });
+        }
+      });
+
+      if (slotItems.length > 0) {
+        mealsPayload.push({
+          meal_type: 'Tea / Milk',
+          serving_time: slot,
+          items: slotItems,
+        });
+      }
+    });
+
     setSubmitting(true);
     try {
       const response = await api.post('/patient/orders', {
         meals: mealsPayload,
       });
 
-      setSuccessMsg(`Orders placed successfully for ${mealsPayload.length} meal session(s)! Amount ₹${grandTotal} deducted from advance balance.`);
+      setSuccessMsg(`Orders placed successfully for ${mealsPayload.length} meal/serving slot(s)! Amount ₹${grandTotal} deducted from advance balance.`);
       setAdvanceBalance(response.data.remaining_balance);
       setCartByMeal({
         Breakfast: {},
@@ -177,6 +273,7 @@ export const PatientMenu: React.FC = () => {
         'Tea / Milk': {},
         Snacks: {},
       });
+      setTeaSlotsCart({});
 
       setTimeout(() => {
         navigate('/patient/orders');
@@ -276,7 +373,13 @@ export const PatientMenu: React.FC = () => {
 
           // Count items in cart for this meal session
           const sessionMealName = session.value === 'ALL' ? 'Breakfast' : session.value;
-          const countInMeal = Object.values(cartByMeal[sessionMealName] || {}).reduce((a, b) => a + b, 0);
+          const countInMeal =
+            session.value === 'Tea / Milk'
+              ? Object.values(teaSlotsCart).reduce(
+                  (sum, slots) => sum + Object.values(slots).reduce((a, b) => a + b, 0),
+                  0
+                )
+              : Object.values(cartByMeal[sessionMealName] || {}).reduce((a, b) => a + b, 0);
 
           return (
             <button
@@ -416,6 +519,77 @@ export const PatientMenu: React.FC = () => {
                           );
                         })}
                       </div>
+                    ) : isTeaMilkOrCoffee(item) ? (
+                      <div className="space-y-2.5 w-full">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-black text-amber-900 uppercase tracking-wider flex items-center gap-1">
+                            <Clock className="w-3.5 h-3.5 text-amber-600" />
+                            Choose Serving Time (Today):
+                          </span>
+                          {(() => {
+                            const itemSlots = teaSlotsCart[item.menu_id] || {};
+                            const totalItemQty = Object.values(itemSlots).reduce((a, b) => a + b, 0);
+                            return totalItemQty > 0 ? (
+                              <span className="text-[10px] font-black bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-mono">
+                                {totalItemQty} cups selected
+                              </span>
+                            ) : (
+                              <span className="text-[9px] font-bold text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded-full">
+                                Required
+                              </span>
+                            );
+                          })()}
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                          {TEA_TIME_SLOTS.map(({ slot, label, period }) => {
+                            const itemSlots = teaSlotsCart[item.menu_id] || {};
+                            const q = itemSlots[slot] || 0;
+                            return (
+                              <div
+                                key={slot}
+                                className={`flex items-center justify-between p-2 rounded-xl border transition-all ${
+                                  q > 0
+                                    ? 'bg-amber-50/90 border-amber-400 ring-1 ring-amber-300'
+                                    : 'bg-slate-50/80 border-slate-200/80'
+                                }`}
+                              >
+                                <div className="flex flex-col">
+                                  <span className="text-xs font-black text-slate-900 flex items-center gap-1">
+                                    <Clock className="w-3 h-3 text-amber-700" />
+                                    {label}
+                                  </span>
+                                  <span className="text-[9px] text-slate-500 font-medium">{period}</span>
+                                </div>
+
+                                <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-white shadow-2xs">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleTeaSlotQtyChange(item.menu_id, slot, -1)}
+                                    disabled={q === 0 || isOrderingLocked}
+                                    className="px-2 py-1 text-slate-600 hover:bg-slate-100 disabled:opacity-30 transition-colors cursor-pointer"
+                                    aria-label={`Decrease ${label}`}
+                                  >
+                                    <Minus className="w-3 h-3" />
+                                  </button>
+                                  <span className="px-2 py-1 text-xs font-black text-slate-900 min-w-[1.5rem] text-center font-mono">
+                                    {q}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleTeaSlotQtyChange(item.menu_id, slot, 1)}
+                                    disabled={isOrderingLocked}
+                                    className="px-2 py-1 text-slate-600 hover:bg-slate-100 disabled:opacity-30 transition-colors cursor-pointer"
+                                    aria-label={`Increase ${label}`}
+                                  >
+                                    <Plus className="w-3 h-3" />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
                     ) : (
                       <div className="flex items-center space-x-2 w-full justify-between">
                         <div className="flex items-center border border-slate-200 rounded-xl overflow-hidden bg-slate-50">
@@ -466,7 +640,7 @@ export const PatientMenu: React.FC = () => {
         </div>
       )}
 
-      {/* Floating Order Cart Bar with Advance Balance Summary */}
+      {/* Floating Order Cart Bar with Advance Balance Summary & Selected Serving Times */}
       {totalItemCount > 0 && (
         <div className="fixed bottom-20 md:bottom-6 left-4 right-4 md:left-72 max-w-4xl mx-auto bg-procare-950/95 backdrop-blur-md text-white rounded-2xl p-4 shadow-2xl border border-procare-800 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 z-40">
           <div className="flex items-center space-x-3">
@@ -483,13 +657,40 @@ export const PatientMenu: React.FC = () => {
                   (Remaining Balance: ₹{advanceBalance - grandTotal})
                 </span>
               </div>
+
+              {/* Breakdown of Selected Meal Sessions & Serving Times */}
+              <div className="flex flex-wrap gap-1.5 mt-1.5 text-[10px]">
+                {Object.entries(cartByMeal).map(([mName, mCart]) => {
+                  if (mName === 'Tea / Milk') return null;
+                  const cnt = Object.values(mCart).reduce((a, b) => a + b, 0);
+                  if (cnt === 0) return null;
+                  return (
+                    <span key={mName} className="bg-procare-900 border border-procare-700 px-2 py-0.5 rounded-md font-semibold text-procare-100">
+                      {mName}: <strong>{cnt}</strong>
+                    </span>
+                  );
+                })}
+                {TEA_TIME_SLOTS.map(({ slot }) => {
+                  let slotCount = 0;
+                  Object.values(teaSlotsCart).forEach((slots) => {
+                    slotCount += slots[slot] || 0;
+                  });
+                  if (slotCount === 0) return null;
+                  return (
+                    <span key={slot} className="bg-amber-900/90 border border-amber-500/60 px-2 py-0.5 rounded-md font-semibold text-amber-200 flex items-center gap-1">
+                      <Clock className="w-2.5 h-2.5 text-amber-300" />
+                      Tea/Coffee ({slot}): <strong>{slotCount}</strong>
+                    </span>
+                  );
+                })}
+              </div>
             </div>
           </div>
 
           <button
             onClick={handlePlaceOrder}
             disabled={submitting || isOrderingLocked || advanceBalance < grandTotal}
-            className="w-full sm:w-auto bg-celadon hover:bg-procare-400 active:bg-procare-500 text-slate-950 font-black text-xs sm:text-sm px-6 py-3 rounded-xl shadow-md transition-colors disabled:opacity-50 cursor-pointer"
+            className="w-full sm:w-auto bg-celadon hover:bg-procare-400 active:bg-procare-500 text-slate-950 font-black text-xs sm:text-sm px-6 py-3 rounded-xl shadow-md transition-colors disabled:opacity-50 cursor-pointer shrink-0"
           >
             {submitting
               ? 'Placing Order & Deducting Balance...'

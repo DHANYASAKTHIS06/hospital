@@ -19,7 +19,7 @@ const createOrder = async (req, res) => {
             return res.status(403).json({ message: 'Patient identity missing.' });
         }
         const { items, meal_type, meals } = req.body;
-        // Normalize into array of meal requests: [{ meal_type, items }]
+        // Normalize into array of meal requests: [{ meal_type, serving_time, items }]
         let requestedMeals = [];
         if (meals && Array.isArray(meals) && meals.length > 0) {
             requestedMeals = meals.filter((m) => m.items && Array.isArray(m.items) && m.items.length > 0);
@@ -43,6 +43,7 @@ const createOrder = async (req, res) => {
         for (const mealReq of requestedMeals) {
             let mealTotal = 0;
             const snapshots = [];
+            const mealServingTime = mealReq.serving_time || '';
             for (const item of mealReq.items) {
                 const menuDoc = await MenuItem_1.MenuItem.findOne({ menu_id: item.menu_id });
                 if (!menuDoc) {
@@ -65,11 +66,13 @@ const createOrder = async (req, res) => {
                     quantity: qty,
                     unit_price: menuDoc.price,
                     subtotal,
+                    serving_time: item.serving_time || mealServingTime,
                 });
             }
             grandTotalAmount += mealTotal;
             validatedMealPayloads.push({
                 meal_type: mealReq.meal_type || 'General',
+                serving_time: mealServingTime,
                 total_amount: mealTotal,
                 snapshots,
             });
@@ -102,6 +105,7 @@ const createOrder = async (req, res) => {
                 order_date,
                 order_time,
                 meal_type: mealData.meal_type,
+                serving_time: mealData.serving_time || '',
                 total_amount: mealData.total_amount,
                 order_status: 'ACCEPTED',
                 admin_delivery_confirmed: false,

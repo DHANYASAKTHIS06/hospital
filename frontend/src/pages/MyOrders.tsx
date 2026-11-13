@@ -123,6 +123,12 @@ export const MyOrders: React.FC = () => {
                       <span className="text-xs bg-slate-100 px-2.5 py-0.5 rounded-md text-slate-700 font-bold">
                         Meal: {order.meal_type}
                       </span>
+                      {order.serving_time && (
+                        <span className="text-xs bg-amber-50 border border-amber-200 px-2.5 py-0.5 rounded-md text-amber-900 font-bold flex items-center gap-1">
+                          <Clock className="w-3 h-3 text-amber-600" />
+                          Serving Time: {order.serving_time}
+                        </span>
+                      )}
                     </div>
                     <div className="text-xs text-slate-500 mt-1 font-medium">
                       Ordered on: {order.order_date} at {order.order_time}
@@ -148,7 +154,15 @@ export const MyOrders: React.FC = () => {
                       <tbody className="divide-y divide-slate-200/50">
                         {order.items?.map((item) => (
                           <tr key={item._id} className="text-slate-800">
-                            <td className="py-2 font-semibold">{item.item_name_snapshot}</td>
+                            <td className="py-2 font-semibold">
+                              {item.item_name_snapshot}
+                              {item.serving_time && (
+                                <span className="text-[10px] bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-mono font-bold ml-1.5 inline-flex items-center gap-0.5">
+                                  <Clock className="w-2.5 h-2.5 text-amber-700" />
+                                  {item.serving_time}
+                                </span>
+                              )}
+                            </td>
                             <td className="py-2 text-center font-bold">{item.quantity}</td>
                             <td className="py-2 text-right text-slate-600 font-medium">₹{item.unit_price}</td>
                             <td className="py-2 text-right font-bold text-slate-900">₹{item.subtotal}</td>

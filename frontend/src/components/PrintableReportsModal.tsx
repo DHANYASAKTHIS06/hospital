@@ -142,12 +142,21 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
     desc: string;
     icon: React.ComponentType<{ className?: string }>;
   }> = [
-    { key: 'TEA / MILK', title: 'Tea / Milk', desc: 'Hot Beverages & Milk Service (Morning & Evening)', icon: Coffee },
-    { key: 'BREAKFAST', title: 'Breakfast', desc: 'Morning Meal Preparation (Includes Common Menu items ordered for Breakfast)', icon: Sun },
-    { key: 'LUNCH', title: 'Lunch', desc: 'Afternoon Meal Preparation (Includes Common Menu items ordered for Lunch)', icon: Utensils },
-    { key: 'DINNER', title: 'Dinner', desc: 'Night Meal Preparation (Includes Common Menu items ordered for Dinner)', icon: Moon },
-    { key: 'SNACKS', title: 'Snacks', desc: 'Evening Snacks & Light Refreshments', icon: Cookie },
+    { key: 'TEA / MILK', title: 'Tea / Milk and Coffee Preparation', desc: 'Hot Beverages & Milk Service – Separated by 7:00 AM, 11:00 AM, 4:00 PM and 7:00 PM', icon: Coffee },
+    { key: 'BREAKFAST', title: 'Breakfast Preparation', desc: 'Morning Meal Preparation (Includes Common Menu items ordered for Breakfast)', icon: Sun },
+    { key: 'LUNCH', title: 'Lunch Preparation', desc: 'Afternoon Meal Preparation (Includes Common Menu items ordered for Lunch)', icon: Utensils },
+    { key: 'DINNER', title: 'Dinner Preparation', desc: 'Night Meal Preparation (Includes Common Menu items ordered for Dinner)', icon: Moon },
+    { key: 'SNACKS', title: 'Snacks Preparation', desc: 'Evening Snacks & Light Refreshments', icon: Cookie },
   ];
+
+  const normalizeSlot = (rawSlot?: string): string => {
+    const s = (rawSlot || '').trim().toUpperCase();
+    if (/^7(\.00|:00)?\s*AM/i.test(s) || /^07:00/i.test(s)) return '7:00 AM';
+    if (/^11(\.00|:00)?\s*AM/i.test(s)) return '11:00 AM';
+    if (/^4(\.00|:00)?\s*PM/i.test(s) || /^16:00/i.test(s)) return '4:00 PM';
+    if (/^7(\.00|:00)?\s*PM/i.test(s) || /^19:00/i.test(s)) return '7:00 PM';
+    return '7:00 AM';
+  };
 
   const normalizeMealCategory = (rawMeal: string, fallbackCat?: string): string => {
     let t = (rawMeal || '').trim().toUpperCase();
@@ -178,6 +187,14 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
 
   // Calculate local aggregation from active orders (ensures 100% sync and offline availability)
   const localPrepMap = new Map<string, KitchenItem>();
+  const localTeaSlotMap = new Map<string, {
+    menu_id: number;
+    item_name: string;
+    serving_time: string;
+    portion_size: string;
+    unit: string;
+    total_quantity: number;
+  }>();
 
   validActiveOrders.forEach((o) => {
     const orderCategory = normalizeMealCategory(o.meal_type);
@@ -185,7 +202,6 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
     o.items?.forEach((it) => {
       const itemName = (it.item_name_snapshot || '').trim();
       const cat = orderCategory;
-      const key = `${cat}::${itemName.toLowerCase()}`;
       const meta = itemMetaMap.get(itemName.toLowerCase());
       const portionSize = meta?.portion_size || '1 portion';
       let unit = meta?.unit || 'Nos';
@@ -194,26 +210,95 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
       else if (/cup/i.test(portionSize)) unit = 'Cup(s)';
       else if (/nos/i.test(portionSize) || /no\b/i.test(portionSize)) unit = 'Nos';
 
-      const existing = localPrepMap.get(key);
-      if (existing) {
-        existing.total_quantity += it.quantity;
-        existing.order_count = (existing.order_count || 1) + 1;
+      if (cat === 'TEA / MILK') {
+        const slot = normalizeSlot(it.serving_time || o.serving_time || '7:00 AM');
+        const key = `${slot}::${itemName.toLowerCase()}`;
+        const existing = localTeaSlotMap.get(key);
+        if (existing) {
+          existing.total_quantity += it.quantity;
+        } else {
+          localTeaSlotMap.set(key, {
+            menu_id: it.menu_id || meta?.menu_id || 0,
+            item_name: itemName,
+            serving_time: slot,
+            portion_size: portionSize,
+            unit,
+            total_quantity: it.quantity,
+          });
+        }
       } else {
-        localPrepMap.set(key, {
-          menu_id: it.menu_id || meta?.menu_id || 0,
-          item_name: itemName,
-          category: cat,
-          portion_size: portionSize,
-          unit,
-          total_quantity: it.quantity,
-          order_count: 1,
-        });
+        const key = `${cat}::${itemName.toLowerCase()}`;
+        const existing = localPrepMap.get(key);
+        if (existing) {
+          existing.total_quantity += it.quantity;
+          existing.order_count = (existing.order_count || 1) + 1;
+        } else {
+          localPrepMap.set(key, {
+            menu_id: it.menu_id || meta?.menu_id || 0,
+            item_name: itemName,
+            category: cat,
+            portion_size: portionSize,
+            unit,
+            total_quantity: it.quantity,
+            order_count: 1,
+          });
+        }
       }
     });
   });
 
+  // Construct structured teaCoffeeSlots (from backend or local)
+  const standardTeaSlots = ['7:00 AM', '11:00 AM', '4:00 PM', '7:00 PM'];
+  const teaCoffeeSlots = standardTeaSlots.map((slot) => {
+    const backendSlot = kitchenReportData?.tea_coffee_slots?.find((s: any) => s.serving_time === slot);
+    if (backendSlot && Array.isArray(backendSlot.items)) {
+      return {
+        serving_time: slot,
+        items: backendSlot.items,
+        subtotal: backendSlot.subtotal ?? backendSlot.items.reduce((sum: number, it: any) => sum + (it.total_quantity || 0), 0),
+      };
+    }
+
+    const items = Array.from(localTeaSlotMap.values())
+      .filter((it) => it.serving_time === slot)
+      .sort((a, b) => a.item_name.localeCompare(b.item_name));
+    const subtotal = items.reduce((sum, it) => sum + it.total_quantity, 0);
+    return {
+      serving_time: slot,
+      items,
+      subtotal,
+    };
+  });
+
+  const totalTeaPortions = teaCoffeeSlots.reduce((sum, s) => sum + s.subtotal, 0);
+
   // Construct the 5 sections using backend data if available, or fallback to local calculation
   const kitchenSections: KitchenSection[] = standardSectionMeta.map((meta) => {
+    if (meta.key === 'TEA / MILK') {
+      const allTeaItems: KitchenItem[] = [];
+      teaCoffeeSlots.forEach((slotGroup) => {
+        (slotGroup.items || []).forEach((it: any) => {
+          allTeaItems.push({
+            menu_id: it.menu_id || 0,
+            item_name: it.item_name,
+            category: 'TEA / MILK',
+            portion_size: it.portion_size || '100 ml',
+            unit: it.unit || 'Nos',
+            total_quantity: it.total_quantity,
+          });
+        });
+      });
+
+      return {
+        category: meta.key,
+        title: meta.title,
+        desc: meta.desc,
+        icon: meta.icon,
+        items: allTeaItems,
+        subtotal: totalTeaPortions,
+      };
+    }
+
     const backendSec = kitchenReportData?.sections?.find((s: any) => s.category === meta.key);
 
     let items: KitchenItem[] = [];
@@ -534,7 +619,82 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                       </div>
 
                       {/* Items Table */}
-                      {sec.items.length === 0 ? (
+                      {sec.category === 'TEA / MILK' ? (
+                        <div className="divide-y-2 divide-slate-300">
+                          {teaCoffeeSlots.map((slotGroup: any) => {
+                            const slotItems = slotGroup.items || [];
+                            return (
+                              <div key={slotGroup.serving_time} className="p-0">
+                                <div className="bg-amber-100/90 px-4 py-1.5 flex justify-between items-center border-b border-amber-200">
+                                  <span className="text-xs font-black text-amber-950 flex items-center gap-1.5 uppercase tracking-wide">
+                                    <Clock className="w-3.5 h-3.5 text-amber-800" />
+                                    Serving Time: {slotGroup.serving_time}
+                                  </span>
+                                  <span className="text-[11px] font-black bg-amber-200/80 text-amber-950 px-2.5 py-0.5 rounded font-mono border border-amber-300">
+                                    Slot Subtotal: {slotGroup.subtotal} Nos
+                                  </span>
+                                </div>
+
+                                {slotItems.length === 0 ? (
+                                  <div className="py-2 px-4 text-center text-[11px] font-semibold text-slate-400 bg-slate-50 italic">
+                                    No Tea / Coffee orders scheduled for {slotGroup.serving_time} (0 required)
+                                  </div>
+                                ) : (
+                                  <table className="w-full text-xs text-left border-collapse">
+                                    <thead>
+                                      <tr className="bg-slate-100 text-slate-800 font-bold border-b border-slate-300 text-[10px] uppercase">
+                                        <th className="p-2 w-28 border-r border-slate-200">Serving Time</th>
+                                        <th className="p-2 border-r border-slate-200">Food Item</th>
+                                        <th className="p-2 border-r border-slate-200 w-32">Portion Size</th>
+                                        <th className="p-2 text-center bg-emerald-100/70 text-emerald-950 font-black w-36 border-r border-slate-200">
+                                          Total Required
+                                        </th>
+                                        <th className="p-2 text-center w-28 bg-slate-100 text-slate-700 font-bold">
+                                          Kitchen Status
+                                        </th>
+                                      </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-200 font-medium text-slate-900">
+                                      {slotItems.map((it: any, itIdx: number) => (
+                                        <tr key={`${slotGroup.serving_time}-${it.item_name}`} className={itIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/70'}>
+                                          <td className="p-2 border-r border-slate-200 font-black text-amber-900 font-mono text-xs">
+                                            {slotGroup.serving_time}
+                                          </td>
+                                          <td className="p-2 border-r border-slate-200 font-extrabold text-xs text-slate-900">
+                                            {it.item_name}
+                                          </td>
+                                          <td className="p-2 border-r border-slate-200 text-slate-600 font-medium text-[11px]">
+                                            {it.portion_size || '100 ml'}
+                                          </td>
+                                          <td className="p-2 text-center font-black text-sm font-mono bg-emerald-50 text-emerald-950 border-r border-slate-200">
+                                            {it.total_quantity} Nos
+                                          </td>
+                                          <td className="p-2 text-center">
+                                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 border border-slate-300 rounded px-2 py-0.5 bg-white">
+                                              <span className="inline-block w-3 h-3 border border-slate-400 rounded-xs"></span>
+                                              <span>Ready</span>
+                                            </span>
+                                          </td>
+                                        </tr>
+                                      ))}
+                                    </tbody>
+                                  </table>
+                                )}
+                              </div>
+                            );
+                          })}
+
+                          {/* Section 1 Total */}
+                          <div className="bg-slate-100 p-2.5 px-4 flex justify-between items-center text-xs font-black text-slate-900 border-t-2 border-slate-300">
+                            <span className="uppercase tracking-wider">
+                              Tea / Milk & Coffee Overall Subtotal Required:
+                            </span>
+                            <span className="text-sm font-black font-mono bg-emerald-100 text-emerald-950 px-3 py-1 rounded-lg border border-emerald-300">
+                              {sec.subtotal} Nos
+                            </span>
+                          </div>
+                        </div>
+                      ) : sec.items.length === 0 ? (
                         <div className="py-3 px-4 text-center text-xs font-semibold text-slate-400 bg-slate-50">
                           No items ordered for {sec.title} session (0 portions required)
                         </div>

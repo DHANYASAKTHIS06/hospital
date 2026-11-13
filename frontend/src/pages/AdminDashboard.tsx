@@ -301,6 +301,85 @@ export const AdminDashboard: React.FC = () => {
           </div>
         </div>
 
+        {/* DEDICATED TEA/MILK AND COFFEE PREPARATION TABLE (GROUPED BY 4 SERVING TIMES) */}
+        <div className="border-b border-emerald-100 bg-amber-50/50 p-5">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 mb-3">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 bg-amber-600 text-white rounded-lg">
+                <Coffee className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="text-sm font-black text-amber-950 uppercase tracking-wide">
+                  Tea / Milk and Coffee Preparation (Scheduled by Serving Times)
+                </h3>
+                <p className="text-[11px] text-amber-800 font-medium">
+                  Separated by 7:00 AM, 11:00 AM, 4:00 PM and 7:00 PM. Calculated dynamically from active patient orders.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto rounded-xl border border-amber-200 bg-white shadow-2xs">
+            <table className="w-full text-xs text-left border-collapse">
+              <thead>
+                <tr className="bg-amber-100 text-amber-950 font-black border-b border-amber-200 uppercase text-[11px]">
+                  <th className="p-2.5 w-36 border-r border-amber-200">Serving Time</th>
+                  <th className="p-2.5 border-r border-amber-200">Item</th>
+                  <th className="p-2.5 text-center w-36 bg-amber-200/60 font-black">Total Quantity</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-amber-100 text-slate-800 font-medium">
+                {(stats?.teaCoffeeSlots || [
+                  { serving_time: '7:00 AM', items: [], subtotal: 0 },
+                  { serving_time: '11:00 AM', items: [], subtotal: 0 },
+                  { serving_time: '4:00 PM', items: [], subtotal: 0 },
+                  { serving_time: '7:00 PM', items: [], subtotal: 0 },
+                ]).map((slotGroup: any) => {
+                  const itemsToDisplay = (slotGroup.items || []).filter((it: any) => it.total_quantity > 0);
+                  if (itemsToDisplay.length === 0) {
+                    return (
+                      <tr key={slotGroup.serving_time} className="hover:bg-amber-50/40">
+                        <td className="p-2.5 border-r border-amber-100 font-black text-amber-900 bg-amber-50/30">
+                          <div className="flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5 text-amber-700" />
+                            <span>{slotGroup.serving_time}</span>
+                          </div>
+                        </td>
+                        <td className="p-2.5 border-r border-amber-100 text-slate-400 italic">No orders scheduled</td>
+                        <td className="p-2.5 text-center font-bold text-slate-400">0 Nos</td>
+                      </tr>
+                    );
+                  }
+                  return itemsToDisplay.map((item: any, idx: number) => (
+                    <tr key={`${slotGroup.serving_time}-${item.item_name}`} className="hover:bg-amber-50/40">
+                      {idx === 0 && (
+                        <td
+                          rowSpan={itemsToDisplay.length}
+                          className="p-2.5 border-r border-amber-100 font-black text-amber-900 bg-amber-50/50 align-top"
+                        >
+                          <div className="flex items-center gap-1.5">
+                            <Clock className="w-3.5 h-3.5 text-amber-700" />
+                            <span>{slotGroup.serving_time}</span>
+                          </div>
+                          <span className="text-[10px] text-amber-700 block font-normal mt-0.5">
+                            Slot Total: <strong>{slotGroup.subtotal} Nos</strong>
+                          </span>
+                        </td>
+                      )}
+                      <td className="p-2.5 border-r border-amber-100 font-bold text-slate-900">
+                        {item.item_name}
+                      </td>
+                      <td className="p-2.5 text-center font-black text-sm font-mono text-amber-950 bg-amber-50/60">
+                        {item.total_quantity} Nos
+                      </td>
+                    </tr>
+                  ));
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
         {/* Category Filters */}
         <div className="p-4 bg-gray-50 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div className="flex flex-wrap items-center gap-1.5">
@@ -439,6 +518,12 @@ export const AdminDashboard: React.FC = () => {
                     <span className="text-xs text-gray-500 font-medium">
                       {order.order_date} • {order.order_time} ({order.meal_type})
                     </span>
+                    {order.serving_time && (
+                      <span className="text-xs bg-amber-50 border border-amber-300 text-amber-900 font-bold px-2 py-0.5 rounded inline-flex items-center gap-1">
+                        <Clock className="w-3 h-3 text-amber-700" />
+                        Serving Time: {order.serving_time}
+                      </span>
+                    )}
                   </div>
 
                   {/* Food Items Summary */}
@@ -446,6 +531,9 @@ export const AdminDashboard: React.FC = () => {
                     {order.items?.map((it) => (
                       <span key={it._id} className="inline-block bg-white border border-gray-200 px-2.5 py-1 rounded mr-2 my-0.5">
                         <strong>{it.item_name_snapshot}</strong> × {it.quantity} (₹{it.subtotal})
+                        {it.serving_time && (
+                          <span className="ml-1 text-[10px] text-amber-800 font-bold">({it.serving_time})</span>
+                        )}
                       </span>
                     ))}
                   </div>
