@@ -24,9 +24,10 @@ export const PatientPaymentStatus: React.FC = () => {
     fetchPaymentStatus();
 
     if (socket) {
-      socket.on('payment_status_updated', () => fetchPaymentStatus());
+      const handlePaymentStatusRefresh = () => fetchPaymentStatus();
+      socket.on('payment_status_updated', handlePaymentStatusRefresh);
       return () => {
-        socket.off('payment_status_updated');
+        socket.off('payment_status_updated', handlePaymentStatusRefresh);
       };
     }
   }, [socket]);

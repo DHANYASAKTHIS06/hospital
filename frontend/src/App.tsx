@@ -6,6 +6,7 @@ import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
 import { BottomNav } from './components/BottomNav';
 import { ProtectedRoute } from './components/ProtectedRoute';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 // Public pages
 import { WelcomePage } from './pages/WelcomePage';
@@ -45,7 +46,9 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           onClose={() => setMobileMenuOpen(false)}
         />
         <main className="flex-1 px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8 pb-24 md:pb-8 overflow-y-auto max-w-7xl mx-auto w-full">
-          {children}
+          <ErrorBoundary>
+            {children}
+          </ErrorBoundary>
         </main>
       </div>
       <BottomNav />

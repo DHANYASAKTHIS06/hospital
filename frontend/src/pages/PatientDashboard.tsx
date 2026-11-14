@@ -50,14 +50,15 @@ export const PatientDashboard: React.FC = () => {
     fetchData();
 
     if (socket) {
-      socket.on('order_status_updated', () => fetchData());
-      socket.on('delivery_status_updated', () => fetchData());
-      socket.on('payment_status_updated', () => fetchData());
+      const handleDataRefresh = () => fetchData();
+      socket.on('order_status_updated', handleDataRefresh);
+      socket.on('delivery_status_updated', handleDataRefresh);
+      socket.on('payment_status_updated', handleDataRefresh);
 
       return () => {
-        socket.off('order_status_updated');
-        socket.off('delivery_status_updated');
-        socket.off('payment_status_updated');
+        socket.off('order_status_updated', handleDataRefresh);
+        socket.off('delivery_status_updated', handleDataRefresh);
+        socket.off('payment_status_updated', handleDataRefresh);
       };
     }
   }, [socket]);

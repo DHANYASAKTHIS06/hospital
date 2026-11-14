@@ -38,16 +38,17 @@ export const AdminOrders: React.FC = () => {
     fetchOrders();
 
     if (socket) {
-      socket.on('new_order', () => fetchOrders());
-      socket.on('order_status_updated', () => fetchOrders());
-      socket.on('delivery_status_updated', () => fetchOrders());
-      socket.on('patient_balance_updated', () => fetchOrders());
+      const handleOrdersRefresh = () => fetchOrders();
+      socket.on('new_order', handleOrdersRefresh);
+      socket.on('order_status_updated', handleOrdersRefresh);
+      socket.on('delivery_status_updated', handleOrdersRefresh);
+      socket.on('patient_balance_updated', handleOrdersRefresh);
 
       return () => {
-        socket.off('new_order');
-        socket.off('order_status_updated');
-        socket.off('delivery_status_updated');
-        socket.off('patient_balance_updated');
+        socket.off('new_order', handleOrdersRefresh);
+        socket.off('order_status_updated', handleOrdersRefresh);
+        socket.off('delivery_status_updated', handleOrdersRefresh);
+        socket.off('patient_balance_updated', handleOrdersRefresh);
       };
     }
   }, [socket]);

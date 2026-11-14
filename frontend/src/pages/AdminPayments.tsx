@@ -32,9 +32,10 @@ export const AdminPayments: React.FC = () => {
     fetchPayments();
 
     if (socket) {
-      socket.on('payment_status_updated', () => fetchPayments());
+      const handlePaymentsRefresh = () => fetchPayments();
+      socket.on('payment_status_updated', handlePaymentsRefresh);
       return () => {
-        socket.off('payment_status_updated');
+        socket.off('payment_status_updated', handlePaymentsRefresh);
       };
     }
   }, [socket]);

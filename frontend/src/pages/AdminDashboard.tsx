@@ -61,20 +61,23 @@ export const AdminDashboard: React.FC = () => {
     fetchStatsAndOrders();
 
     if (socket) {
-      socket.on('new_order', () => fetchStatsAndOrders());
-      socket.on('order_status_updated', () => fetchStatsAndOrders());
-      socket.on('delivery_status_updated', () => fetchStatsAndOrders());
-      socket.on('payment_status_updated', () => fetchStatsAndOrders());
-      socket.on('ordering_status_changed', (data: { is_ordering_locked: boolean }) => {
+      const handleRefresh = () => fetchStatsAndOrders();
+      const handleLockChange = (data: { is_ordering_locked: boolean }) => {
         setIsOrderingLocked(data.is_ordering_locked);
-      });
+      };
+
+      socket.on('new_order', handleRefresh);
+      socket.on('order_status_updated', handleRefresh);
+      socket.on('delivery_status_updated', handleRefresh);
+      socket.on('payment_status_updated', handleRefresh);
+      socket.on('ordering_status_changed', handleLockChange);
 
       return () => {
-        socket.off('new_order');
-        socket.off('order_status_updated');
-        socket.off('delivery_status_updated');
-        socket.off('payment_status_updated');
-        socket.off('ordering_status_changed');
+        socket.off('new_order', handleRefresh);
+        socket.off('order_status_updated', handleRefresh);
+        socket.off('delivery_status_updated', handleRefresh);
+        socket.off('payment_status_updated', handleRefresh);
+        socket.off('ordering_status_changed', handleLockChange);
       };
     }
   }, [socket]);

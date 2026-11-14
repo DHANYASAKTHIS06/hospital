@@ -70,17 +70,19 @@ export const PatientMenu: React.FC = () => {
     fetchProfileAndMenu();
 
     if (socket) {
-      socket.on('ordering_status_changed', (data: { is_ordering_locked: boolean }) => {
+      const handleLockChange = (data: { is_ordering_locked: boolean }) => {
         setIsOrderingLocked(data.is_ordering_locked);
-      });
-
-      socket.on('patient_balance_updated', (data: { advance_balance: number }) => {
+      };
+      const handleBalanceUpdate = (data: { advance_balance: number }) => {
         setAdvanceBalance(data.advance_balance);
-      });
+      };
+
+      socket.on('ordering_status_changed', handleLockChange);
+      socket.on('patient_balance_updated', handleBalanceUpdate);
 
       return () => {
-        socket.off('ordering_status_changed');
-        socket.off('patient_balance_updated');
+        socket.off('ordering_status_changed', handleLockChange);
+        socket.off('patient_balance_updated', handleBalanceUpdate);
       };
     }
   }, [socket]);

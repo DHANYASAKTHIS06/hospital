@@ -33,12 +33,13 @@ export const MyOrders: React.FC = () => {
     fetchOrders();
 
     if (socket) {
-      socket.on('order_status_updated', () => fetchOrders());
-      socket.on('delivery_status_updated', () => fetchOrders());
+      const handleOrdersRefresh = () => fetchOrders();
+      socket.on('order_status_updated', handleOrdersRefresh);
+      socket.on('delivery_status_updated', handleOrdersRefresh);
 
       return () => {
-        socket.off('order_status_updated');
-        socket.off('delivery_status_updated');
+        socket.off('order_status_updated', handleOrdersRefresh);
+        socket.off('delivery_status_updated', handleOrdersRefresh);
       };
     }
   }, [socket]);
