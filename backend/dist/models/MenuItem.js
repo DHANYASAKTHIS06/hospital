@@ -51,6 +51,11 @@ const MenuItemSchema = new mongoose_1.Schema({
         type: [String],
         default: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
     },
+    requires_serving_time: { type: Boolean, default: false },
+    serving_time_slots: {
+        type: [String],
+        default: ['7:00 AM', '11:00 AM', '4:00 PM', '7:00 PM'],
+    },
 }, {
     timestamps: true,
     collection: 'menuitems',

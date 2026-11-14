@@ -55,7 +55,8 @@ export const MyBills: React.FC = () => {
           <div className="w-12 h-12 rounded-full bg-procare-50 flex items-center justify-center mx-auto text-procare-700">
             <FileText className="w-6 h-6" />
           </div>
-          <p className="text-sm font-bold text-slate-700">No Bills Generated Yet</p>
+          <p className="text-sm font-bold text-slate-700">No bills generated yet.</p>
+          <p className="text-xs text-slate-400">Your discharge bill and food charges will appear here once generated.</p>
         </div>
       ) : (
         <div className="space-y-5">

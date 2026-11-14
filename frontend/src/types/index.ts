@@ -37,6 +37,8 @@ export interface MenuItem {
   available_days: string[];
   is_available_today?: boolean;
   current_day?: string;
+  requires_serving_time?: boolean;
+  serving_time_slots?: string[];
 }
 
 export type OrderStatus =

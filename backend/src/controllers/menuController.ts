@@ -28,7 +28,17 @@ export const getMenuItems = async (req: Request, res: Response) => {
 
 export const addMenuItem = async (req: Request, res: Response) => {
   try {
-    const { item_name, category, description, quantity, price, availability, available_days } = req.body;
+    const {
+      item_name,
+      category,
+      description,
+      quantity,
+      price,
+      availability,
+      available_days,
+      requires_serving_time,
+      serving_time_slots,
+    } = req.body;
 
     if (!item_name || !category || !quantity || price === undefined) {
       return res.status(400).json({ message: 'Item name, category, quantity, and price are required.' });
@@ -39,6 +49,14 @@ export const addMenuItem = async (req: Request, res: Response) => {
     }
 
     const menu_id = await getNextSequenceValue('menu_id');
+    const isServingTimeReq = requires_serving_time !== undefined
+      ? Boolean(requires_serving_time)
+      : (category === 'TEA / MILK');
+
+    const defaultSlots = ['7:00 AM', '11:00 AM', '4:00 PM', '7:00 PM'];
+    const slots = Array.isArray(serving_time_slots) && serving_time_slots.length > 0
+      ? serving_time_slots
+      : defaultSlots;
 
     const newItem = await MenuItem.create({
       menu_id,
@@ -49,6 +67,8 @@ export const addMenuItem = async (req: Request, res: Response) => {
       price: Number(price),
       availability: availability !== undefined ? availability : true,
       available_days: available_days || ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+      requires_serving_time: isServingTimeReq,
+      serving_time_slots: slots,
     });
 
     return res.status(201).json({
@@ -64,7 +84,17 @@ export const addMenuItem = async (req: Request, res: Response) => {
 export const updateMenuItem = async (req: Request, res: Response) => {
   try {
     const { menuId } = req.params;
-    const { item_name, category, description, quantity, price, availability, available_days } = req.body;
+    const {
+      item_name,
+      category,
+      description,
+      quantity,
+      price,
+      availability,
+      available_days,
+      requires_serving_time,
+      serving_time_slots,
+    } = req.body;
 
     const item = await MenuItem.findOne({ menu_id: Number(menuId) });
     if (!item) {
@@ -82,6 +112,10 @@ export const updateMenuItem = async (req: Request, res: Response) => {
     if (price !== undefined) item.price = Number(price);
     if (availability !== undefined) item.availability = availability;
     if (available_days) item.available_days = available_days;
+    if (requires_serving_time !== undefined) item.requires_serving_time = Boolean(requires_serving_time);
+    if (serving_time_slots !== undefined && Array.isArray(serving_time_slots)) {
+      item.serving_time_slots = serving_time_slots;
+    }
 
     await item.save();
 

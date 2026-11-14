@@ -9,6 +9,8 @@ export interface IMenuItem extends Document {
   price: number;
   availability: boolean;
   available_days: string[];
+  requires_serving_time?: boolean;
+  serving_time_slots?: string[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,6 +31,11 @@ const MenuItemSchema: Schema = new Schema(
     available_days: {
       type: [String],
       default: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+    },
+    requires_serving_time: { type: Boolean, default: false },
+    serving_time_slots: {
+      type: [String],
+      default: ['7:00 AM', '11:00 AM', '4:00 PM', '7:00 PM'],
     },
   },
   {

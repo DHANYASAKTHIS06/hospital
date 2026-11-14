@@ -20,6 +20,7 @@ import {
   RotateCcw,
   Sparkles,
   AlertCircle,
+  Coffee,
 } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
@@ -28,7 +29,7 @@ export const AdminDashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [isOrderingLocked, setIsOrderingLocked] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
-  const [showOnlyRequired, setShowOnlyRequired] = useState<boolean>(false);
+  const [showOnlyRequired, setShowOnlyRequired] = useState<boolean>(true);
 
   // Clear Active View Modal
   const [isClearModalOpen, setIsClearModalOpen] = useState(false);

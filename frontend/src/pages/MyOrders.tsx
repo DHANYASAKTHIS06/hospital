@@ -102,8 +102,8 @@ export const MyOrders: React.FC = () => {
           <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center mx-auto text-slate-300">
             <Clock className="w-6 h-6" />
           </div>
-          <p className="text-base font-bold text-slate-700">No Orders Found</p>
-          <p className="text-xs text-slate-400">You haven't placed any canteen food orders yet.</p>
+          <p className="text-base font-bold text-slate-700">No orders placed yet.</p>
+          <p className="text-xs text-slate-400">You haven't placed any canteen food orders yet. Browse the Canteen Menu to place your first order.</p>
         </div>
       ) : (
         <div className="space-y-4">

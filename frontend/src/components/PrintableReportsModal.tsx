@@ -294,7 +294,7 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
         title: meta.title,
         desc: meta.desc,
         icon: meta.icon,
-        items: allTeaItems,
+        items: allTeaItems.filter((it) => it.total_quantity > 0),
         subtotal: totalTeaPortions,
       };
     }
@@ -305,19 +305,21 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
     let subtotal = 0;
 
     if (backendSec && Array.isArray(backendSec.items)) {
-      items = backendSec.items.map((it: any) => ({
-        menu_id: it.menu_id || 0,
-        item_name: it.item_name,
-        category: meta.key,
-        portion_size: it.portion_size || '1 portion',
-        unit: it.unit || 'Nos',
-        total_quantity: it.total_quantity,
-        order_count: it.order_count,
-      }));
+      items = backendSec.items
+        .filter((it: any) => (it.total_quantity || 0) > 0)
+        .map((it: any) => ({
+          menu_id: it.menu_id || 0,
+          item_name: it.item_name,
+          category: meta.key,
+          portion_size: it.portion_size || '1 portion',
+          unit: it.unit || 'Nos',
+          total_quantity: it.total_quantity,
+          order_count: it.order_count,
+        }));
       subtotal = backendSec.subtotal || items.reduce((sum, it) => sum + it.total_quantity, 0);
     } else {
       items = Array.from(localPrepMap.values())
-        .filter((it) => it.category === meta.key)
+        .filter((it) => it.category === meta.key && it.total_quantity > 0)
         .sort((a, b) => a.item_name.localeCompare(b.item_name));
       subtotal = items.reduce((sum, it) => sum + it.total_quantity, 0);
     }
@@ -622,7 +624,7 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                       {sec.category === 'TEA / MILK' ? (
                         <div className="divide-y-2 divide-slate-300">
                           {teaCoffeeSlots.map((slotGroup: any) => {
-                            const slotItems = slotGroup.items || [];
+                            const slotItems = (slotGroup.items || []).filter((it: any) => it.total_quantity > 0);
                             return (
                               <div key={slotGroup.serving_time} className="p-0">
                                 <div className="bg-amber-100/90 px-4 py-1.5 flex justify-between items-center border-b border-amber-200">

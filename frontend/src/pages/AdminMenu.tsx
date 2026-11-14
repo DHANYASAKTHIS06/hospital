@@ -11,6 +11,7 @@ export const AdminMenu: React.FC = () => {
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
 
   const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const standardTimeSlots = ['7:00 AM', '11:00 AM', '4:00 PM', '7:00 PM'];
   const categories: Category[] = ['COMMON MENU', 'TEA / MILK', 'BREAKFAST', 'LUNCH', 'DINNER', 'SNACKS'];
 
   const [formData, setFormData] = useState({
@@ -21,6 +22,8 @@ export const AdminMenu: React.FC = () => {
     price: '',
     availability: true,
     available_days: daysOfWeek,
+    requires_serving_time: false,
+    serving_time_slots: standardTimeSlots,
   });
 
   const fetchMenu = async () => {
@@ -48,6 +51,8 @@ export const AdminMenu: React.FC = () => {
       price: '',
       availability: true,
       available_days: daysOfWeek,
+      requires_serving_time: false,
+      serving_time_slots: standardTimeSlots,
     });
     setModalOpen(true);
   };
@@ -62,6 +67,10 @@ export const AdminMenu: React.FC = () => {
       price: String(item.price),
       availability: item.availability,
       available_days: item.available_days || daysOfWeek,
+      requires_serving_time: item.requires_serving_time ?? (item.category === 'TEA / MILK'),
+      serving_time_slots: item.serving_time_slots && item.serving_time_slots.length > 0
+        ? item.serving_time_slots
+        : standardTimeSlots,
     });
     setModalOpen(true);
   };
@@ -152,7 +161,18 @@ export const AdminMenu: React.FC = () => {
                     <td className="px-4 py-3 font-mono font-bold text-gray-600">#{item.menu_id}</td>
                     <td className="px-4 py-3 font-bold text-gray-900">{item.item_name}</td>
                     <td className="px-4 py-3 font-semibold text-blue-700">
-                      {item.category === 'COMMON MENU' ? 'ALL MEALS (BREAKFAST / LUNCH / DINNER)' : item.category}
+                      <div>
+                        <span>{item.category === 'COMMON MENU' ? 'ALL MEALS (BREAKFAST / LUNCH / DINNER)' : item.category}</span>
+                        {(item.requires_serving_time || item.category === 'TEA / MILK') && (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {(item.serving_time_slots && item.serving_time_slots.length > 0 ? item.serving_time_slots : standardTimeSlots).map((slot) => (
+                              <span key={slot} className="inline-block text-[10px] font-mono bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-bold border border-amber-200">
+                                {slot}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-gray-700">{item.quantity}</td>
                     <td className="px-4 py-3 font-bold text-gray-900">₹{item.price}</td>
@@ -222,7 +242,14 @@ export const AdminMenu: React.FC = () => {
                   <label className="block font-semibold text-gray-700 mb-1">Category *</label>
                   <select
                     value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value as Category })}
+                    onChange={(e) => {
+                      const newCat = e.target.value as Category;
+                      setFormData({
+                        ...formData,
+                        category: newCat,
+                        requires_serving_time: newCat === 'TEA / MILK' ? true : formData.requires_serving_time,
+                      });
+                    }}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:ring-2 focus:ring-blue-500"
                   >
                     {categories.map((c) => (
@@ -281,6 +308,56 @@ export const AdminMenu: React.FC = () => {
                 <label htmlFor="availability" className="font-semibold text-gray-800">
                   Item Enabled (Available for Ordering)
                 </label>
+              </div>
+
+              {/* Requires Serving Time Config */}
+              <div className="p-3 bg-amber-50/80 rounded-xl border border-amber-200/80 space-y-2.5">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="requires_serving_time"
+                    checked={formData.requires_serving_time}
+                    onChange={(e) => setFormData({ ...formData, requires_serving_time: e.target.checked })}
+                    className="w-4 h-4 text-amber-600 rounded"
+                  />
+                  <label htmlFor="requires_serving_time" className="font-bold text-amber-950">
+                    Requires Serving Time (e.g., Tea, Coffee, Milk)
+                  </label>
+                </div>
+                {formData.requires_serving_time && (
+                  <div className="pt-1">
+                    <label className="block text-[11px] font-bold text-amber-900 mb-1.5">
+                      Available Serving Time Slots (Select enabled slots)
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {standardTimeSlots.map((slot) => {
+                        const checked = formData.serving_time_slots.includes(slot);
+                        return (
+                          <button
+                            type="button"
+                            key={slot}
+                            onClick={() => {
+                              setFormData((prev) => {
+                                const slots = [...prev.serving_time_slots];
+                                return {
+                                  ...prev,
+                                  serving_time_slots: checked ? slots.filter((s) => s !== slot) : [...slots, slot],
+                                };
+                              });
+                            }}
+                            className={`py-1.5 px-2 rounded-lg text-center border font-bold text-xs transition-all ${
+                              checked
+                                ? 'bg-amber-600 text-white border-amber-600 shadow-2xs'
+                                : 'bg-white text-slate-600 border-amber-200 hover:bg-amber-50'
+                            }`}
+                          >
+                            {slot} {checked ? '✓' : ''}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div>

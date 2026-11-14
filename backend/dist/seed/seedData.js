@@ -28,21 +28,25 @@ const seedDatabase = async () => {
                 // TEA / MILK
                 {
                     menu_id: 1,
-                    item_name: 'Tea / Milk',
+                    item_name: 'Tea',
                     category: 'TEA / MILK',
                     quantity: '100 ml',
                     price: 20,
                     availability: true,
                     available_days: allDays,
+                    requires_serving_time: true,
+                    serving_time_slots: ['7:00 AM', '11:00 AM', '4:00 PM', '7:00 PM'],
                 },
                 {
                     menu_id: 2,
-                    item_name: 'Coffee / Boost / Horlicks',
+                    item_name: 'Coffee',
                     category: 'TEA / MILK',
                     quantity: '100 ml',
                     price: 25,
                     availability: true,
                     available_days: allDays,
+                    requires_serving_time: true,
+                    serving_time_slots: ['7:00 AM', '11:00 AM', '4:00 PM', '7:00 PM'],
                 },
                 // BREAKFAST
                 {
@@ -291,6 +295,73 @@ const seedDatabase = async () => {
         }
         // Ensure common menu items in existing database are assigned category 'COMMON MENU'
         await MenuItem_1.MenuItem.updateMany({ item_name: { $in: ['Omlet', 'Omelet', 'Boiled Egg'] } }, { $set: { category: 'COMMON MENU' } });
+        const standardSlots = ['7:00 AM', '11:00 AM', '4:00 PM', '7:00 PM'];
+        // Update existing Tea record (avoiding duplicates)
+        await MenuItem_1.MenuItem.updateOne({
+            $or: [
+                { item_name: { $regex: /^Tea(\s*\/\s*Milk)?$/i } },
+                { menu_id: 1 },
+            ],
+        }, {
+            $set: {
+                item_name: 'Tea',
+                category: 'TEA / MILK',
+                requires_serving_time: true,
+                serving_time_slots: standardSlots,
+            },
+        });
+        // Update existing Coffee record (avoiding duplicates)
+        await MenuItem_1.MenuItem.updateOne({
+            $or: [
+                { item_name: { $regex: /^Coffee(\s*\/.*)?$/i } },
+                { menu_id: 2 },
+            ],
+        }, {
+            $set: {
+                item_name: 'Coffee',
+                category: 'TEA / MILK',
+                requires_serving_time: true,
+                serving_time_slots: standardSlots,
+            },
+        });
+        // Ensure Milk exists as its own record without duplicates
+        const existingMilk = await MenuItem_1.MenuItem.findOne({
+            $or: [
+                { item_name: { $regex: /^Milk$/i } },
+                { item_name: 'Milk' },
+            ],
+        });
+        if (!existingMilk) {
+            const highestItem = await MenuItem_1.MenuItem.findOne().sort({ menu_id: -1 });
+            const nextId = (highestItem?.menu_id || 28) + 1;
+            const allDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+            await MenuItem_1.MenuItem.create({
+                menu_id: nextId,
+                item_name: 'Milk',
+                category: 'TEA / MILK',
+                quantity: '100 ml',
+                price: 20,
+                availability: true,
+                available_days: allDays,
+                requires_serving_time: true,
+                serving_time_slots: standardSlots,
+            });
+            await Counter_1.Counter.findByIdAndUpdate('menu_id', { seq: nextId }, { upsert: true });
+            console.log('Created distinct Milk menu item with serving time slots.');
+        }
+        else {
+            existingMilk.category = 'TEA / MILK';
+            existingMilk.requires_serving_time = true;
+            existingMilk.serving_time_slots = standardSlots;
+            await existingMilk.save();
+        }
+        // Ensure all TEA / MILK items in the database have requires_serving_time and standardSlots
+        await MenuItem_1.MenuItem.updateMany({ category: 'TEA / MILK' }, {
+            $set: {
+                requires_serving_time: true,
+                serving_time_slots: standardSlots,
+            },
+        });
     }
     catch (error) {
         console.error('Error seeding database:', error);

@@ -222,7 +222,7 @@ export const getAdminDashboardStats = async (req: Request, res: Response) => {
 
     const teaCoffeeSlots = teaSlots.map((slot) => {
       const items = allMenuItems
-        .filter((m) => (m.category || '').trim().toUpperCase() === 'TEA / MILK')
+        .filter((m) => (m.category || '').trim().toUpperCase() === 'TEA / MILK' || m.requires_serving_time)
         .map((m) => {
           const byId = qtyBySlotAndMenuId.get(`${slot}::${m.menu_id}`) || 0;
           const byName = qtyBySlotAndName.get(`${slot}::${m.item_name.trim().toLowerCase()}`) || 0;
@@ -233,7 +233,8 @@ export const getAdminDashboardStats = async (req: Request, res: Response) => {
             total_quantity: Math.max(byId, byName),
             portion_size: m.quantity,
           };
-        });
+        })
+        .filter((it) => it.total_quantity > 0);
       const subtotal = items.reduce((sum, it) => sum + it.total_quantity, 0);
       return {
         serving_time: slot,

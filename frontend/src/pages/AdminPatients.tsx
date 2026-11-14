@@ -111,11 +111,18 @@ export const AdminPatients: React.FC = () => {
     e.preventDefault();
     if (!rechargingPatient) return;
     setRechargeError(null);
+
+    const parsedAmt = Number(rechargeAmount);
+    if (!rechargeAmount || isNaN(parsedAmt) || parsedAmt <= 0) {
+      setRechargeError('Please enter a valid amount greater than 0 (e.g. ₹1050, ₹1030, ₹125, ₹275).');
+      return;
+    }
+
     setRechargeLoading(true);
 
     try {
       await api.post(`/admin/patients/${rechargingPatient.patient_id}/recharge`, {
-        amount: Number(rechargeAmount),
+        amount: parsedAmt,
         action: adjustmentAction,
       });
       setRechargingPatient(null);
@@ -587,7 +594,7 @@ export const AdminPatients: React.FC = () => {
               </div>
             )}
 
-            <form onSubmit={handleRechargeSubmit} className="space-y-4">
+            <form onSubmit={handleRechargeSubmit} noValidate className="space-y-4">
               {/* Action Selector: Add or Deduct */}
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1.5">Adjustment Action</label>
