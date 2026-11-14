@@ -38,6 +38,8 @@ export const PatientDashboard: React.FC = () => {
       const billsRes = await api.get('/patient/bills');
       if (billsRes.data && billsRes.data.length > 0) {
         setLatestBill(billsRes.data[0]);
+      } else {
+        setLatestBill(null);
       }
     } catch (err) {
       console.error('Error loading patient dashboard data:', err);

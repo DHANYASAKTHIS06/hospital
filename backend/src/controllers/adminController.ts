@@ -319,6 +319,21 @@ export const deletePatient = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Patient record not found.' });
     }
 
+    // Cascade delete all associated orders, order items, and bills for clean patient lifecycle
+    const patientOrders = await FoodOrder.find({
+      $or: [{ patient_id: patient.patient_id }, { patient_id: formattedId }],
+    });
+    const orderIds = patientOrders.map((o) => o.order_id);
+    if (orderIds.length > 0) {
+      await OrderItem.deleteMany({ order_id: { $in: orderIds } });
+    }
+    await FoodOrder.deleteMany({
+      $or: [{ patient_id: patient.patient_id }, { patient_id: formattedId }],
+    });
+    await Bill.deleteMany({
+      $or: [{ patient_id: patient.patient_id }, { patient_id: formattedId }],
+    });
+
     await Patient.deleteOne({ _id: patient._id });
 
     return res.status(200).json({
@@ -734,6 +749,15 @@ export const createPatient = async (req: Request, res: Response) => {
     const password_hash = await bcrypt.hash(password, 10);
     const parsedAdvance = parseAdjustmentAmount(advance_balance);
     const initialAdvance = parsedAdvance !== null && parsedAdvance >= 0 ? Math.round(parsedAdvance * 100) / 100 : 0;
+
+    // Explicitly guarantee zero legacy/default bills or orders exist for this newly created patient
+    await Bill.deleteMany({ patient_id: finalPatientId });
+    const legacyOrders = await FoodOrder.find({ patient_id: finalPatientId });
+    if (legacyOrders.length > 0) {
+      const legOrderIds = legacyOrders.map((o) => o.order_id);
+      await OrderItem.deleteMany({ order_id: { $in: legOrderIds } });
+      await FoodOrder.deleteMany({ patient_id: finalPatientId });
+    }
 
     const newPatient = await Patient.create({
       patient_id: finalPatientId,
