@@ -1,5 +1,7 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import { LanguageToggle } from './LanguageToggle';
 import { NavLink, useNavigate } from 'react-router-dom';
 import {
   LogOut,
@@ -24,6 +26,7 @@ interface NavbarProps {
 
 export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu, isMobileMenuOpen }) => {
   const { user, logout } = useAuth();
+  const { t, language } = useLanguage();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -32,24 +35,24 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu, isMobileMenu
   };
 
   const patientNavLinks = [
-    { name: 'Dashboard', path: '/patient/dashboard', icon: LayoutDashboard },
-    { name: 'Menu', path: '/patient/menu', icon: Utensils },
-    { name: 'My Orders', path: '/patient/orders', icon: ShoppingBag },
-    { name: 'Food History', path: '/patient/food-history', icon: History },
-    { name: 'My Bills', path: '/patient/bills', icon: FileText },
-    { name: 'Payment Status', path: '/patient/payment-status', icon: CreditCard },
-    { name: 'Profile', path: '/patient/profile', icon: User },
+    { name: t('navDashboard'), path: '/patient/dashboard', icon: LayoutDashboard },
+    { name: t('navMenu'), path: '/patient/menu', icon: Utensils },
+    { name: t('navOrders'), path: '/patient/orders', icon: ShoppingBag },
+    { name: t('navFoodHistory'), path: '/patient/food-history', icon: History },
+    { name: t('navBills'), path: '/patient/bills', icon: FileText },
+    { name: t('navPaymentStatus'), path: '/patient/payment-status', icon: CreditCard },
+    { name: t('navProfile'), path: '/patient/profile', icon: User },
   ];
 
   const adminNavLinks = [
-    { name: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard },
-    { name: 'Orders', path: '/admin/orders', icon: ShoppingBag },
-    { name: 'Menu', path: '/admin/menu', icon: Utensils },
-    { name: 'Patients', path: '/admin/patients', icon: Users },
-    { name: 'Food Records', path: '/admin/food-records', icon: History },
-    { name: 'Bills', path: '/admin/bills', icon: FileText },
-    { name: 'Payments', path: '/admin/payments', icon: CreditCard },
-    { name: 'Room View', path: '/admin/room-view', icon: Home },
+    { name: t('navDashboard'), path: '/admin/dashboard', icon: LayoutDashboard },
+    { name: t('navOrders'), path: '/admin/orders', icon: ShoppingBag },
+    { name: t('navAdminMenu'), path: '/admin/menu', icon: Utensils },
+    { name: t('navPatients'), path: '/admin/patients', icon: Users },
+    { name: t('navFoodRecords'), path: '/admin/food-records', icon: History },
+    { name: t('navAdminBills'), path: '/admin/bills', icon: FileText },
+    { name: t('navAdminPayments'), path: '/admin/payments', icon: CreditCard },
+    { name: t('navRoomView'), path: '/admin/room-view', icon: Home },
   ];
 
   const navLinks = user?.role === 'ADMIN' ? adminNavLinks : patientNavLinks;
@@ -72,7 +75,7 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu, isMobileMenu
               ) : (
                 <Menu className="w-5 h-5 text-slate-900" />
               )}
-              <span className="text-xs font-bold text-slate-900 tracking-wide">Menu</span>
+              <span className="text-xs font-bold text-slate-900 tracking-wide">{t('navMenu')}</span>
             </button>
           )}
 
@@ -87,45 +90,53 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu, isMobileMenu
             />
             <div>
               <h1 className="text-xs sm:text-base font-black text-slate-900 leading-tight tracking-tight uppercase">
-                PROCARE CANTEEN
+                {t('appName')}
               </h1>
               <p className="text-[9px] sm:text-[10px] text-procare-800 font-bold uppercase tracking-wide">
-                Physiotherapy & Rehabilitation Centre
+                {t('clinicName')}
               </p>
             </div>
           </div>
         </div>
 
-        {user && (
-          <div className="flex items-center space-x-1.5 sm:space-x-3">
-            {/* User Badge / Info */}
-            <div className="flex items-center space-x-1.5 sm:space-x-2 bg-procare-50 px-2.5 py-1.5 rounded-xl border border-procare-200/80 max-w-[120px] xs:max-w-[160px] sm:max-w-xs">
-              <div className="w-6 h-6 rounded-full bg-celadon text-procare-900 flex items-center justify-center shrink-0 font-bold">
-                <UserIcon className="w-3.5 h-3.5 text-procare-950" />
-              </div>
-              <div className="text-[11px] sm:text-xs truncate">
-                <span className="font-extrabold text-procare-950 truncate block">
-                  {user.role === 'ADMIN' ? 'Admin' : user.name || user.patient_id}
-                </span>
-                {user.role === 'PATIENT' && (
-                  <span className="text-[9px] sm:text-[10px] text-procare-800 font-semibold hidden sm:inline">
-                    Rm #{user.room_number || 'N/A'}
-                  </span>
-                )}
-              </div>
-            </div>
-
-            {/* Logout Button */}
-            <button
-              onClick={handleLogout}
-              className="inline-flex items-center space-x-1 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200/80 px-2.5 sm:px-3 py-1.5 rounded-xl transition-colors shrink-0 cursor-pointer"
-              title="Logout"
-            >
-              <LogOut className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Logout</span>
-            </button>
+        {/* Right side controls: Language Toggle, User Badge, Logout */}
+        <div className="flex items-center space-x-1.5 sm:space-x-2.5">
+          {/* Language Toggle in Header */}
+          <div className="shrink-0">
+            <LanguageToggle />
           </div>
-        )}
+
+          {user && (
+            <>
+              {/* User Badge / Info */}
+              <div className="flex items-center space-x-1.5 sm:space-x-2 bg-procare-50 px-2 sm:px-2.5 py-1 sm:py-1.5 rounded-xl border border-procare-200/80 max-w-[100px] xs:max-w-[140px] sm:max-w-xs">
+                <div className="w-6 h-6 rounded-full bg-celadon text-procare-900 flex items-center justify-center shrink-0 font-bold">
+                  <UserIcon className="w-3.5 h-3.5 text-procare-950" />
+                </div>
+                <div className="text-[11px] sm:text-xs truncate">
+                  <span className="font-extrabold text-procare-950 truncate block">
+                    {user.role === 'ADMIN' ? (language === 'ta' ? 'நிர்வாகி' : 'Admin') : user.name || user.patient_id}
+                  </span>
+                  {user.role === 'PATIENT' && (
+                    <span className="text-[9px] sm:text-[10px] text-procare-800 font-semibold hidden sm:inline">
+                      {t('roomNo')} #{user.room_number || 'N/A'}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Logout Button */}
+              <button
+                onClick={handleLogout}
+                className="inline-flex items-center space-x-1 text-xs font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200/80 px-2 sm:px-3 py-1.5 rounded-xl transition-colors shrink-0 cursor-pointer"
+                title={t('logout')}
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">{t('logout')}</span>
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Top Header Navigation Tabs for logged in users */}
@@ -139,10 +150,10 @@ export const Navbar: React.FC<NavbarProps> = ({ onToggleMobileMenu, isMobileMenu
                   key={link.path}
                   to={link.path}
                   className={({ isActive }) =>
-                    `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-extrabold transition-all whitespace-nowrap ${
+                    `px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center space-x-1.5 shrink-0 ${
                       isActive
-                        ? 'bg-celadon text-slate-950 shadow-xs ring-1 ring-procare-400'
-                        : 'text-slate-600 hover:text-slate-900 hover:bg-white/80'
+                        ? 'bg-emerald-700 text-white shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900 hover:bg-slate-200/60'
                     }`
                   }
                 >

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
+import { useLanguage } from '../context/LanguageContext';
 import { FoodOrder, FoodItemToPrepare } from '../types';
 import {
   Printer,
@@ -13,7 +14,6 @@ import {
   Utensils,
   Moon,
   Cookie,
-  CheckSquare,
   RefreshCw,
 } from 'lucide-react';
 
@@ -55,6 +55,9 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
 }) => {
   const [kitchenReportData, setKitchenReportData] = useState<any>(null);
   const [loadingReport, setLoadingReport] = useState<boolean>(false);
+  const { t, language, translateFood, translateSlot } = useLanguage();
+
+  const isTa = language === 'ta';
 
   // Fetch direct database-calculated kitchen report whenever modal is opened for items to prepare
   const fetchKitchenReportData = async () => {
@@ -90,7 +93,7 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
   if (!isOpen) return null;
 
   const now = new Date();
-  const dateFormatted = now.toLocaleDateString('en-GB', {
+  const dateFormatted = now.toLocaleDateString(isTa ? 'ta-IN' : 'en-GB', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
@@ -113,13 +116,13 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
   // ----------------------------------------------------
   const roomMap = new Map<string, Array<{ order: FoodOrder; patient_name: string; patient_id: string }>>();
   validActiveOrders.forEach((order) => {
-    const room = order.room_number || 'Unassigned';
+    const room = order.room_number || (isTa ? 'அறை ஒதுக்கப்படவில்லை' : 'Unassigned');
     if (!roomMap.has(room)) {
       roomMap.set(room, []);
     }
     roomMap.get(room)!.push({
       order,
-      patient_name: order.patient_name || 'Patient',
+      patient_name: order.patient_name || (isTa ? 'நோயாளி' : 'Patient'),
       patient_id: order.patient_id,
     });
   });
@@ -142,11 +145,46 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
     desc: string;
     icon: React.ComponentType<{ className?: string }>;
   }> = [
-    { key: 'TEA / MILK', title: 'Tea / Milk and Coffee Preparation', desc: 'Hot Beverages & Milk Service – Separated by 7:00 AM, 11:00 AM, 4:00 PM and 7:00 PM', icon: Coffee },
-    { key: 'BREAKFAST', title: 'Breakfast Preparation', desc: 'Morning Meal Preparation (Includes Common Menu items ordered for Breakfast)', icon: Sun },
-    { key: 'LUNCH', title: 'Lunch Preparation', desc: 'Afternoon Meal Preparation (Includes Common Menu items ordered for Lunch)', icon: Utensils },
-    { key: 'DINNER', title: 'Dinner Preparation', desc: 'Night Meal Preparation (Includes Common Menu items ordered for Dinner)', icon: Moon },
-    { key: 'SNACKS', title: 'Snacks Preparation', desc: 'Evening Snacks & Light Refreshments', icon: Cookie },
+    {
+      key: 'TEA / MILK',
+      title: isTa ? 'தேநீர் / பால் மற்றும் காபி தயாரிப்பு' : 'Tea / Milk and Coffee Preparation',
+      desc: isTa
+        ? 'சூடான பானங்கள் & பால் சேவை – காலை 7:00, முற்பகல் 11:00, மாலை 4:00 மற்றும் இரவு 7:00 என பிரிக்கப்பட்டுள்ளது'
+        : 'Hot Beverages & Milk Service – Separated by 7:00 AM, 11:00 AM, 4:00 PM and 7:00 PM',
+      icon: Coffee,
+    },
+    {
+      key: 'BREAKFAST',
+      title: isTa ? 'காலை உணவு தயாரிப்பு' : 'Breakfast Preparation',
+      desc: isTa
+        ? 'காலை உணவு தயாரிப்பு (காலை உணவிற்கான பொது மெனு உருப்படிகள் உட்பட)'
+        : 'Morning Meal Preparation (Includes Common Menu items ordered for Breakfast)',
+      icon: Sun,
+    },
+    {
+      key: 'LUNCH',
+      title: isTa ? 'மதிய உணவு தயாரிப்பு' : 'Lunch Preparation',
+      desc: isTa
+        ? 'மதிய உணவு தயாரிப்பு (மதிய உணவிற்கான பொது மெனு உருப்படிகள் உட்பட)'
+        : 'Afternoon Meal Preparation (Includes Common Menu items ordered for Lunch)',
+      icon: Utensils,
+    },
+    {
+      key: 'DINNER',
+      title: isTa ? 'இரவு உணவு தயாரிப்பு' : 'Dinner Preparation',
+      desc: isTa
+        ? 'இரவு உணவு தயாரிப்பு (இரவு உணவிற்கான பொது மெனு உருப்படிகள் உட்பட)'
+        : 'Night Meal Preparation (Includes Common Menu items ordered for Dinner)',
+      icon: Moon,
+    },
+    {
+      key: 'SNACKS',
+      title: isTa ? 'சிற்றுண்டி தயாரிப்பு' : 'Snacks Preparation',
+      desc: isTa
+        ? 'மாலை சிற்றுண்டிகள் மற்றும் இலகுவான உணவுகள்'
+        : 'Evening Snacks & Light Refreshments',
+      icon: Cookie,
+    },
   ];
 
   const normalizeSlot = (rawSlot?: string): string => {
@@ -185,7 +223,7 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
     itemMetaMap.set(key, { portion_size: portionSize, unit, menu_id: f.menu_id });
   });
 
-  // Calculate local aggregation from active orders (ensures 100% sync and offline availability)
+  // Calculate local aggregation from active orders
   const localPrepMap = new Map<string, KitchenItem>();
   const localTeaSlotMap = new Map<string, {
     menu_id: number;
@@ -357,11 +395,17 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
             <div>
               <h2 className="text-base font-bold text-white">
                 {reportType === 'ROOM_WISE'
-                  ? 'Room-Wise Patient Order Report'
+                  ? isTa
+                    ? 'அறை வாரியான நோயாளி ஆர்டர் அறிக்கை'
+                    : 'Room-Wise Patient Order Report'
+                  : isTa
+                  ? 'சமையல் துறை – சமையலறை தயாரிப்பு அறிக்கை'
                   : 'Cooking Department – Kitchen Preparation Report'}
               </h2>
               <p className="text-xs text-procare-200">
-                Print-ready A4 Sheet • Generated on {dateFormatted} at {timeFormatted}
+                {isTa
+                  ? `A4 அறிக்கை • உருவாக்கப்பட்ட நேரம்: ${dateFormatted} அன்று ${timeFormatted}`
+                  : `Print-ready A4 Sheet • Generated on ${dateFormatted} at ${timeFormatted}`}
               </p>
             </div>
           </div>
@@ -375,7 +419,7 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                 title="Refresh Kitchen Report Data"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${loadingReport ? 'animate-spin' : ''}`} />
-                <span className="hidden sm:inline">Refresh</span>
+                <span className="hidden sm:inline">{isTa ? 'புதுப்பி' : 'Refresh'}</span>
               </button>
             )}
 
@@ -384,11 +428,11 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
               className="bg-celadon hover:bg-procare-400 text-slate-950 font-black text-xs px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer"
             >
               <Printer className="w-4 h-4" />
-              <span>PRINT REPORT (A4)</span>
+              <span>{isTa ? 'அறிக்கையை அச்சிடுக (A4)' : 'PRINT REPORT (A4)'}</span>
             </button>
             <button
               onClick={onClose}
-              className="text-slate-300 hover:text-white p-2 rounded-lg hover:bg-procare-800 transition-colors"
+              className="text-slate-300 hover:text-white p-2 rounded-lg hover:bg-procare-800 transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>
@@ -404,6 +448,7 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
               }
               #printable-report-area, #printable-report-area * {
                 visibility: visible !important;
+                font-family: 'Noto Sans Tamil', 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
               }
               #printable-report-area {
                 position: absolute !important;
@@ -435,10 +480,12 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                 />
                 <div>
                   <h1 className="text-base sm:text-lg font-black text-slate-900 tracking-tight uppercase">
-                    PROCARE PHYSIOTHERAPY & REHABILITATION CENTRE
+                    {t('appName')} • {t('clinicName')}
                   </h1>
                   <p className="text-xs text-procare-800 font-extrabold tracking-wide uppercase">
-                    Canteen Management System • Department of Dietary & Kitchen Services
+                    {isTa
+                      ? 'கேன்டீன் மேலாண்மை அமைப்பு • உணவு மற்றும் சமையலறை சேவைத் துறை'
+                      : 'Canteen Management System • Department of Dietary & Kitchen Services'}
                   </p>
                 </div>
               </div>
@@ -457,12 +504,20 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
             <div className="mt-2.5 pt-2.5 border-t border-slate-200 flex justify-between items-center">
               <span className="text-xs font-black text-procare-950 uppercase bg-procare-100 px-3 py-1 rounded-md border border-procare-300">
                 {reportType === 'ROOM_WISE'
-                  ? '📋 ROOM-WISE ACTIVE PATIENT ORDER REPORT'
+                  ? isTa
+                    ? '📋 அறை வாரியான நேரலை நோயாளி ஆர்டர் அறிக்கை'
+                    : '📋 ROOM-WISE ACTIVE PATIENT ORDER REPORT'
+                  : isTa
+                  ? '👨‍🍳 சமையலறை தயாரிப்பு மற்றும் சமையல் மொத்த அறிக்கை'
                   : '👨‍🍳 KITCHEN COOKING & PREPARATION AGGREGATE REPORT'}
               </span>
               <span className="text-xs text-slate-700 font-extrabold font-mono">
                 {reportType === 'ROOM_WISE'
-                  ? `Active Rooms: ${sortedRooms.length} | Orders: ${validActiveOrders.length}`
+                  ? isTa
+                    ? `செயலில் உள்ள அறைகள்: ${sortedRooms.length} | ஆர்டர்கள்: ${validActiveOrders.length}`
+                    : `Active Rooms: ${sortedRooms.length} | Orders: ${validActiveOrders.length}`
+                  : isTa
+                  ? `சமைக்க வேண்டிய மொத்த அளவு: ${overallTotalPortions} | உணவுகள்: ${overallDistinctDishes}`
                   : `Total Portions to Cook: ${overallTotalPortions} Nos | Total Dishes: ${overallDistinctDishes}`}
               </span>
             </div>
@@ -473,7 +528,7 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
             <div>
               {sortedRooms.length === 0 ? (
                 <div className="text-center py-12 text-slate-500 text-sm font-semibold border-2 border-dashed border-slate-200 rounded-xl">
-                  No active orders currently awaiting delivery.
+                  {isTa ? 'டெலிவரிக்காக காத்திருக்கும் செயலில் உள்ள ஆர்டர்கள் எதுவும் இல்லை.' : 'No active orders currently awaiting delivery.'}
                 </div>
               ) : (
                 <div className="space-y-6">
@@ -487,10 +542,10 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                         <div className="bg-slate-900 text-white px-4 py-2 flex justify-between items-center">
                           <div className="flex items-center space-x-2">
                             <span className="bg-blue-600 text-white text-xs font-black px-2.5 py-0.5 rounded-md">
-                              ROOM #{roomNum}
+                              {isTa ? 'அறை' : 'ROOM'} #{roomNum}
                             </span>
                             <span className="text-xs font-semibold text-slate-300">
-                              ({roomEntries.length} {roomEntries.length === 1 ? 'Patient Order' : 'Patient Orders'})
+                              ({roomEntries.length} {isTa ? 'நோயாளி ஆர்டர்கள்' : roomEntries.length === 1 ? 'Patient Order' : 'Patient Orders'})
                             </span>
                           </div>
                         </div>
@@ -504,7 +559,7 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                                     {patient_name}
                                   </span>
                                   <span className="text-slate-500 font-semibold ml-2">
-                                    (ID: {patient_id})
+                                    ({isTa ? 'அடையாள எண்' : 'ID'}: {patient_id})
                                   </span>
                                 </div>
                                 <div className="text-right">
@@ -518,17 +573,17 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                               <table className="w-full text-xs border border-slate-200 rounded-lg overflow-hidden">
                                 <thead>
                                   <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 text-left text-[11px]">
-                                    <th className="p-1.5 border-r border-slate-200">Food Item</th>
-                                    <th className="p-1.5 text-center border-r border-slate-200 w-16">Qty</th>
-                                    <th className="p-1.5 text-right border-r border-slate-200 w-20">Unit Price</th>
-                                    <th className="p-1.5 text-right w-24">Subtotal</th>
+                                    <th className="p-1.5 border-r border-slate-200">{isTa ? 'உணவு' : 'Food Item'}</th>
+                                    <th className="p-1.5 text-center border-r border-slate-200 w-16">{isTa ? 'அளவு' : 'Qty'}</th>
+                                    <th className="p-1.5 text-right border-r border-slate-200 w-20">{isTa ? 'விலை' : 'Unit Price'}</th>
+                                    <th className="p-1.5 text-right w-24">{isTa ? 'தொகை' : 'Subtotal'}</th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-200 font-medium text-slate-800">
                                   {order.items?.map((item) => (
                                     <tr key={item._id} className="hover:bg-slate-50">
                                       <td className="p-1.5 border-r border-slate-200 font-semibold">
-                                        {item.item_name_snapshot}
+                                        {translateFood(item.item_name_snapshot)}
                                       </td>
                                       <td className="p-1.5 text-center border-r border-slate-200 font-bold bg-slate-50">
                                         {item.quantity}
@@ -543,7 +598,7 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                                 <tfoot>
                                   <tr className="bg-slate-50 text-slate-900 font-bold text-xs border-t border-slate-200">
                                     <td colSpan={3} className="p-1.5 text-right border-r border-slate-200">
-                                      Order Total:
+                                      {isTa ? 'ஆர்டர் மொத்தம்:' : 'Order Total:'}
                                     </td>
                                     <td className="p-1.5 text-right font-black text-blue-800">
                                       ₹{order.total_amount}
@@ -562,41 +617,19 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
             </div>
           )}
 
-          {/* REPORT 2: KITCHEN REPORT (5 Separate Meal Sections) */}
+          {/* REPORT 2: KITCHEN PREPARATION REPORT */}
           {reportType === 'ITEMS_TO_PREPARE' && (
-            <div className="space-y-4">
-              {/* Top Overview Box */}
-              <div className="p-3.5 bg-procare-50 border-2 border-procare-200 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 text-xs text-procare-950 font-bold">
-                <div>
-                  <span className="text-sm font-black uppercase text-procare-900 flex items-center gap-1.5">
-                    <ChefHat className="w-4 h-4 text-emerald-700" />
-                    DAILY COOKING & PREPARATION LIST BY MEAL SESSIONS
-                  </span>
-                  <p className="text-[11px] text-procare-800 font-medium mt-0.5">
-                    Aggregated across all valid active orders. Common Menu items are classified automatically under their corresponding meal sessions.
-                  </p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-black text-procare-950 bg-white px-3 py-1.5 rounded-lg border border-procare-300 font-mono shadow-2xs">
-                    ACTIVE ORDERS: {validActiveOrders.length}
-                  </span>
-                  <span className="text-xs font-black text-emerald-950 bg-emerald-100 px-3 py-1.5 rounded-lg border border-emerald-300 font-mono shadow-2xs">
-                    TOTAL PORTIONS: {overallTotalPortions} Nos
-                  </span>
-                </div>
-              </div>
-
-              {/* 5 Distinct Meal Category Sections */}
+            <div className="space-y-6">
               <div className="space-y-4">
                 {kitchenSections.map((sec, secIdx) => {
-                  const IconComp = sec.icon || ChefHat;
+                  const IconComp = sec.icon;
                   return (
                     <div
                       key={sec.category}
-                      className="border-2 border-slate-900 rounded-xl overflow-hidden shadow-2xs page-break-inside-avoid bg-white"
+                      className="border border-slate-300 rounded-xl overflow-hidden page-break-inside-avoid shadow-xs bg-white"
                     >
                       {/* Section Header */}
-                      <div className="bg-slate-900 text-white px-4 py-2 flex justify-between items-center">
+                      <div className="bg-slate-900 text-white px-4 py-2.5 flex justify-between items-center">
                         <div className="flex items-center gap-2.5">
                           <span className="p-1 bg-emerald-600 text-white rounded-md">
                             <IconComp className="w-3.5 h-3.5" />
@@ -612,10 +645,10 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                         </div>
                         <div className="flex items-center gap-2">
                           <span className="text-[10px] font-bold bg-slate-800 text-slate-200 px-2 py-0.5 rounded border border-slate-700">
-                            {sec.items.length} {sec.items.length === 1 ? 'Dish' : 'Dishes'}
+                            {sec.items.length} {isTa ? 'உணவுகள்' : sec.items.length === 1 ? 'Dish' : 'Dishes'}
                           </span>
                           <span className="text-xs font-black bg-emerald-600 text-white px-2.5 py-0.5 rounded font-mono">
-                            Total: {sec.subtotal} Nos
+                            {isTa ? 'மொத்தம்:' : 'Total:'} {sec.subtotal} {isTa ? 'எண்ணிக்கை' : 'Nos'}
                           </span>
                         </div>
                       </div>
@@ -630,29 +663,31 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                                 <div className="bg-amber-100/90 px-4 py-1.5 flex justify-between items-center border-b border-amber-200">
                                   <span className="text-xs font-black text-amber-950 flex items-center gap-1.5 uppercase tracking-wide">
                                     <Clock className="w-3.5 h-3.5 text-amber-800" />
-                                    Serving Time: {slotGroup.serving_time}
+                                    {isTa ? 'வழங்கும் நேரம்:' : 'Serving Time:'} {translateSlot(slotGroup.serving_time)}
                                   </span>
                                   <span className="text-[11px] font-black bg-amber-200/80 text-amber-950 px-2.5 py-0.5 rounded font-mono border border-amber-300">
-                                    Slot Subtotal: {slotGroup.subtotal} Nos
+                                    {isTa ? 'பிரிவு மொத்தம்:' : 'Slot Subtotal:'} {slotGroup.subtotal} {isTa ? 'எண்ணிக்கை' : 'Nos'}
                                   </span>
                                 </div>
 
                                 {slotItems.length === 0 ? (
                                   <div className="py-2 px-4 text-center text-[11px] font-semibold text-slate-400 bg-slate-50 italic">
-                                    No Tea / Coffee orders scheduled for {slotGroup.serving_time} (0 required)
+                                    {isTa
+                                      ? `${translateSlot(slotGroup.serving_time)} நேரத்திற்கு தேநீர் / காபி ஆர்டர்கள் எதுவும் இல்லை (0 தேவை)`
+                                      : `No Tea / Coffee orders scheduled for ${slotGroup.serving_time} (0 required)`}
                                   </div>
                                 ) : (
                                   <table className="w-full text-xs text-left border-collapse">
                                     <thead>
                                       <tr className="bg-slate-100 text-slate-800 font-bold border-b border-slate-300 text-[10px] uppercase">
-                                        <th className="p-2 w-28 border-r border-slate-200">Serving Time</th>
-                                        <th className="p-2 border-r border-slate-200">Food Item</th>
-                                        <th className="p-2 border-r border-slate-200 w-32">Portion Size</th>
+                                        <th className="p-2 w-28 border-r border-slate-200">{isTa ? 'வழங்கும் நேரம்' : 'Serving Time'}</th>
+                                        <th className="p-2 border-r border-slate-200">{isTa ? 'உணவு' : 'Food Item'}</th>
+                                        <th className="p-2 border-r border-slate-200 w-32">{isTa ? 'அளவு' : 'Portion Size'}</th>
                                         <th className="p-2 text-center bg-emerald-100/70 text-emerald-950 font-black w-36 border-r border-slate-200">
-                                          Total Required
+                                          {isTa ? 'தேவைப்படும் மொத்த அளவு' : 'Total Required'}
                                         </th>
                                         <th className="p-2 text-center w-28 bg-slate-100 text-slate-700 font-bold">
-                                          Kitchen Status
+                                          {isTa ? 'சமையலறை நிலை' : 'Kitchen Status'}
                                         </th>
                                       </tr>
                                     </thead>
@@ -660,21 +695,21 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                                       {slotItems.map((it: any, itIdx: number) => (
                                         <tr key={`${slotGroup.serving_time}-${it.item_name}`} className={itIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/70'}>
                                           <td className="p-2 border-r border-slate-200 font-black text-amber-900 font-mono text-xs">
-                                            {slotGroup.serving_time}
+                                            {translateSlot(slotGroup.serving_time)}
                                           </td>
                                           <td className="p-2 border-r border-slate-200 font-extrabold text-xs text-slate-900">
-                                            {it.item_name}
+                                            {translateFood(it.item_name)}
                                           </td>
                                           <td className="p-2 border-r border-slate-200 text-slate-600 font-medium text-[11px]">
                                             {it.portion_size || '100 ml'}
                                           </td>
                                           <td className="p-2 text-center font-black text-sm font-mono bg-emerald-50 text-emerald-950 border-r border-slate-200">
-                                            {it.total_quantity} Nos
+                                            {it.total_quantity} {isTa ? 'எண்ணிக்கை' : 'Nos'}
                                           </td>
                                           <td className="p-2 text-center">
                                             <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 border border-slate-300 rounded px-2 py-0.5 bg-white">
                                               <span className="inline-block w-3 h-3 border border-slate-400 rounded-xs"></span>
-                                              <span>Ready</span>
+                                              <span>{isTa ? 'தயார்' : 'Ready'}</span>
                                             </span>
                                           </td>
                                         </tr>
@@ -689,29 +724,33 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                           {/* Section 1 Total */}
                           <div className="bg-slate-100 p-2.5 px-4 flex justify-between items-center text-xs font-black text-slate-900 border-t-2 border-slate-300">
                             <span className="uppercase tracking-wider">
-                              Tea / Milk & Coffee Overall Subtotal Required:
+                              {isTa
+                                ? 'தேநீர் / பால் & காபி ஒட்டுமொத்த தேவைப்படும் அளவு:'
+                                : 'Tea / Milk & Coffee Overall Subtotal Required:'}
                             </span>
                             <span className="text-sm font-black font-mono bg-emerald-100 text-emerald-950 px-3 py-1 rounded-lg border border-emerald-300">
-                              {sec.subtotal} Nos
+                              {sec.subtotal} {isTa ? 'எண்ணிக்கை' : 'Nos'}
                             </span>
                           </div>
                         </div>
                       ) : sec.items.length === 0 ? (
                         <div className="py-3 px-4 text-center text-xs font-semibold text-slate-400 bg-slate-50">
-                          No items ordered for {sec.title} session (0 portions required)
+                          {isTa
+                            ? `${sec.title} அமர்வுக்கு ஆர்டர் எதுவும் இல்லை (0 தேவை)`
+                            : `No items ordered for ${sec.title} session (0 portions required)`}
                         </div>
                       ) : (
                         <table className="w-full text-xs text-left border-collapse">
                           <thead>
                             <tr className="bg-slate-100 text-slate-800 font-bold border-b border-slate-300 text-[11px] uppercase">
                               <th className="p-2 w-10 text-center border-r border-slate-200">#</th>
-                              <th className="p-2 border-r border-slate-200">Food Item Name</th>
-                              <th className="p-2 border-r border-slate-200 w-36">Portion / Unit Size</th>
+                              <th className="p-2 border-r border-slate-200">{isTa ? 'உணவுப் பெயர்' : 'Food Item Name'}</th>
+                              <th className="p-2 border-r border-slate-200 w-36">{isTa ? 'அளவு' : 'Portion / Unit Size'}</th>
                               <th className="p-2 text-center bg-emerald-100/70 text-emerald-950 font-black w-36 border-r border-slate-200">
-                                Total Required
+                                {isTa ? 'தேவைப்படும் மொத்த அளவு' : 'Total Required'}
                               </th>
                               <th className="p-2 text-center w-28 bg-slate-100 text-slate-700 font-bold">
-                                Kitchen Status
+                                {isTa ? 'சமையலறை நிலை' : 'Kitchen Status'}
                               </th>
                             </tr>
                           </thead>
@@ -722,18 +761,18 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                                   {itIdx + 1}
                                 </td>
                                 <td className="p-2 border-r border-slate-200 font-extrabold text-xs text-slate-900">
-                                  <span>{it.item_name}</span>
+                                  <span>{translateFood(it.item_name)}</span>
                                 </td>
                                 <td className="p-2 border-r border-slate-200 text-slate-600 font-medium text-[11px]">
                                   {it.portion_size}
                                 </td>
                                 <td className="p-2 text-center font-black text-sm font-mono bg-emerald-50 text-emerald-950 border-r border-slate-200">
-                                  {it.total_quantity} Nos
+                                  {it.total_quantity} {isTa ? 'எண்ணிக்கை' : 'Nos'}
                                 </td>
                                 <td className="p-2 text-center">
                                   <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 border border-slate-300 rounded px-2 py-0.5 bg-white">
                                     <span className="inline-block w-3 h-3 border border-slate-400 rounded-xs"></span>
-                                    <span>Ready</span>
+                                    <span>{isTa ? 'தயார்' : 'Ready'}</span>
                                   </span>
                                 </td>
                               </tr>
@@ -742,13 +781,13 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                           <tfoot>
                             <tr className="bg-slate-100 text-slate-900 font-bold text-xs border-t-2 border-slate-300">
                               <td colSpan={3} className="p-2 text-right uppercase tracking-wider border-r border-slate-200">
-                                {sec.title} Subtotal Required:
+                                {sec.title} {isTa ? 'தேவைப்படும் மொத்த அளவு:' : 'Subtotal Required:'}
                               </td>
                               <td className="p-2 text-center font-black text-xs font-mono bg-emerald-100 text-emerald-950 border-r border-slate-200">
-                                {sec.subtotal} Nos
+                                {sec.subtotal} {isTa ? 'எண்ணிக்கை' : 'Nos'}
                               </td>
                               <td className="p-2 text-center text-[10px] text-slate-500 font-semibold">
-                                {sec.items.length} items
+                                {sec.items.length} {isTa ? 'உணவுகள்' : 'items'}
                               </td>
                             </tr>
                           </tfoot>
@@ -764,16 +803,20 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 border-b border-slate-300">
                   <div>
                     <h4 className="text-xs font-black uppercase text-slate-900 tracking-wider">
-                      Overall Cooking & Preparation Summary
+                      {isTa ? 'ஒட்டுமொத்த சமையல் & தயாரிப்பு சுருக்கம்' : 'Overall Cooking & Preparation Summary'}
                     </h4>
                     <p className="text-[11px] text-slate-600 font-medium">
-                      Calculated from valid active patient orders. Excludes cancelled, pending, cleared, and delivered orders.
+                      {isTa
+                        ? 'செல்லுபடியாகும் நேரலை ஆர்டர்களில் இருந்து கணக்கிடப்பட்டது. ரத்து செய்யப்பட்ட மற்றும் டெலிவரி செய்யப்பட்ட ஆர்டர்கள் தவிர்க்கப்பட்டுள்ளன.'
+                        : 'Calculated from valid active patient orders. Excludes cancelled, pending, cleared, and delivered orders.'}
                     </p>
                   </div>
                   <div className="text-right">
-                    <span className="text-xs font-extrabold uppercase text-slate-600 mr-2">Grand Total Portions:</span>
+                    <span className="text-xs font-extrabold uppercase text-slate-600 mr-2">
+                      {isTa ? 'மொத்த அளவுகள்:' : 'Grand Total Portions:'}
+                    </span>
                     <span className="text-base font-black bg-emerald-700 text-white px-3 py-1 rounded-lg font-mono">
-                      {overallTotalPortions} Nos
+                      {overallTotalPortions} {isTa ? 'எண்ணிக்கை' : 'Nos'}
                     </span>
                   </div>
                 </div>
@@ -783,8 +826,8 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                   {kitchenSections.map((s) => (
                     <div key={s.category} className="bg-white p-2 rounded-lg border border-slate-200 text-center">
                       <span className="block text-[10px] font-bold text-slate-500 uppercase">{s.title}</span>
-                      <span className="block text-sm font-black text-slate-900 font-mono mt-0.5">{s.subtotal} Nos</span>
-                      <span className="block text-[10px] text-slate-400 font-medium">{s.items.length} items</span>
+                      <span className="block text-sm font-black text-slate-900 font-mono mt-0.5">{s.subtotal} {isTa ? 'எண்ணிக்கை' : 'Nos'}</span>
+                      <span className="block text-[10px] text-slate-400 font-medium">{s.items.length} {isTa ? 'உணவுகள்' : 'items'}</span>
                     </div>
                   ))}
                 </div>
@@ -792,17 +835,25 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                 {/* Signatures */}
                 <div className="pt-6 mt-2 border-t border-slate-300 text-xs text-slate-700 flex justify-between items-end">
                   <div>
-                    <p className="font-extrabold text-slate-900">Report Generated: {dateFormatted} at {timeFormatted}</p>
-                    <p className="text-[11px] text-slate-500">Hospital Canteen Management System • ProCare Dietary Services</p>
+                    <p className="font-extrabold text-slate-900">
+                      {isTa ? 'அறிக்கை உருவாக்கப்பட்ட நேரம்:' : 'Report Generated:'} {dateFormatted} {isTa ? 'அன்று' : 'at'} {timeFormatted}
+                    </p>
+                    <p className="text-[11px] text-slate-500">
+                      {t('appName')} • {t('clinicName')}
+                    </p>
                   </div>
                   <div className="flex gap-8 text-center">
                     <div>
                       <div className="w-40 border-b border-slate-400 mb-1"></div>
-                      <p className="font-bold text-slate-700 text-[11px]">Dietary / Canteen Admin</p>
+                      <p className="font-bold text-slate-700 text-[11px]">
+                        {isTa ? 'உணவுக்கட்டுப்பாடு / கேன்டீன் நிர்வாகி' : 'Dietary / Canteen Admin'}
+                      </p>
                     </div>
                     <div>
                       <div className="w-40 border-b border-slate-400 mb-1"></div>
-                      <p className="font-bold text-slate-700 text-[11px]">Kitchen Supervisor / Chef</p>
+                      <p className="font-bold text-slate-700 text-[11px]">
+                        {isTa ? 'சமையலறை மேற்பார்வையாளர் / செஃப்' : 'Kitchen Supervisor / Chef'}
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -814,12 +865,18 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
           {reportType === 'ROOM_WISE' && (
             <div className="mt-8 pt-4 border-t border-slate-300 text-xs text-slate-600 flex justify-between items-end page-break-inside-avoid">
               <div>
-                <p className="font-bold text-slate-800">Generated By: Canteen Admin System</p>
-                <p className="text-[11px] text-slate-500">Hospital Canteen Management Portal</p>
+                <p className="font-bold text-slate-800">
+                  {isTa ? 'உருவாக்கியவர்: கேன்டீன் நிர்வாக அமைப்பு' : 'Generated By: Canteen Admin System'}
+                </p>
+                <p className="text-[11px] text-slate-500">
+                  {t('appName')} • {t('clinicName')}
+                </p>
               </div>
               <div className="text-center">
                 <div className="w-44 border-b border-slate-400 mb-1"></div>
-                <p className="font-bold text-slate-700">Delivery Supervisor Signature</p>
+                <p className="font-bold text-slate-700">
+                  {isTa ? 'டெலிவரி மேற்பார்வையாளர் கையொப்பம்' : 'Delivery Supervisor Signature'}
+                </p>
               </div>
             </div>
           )}

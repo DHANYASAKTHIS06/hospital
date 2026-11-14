@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { useSocket } from '../context/SocketContext';
+import { useLanguage } from '../context/LanguageContext';
 import { FoodOrder, FoodItemToPrepare } from '../types';
 import { PrintableReportsModal } from '../components/PrintableReportsModal';
 import {
@@ -18,8 +19,6 @@ import {
   Truck,
   Building2,
   RotateCcw,
-  Sparkles,
-  AlertCircle,
   Coffee,
 } from 'lucide-react';
 
@@ -40,6 +39,9 @@ export const AdminDashboard: React.FC = () => {
   const [reportType, setReportType] = useState<'ROOM_WISE' | 'ITEMS_TO_PREPARE'>('ROOM_WISE');
 
   const { socket } = useSocket();
+  const { t, language, translateFood, translateCategory, translateSlot } = useLanguage();
+
+  const isTa = language === 'ta';
 
   const fetchStatsAndOrders = async () => {
     try {
@@ -89,7 +91,7 @@ export const AdminDashboard: React.FC = () => {
       });
       setIsOrderingLocked(res.data.is_ordering_locked);
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to toggle ordering lock.');
+      alert(err.response?.data?.message || (isTa ? 'ஆர்டர் பூட்டு நிலையை மாற்றுவதில் தோல்வி.' : 'Failed to toggle ordering lock.'));
     }
   };
 
@@ -100,7 +102,7 @@ export const AdminDashboard: React.FC = () => {
       setIsClearModalOpen(false);
       fetchStatsAndOrders();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to clear active view.');
+      alert(err.response?.data?.message || (isTa ? 'பார்வையை மீட்டமைப்பதில் தோல்வி.' : 'Failed to clear active view.'));
     } finally {
       setClearLoading(false);
     }
@@ -111,7 +113,7 @@ export const AdminDashboard: React.FC = () => {
       await api.post(`/admin/orders/${orderId}/confirm-delivery`);
       fetchStatsAndOrders();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to confirm delivery.');
+      alert(err.response?.data?.message || (isTa ? 'டெலிவரியை உறுதிப்படுத்துவதில் தோல்வி.' : 'Failed to confirm delivery.'));
     }
   };
 
@@ -121,7 +123,11 @@ export const AdminDashboard: React.FC = () => {
   };
 
   if (loading) {
-    return <div className="text-center py-12 text-gray-500 text-xs font-semibold">Loading Admin Dashboard...</div>;
+    return (
+      <div className="text-center py-12 text-gray-500 text-xs font-semibold">
+        {isTa ? 'நிர்வாக முகப்புப்பலகை ஏற்றப்படுகிறது...' : 'Loading Admin Dashboard...'}
+      </div>
+    );
   }
 
   const foodItemsToPrepare: FoodItemToPrepare[] = stats?.foodItemsToPrepare || [];
@@ -163,10 +169,16 @@ export const AdminDashboard: React.FC = () => {
           />
           <div>
             <span className="text-[10px] font-black text-celadon uppercase tracking-wider">
-              PROCARE PHYSIOTHERAPY & REHABILITATION CENTRE
+              {t('appName')} • {t('clinicName')}
             </span>
-            <h1 className="text-xl font-black mt-0.5 tracking-tight text-white">ADMIN CANTEEN DASHBOARD</h1>
-            <p className="text-xs text-procare-200 font-medium">Live canteen order processing, preparation aggregation, and print reports.</p>
+            <h1 className="text-xl font-black mt-0.5 tracking-tight text-white">
+              {isTa ? 'நிர்வாக கேன்டீன் முகப்புப்பலகை' : 'ADMIN CANTEEN DASHBOARD'}
+            </h1>
+            <p className="text-xs text-procare-200 font-medium">
+              {isTa
+                ? 'நேரலை கேன்டீன் ஆர்டர் செயலாக்கம், தயாரிப்பு ஒருங்கிணைப்பு மற்றும் அச்சு அறிக்கைகள்.'
+                : 'Live canteen order processing, preparation aggregation, and print reports.'}
+            </p>
           </div>
         </div>
 
@@ -184,12 +196,12 @@ export const AdminDashboard: React.FC = () => {
             {isOrderingLocked ? (
               <>
                 <Lock className="w-4 h-4" />
-                <span>ORDERING IS LOCKED (CLOSED)</span>
+                <span>{isTa ? 'ஆர்டர் முடக்கப்பட்டுள்ளது (மூடப்பட்டது)' : 'ORDERING IS LOCKED (CLOSED)'}</span>
               </>
             ) : (
               <>
                 <Unlock className="w-4 h-4" />
-                <span>ORDERING IS OPEN (UNLOCKED)</span>
+                <span>{isTa ? 'ஆர்டர் திறக்கப்பட்டுள்ளது (செயலில்)' : 'ORDERING IS OPEN (UNLOCKED)'}</span>
               </>
             )}
           </button>
@@ -201,7 +213,7 @@ export const AdminDashboard: React.FC = () => {
             title="Clear current view for fresh preparation cycle (Historical DB records preserved)"
           >
             <RotateCcw className="w-4 h-4" />
-            <span>Clear / Refresh Cycle View</span>
+            <span>{isTa ? 'பார்வையை மீட்டமை' : 'Clear / Refresh Cycle View'}</span>
           </button>
 
           {/* Printable Report Buttons */}
@@ -210,7 +222,7 @@ export const AdminDashboard: React.FC = () => {
             className="bg-procare-800 hover:bg-procare-700 text-white px-3.5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer border border-procare-700"
           >
             <Building2 className="w-4 h-4" />
-            <span>Print Room-Wise Report</span>
+            <span>{isTa ? 'அறை வாரியான அறிக்கை அச்சிடு' : 'Print Room-Wise Report'}</span>
           </button>
 
           <button
@@ -218,7 +230,7 @@ export const AdminDashboard: React.FC = () => {
             className="bg-celadon hover:bg-procare-400 text-slate-950 px-3.5 py-2.5 rounded-xl text-xs font-black flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
           >
             <Printer className="w-4 h-4" />
-            <span>Print Items to Be Prepared</span>
+            <span>{isTa ? 'தயாரிப்புப் பட்டியல் அச்சிடு' : 'Print Items to Be Prepared'}</span>
           </button>
         </div>
       </div>
@@ -228,7 +240,11 @@ export const AdminDashboard: React.FC = () => {
         <div className="p-4 bg-rose-50 border-2 border-rose-300 text-rose-900 rounded-xl text-xs font-bold flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Lock className="w-5 h-5 text-rose-600 shrink-0" />
-            <span>Ordering Control is LOCKED: Patients cannot place new orders right now. Click "ORDERING IS LOCKED" button above to unlock.</span>
+            <span>
+              {isTa
+                ? 'ஆர்டர் முடக்கப்பட்டுள்ளது: நோயாளிகள் இப்போது புதிய உணவுகளை ஆர்டர் செய்ய முடியாது. திறக்க மேலே உள்ள பொத்தானைக் கிளிக் செய்யவும்.'
+                : 'Ordering Control is LOCKED: Patients cannot place new orders right now. Click "ORDERING IS LOCKED" button above to unlock.'}
+            </span>
           </div>
         </div>
       )}
@@ -237,7 +253,7 @@ export const AdminDashboard: React.FC = () => {
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
           <div className="flex justify-between items-center text-gray-500 mb-2">
-            <span className="text-xs font-semibold">Total Patients</span>
+            <span className="text-xs font-semibold">{t('totalPatients')}</span>
             <Users className="w-4 h-4 text-blue-600" />
           </div>
           <div className="text-xl font-bold text-gray-900">{stats?.totalPatients || 0}</div>
@@ -245,7 +261,9 @@ export const AdminDashboard: React.FC = () => {
 
         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
           <div className="flex justify-between items-center text-blue-600 mb-2">
-            <span className="text-xs font-semibold text-gray-500">Active Cycle Orders</span>
+            <span className="text-xs font-semibold text-gray-500">
+              {isTa ? 'செயலில் உள்ள ஆர்டர்கள்' : 'Active Cycle Orders'}
+            </span>
             <Clock className="w-4 h-4 text-blue-600" />
           </div>
           <div className="text-xl font-bold text-blue-700">{stats?.activeOrdersCount || 0}</div>
@@ -253,7 +271,7 @@ export const AdminDashboard: React.FC = () => {
 
         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
           <div className="flex justify-between items-center text-gray-500 mb-2">
-            <span className="text-xs font-semibold">Today's Orders</span>
+            <span className="text-xs font-semibold">{isTa ? 'இன்றைய ஆர்டர்கள்' : "Today's Orders"}</span>
             <ShoppingBag className="w-4 h-4 text-indigo-600" />
           </div>
           <div className="text-xl font-bold text-gray-900">{stats?.todayOrdersCount || 0}</div>
@@ -261,7 +279,7 @@ export const AdminDashboard: React.FC = () => {
 
         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
           <div className="flex justify-between items-center text-emerald-700 mb-2">
-            <span className="text-xs font-semibold text-gray-500">Today's Revenue</span>
+            <span className="text-xs font-semibold text-gray-500">{isTa ? 'இன்றைய வருவாய்' : "Today's Revenue"}</span>
             <IndianRupee className="w-4 h-4 text-emerald-600" />
           </div>
           <div className="text-xl font-bold text-emerald-800">₹{stats?.todaysRevenue || 0}</div>
@@ -269,7 +287,7 @@ export const AdminDashboard: React.FC = () => {
 
         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
           <div className="flex justify-between items-center text-rose-600 mb-2">
-            <span className="text-xs font-semibold text-gray-500">Pending Payments</span>
+            <span className="text-xs font-semibold text-gray-500">{t('pendingPayments')}</span>
             <CreditCard className="w-4 h-4 text-rose-600" />
           </div>
           <div className="text-xl font-bold text-rose-700">{stats?.pendingPaymentsCount || 0}</div>
@@ -282,10 +300,14 @@ export const AdminDashboard: React.FC = () => {
           <div>
             <h2 className="text-base font-bold text-emerald-950 flex items-center gap-2">
               <ChefHat className="w-5 h-5 text-emerald-700" />
-              FOOD ITEMS TO PREPARE (COOKING DEPARTMENT REPORT)
+              {isTa
+                ? 'தயாரிக்க வேண்டிய உணவுகள் (சமையல் துறை அறிக்கை)'
+                : 'FOOD ITEMS TO PREPARE (COOKING DEPARTMENT REPORT)'}
             </h2>
             <p className="text-xs text-emerald-800 mt-0.5">
-              Aggregated total quantities from active cycle orders. Clear active view after preparing report for a fresh cycle.
+              {isTa
+                ? 'செயலில் உள்ள ஆர்டர்களில் இருந்து கணக்கிடப்பட்ட மொத்த அளவுகள்.'
+                : 'Aggregated total quantities from active cycle orders. Clear active view after preparing report for a fresh cycle.'}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -294,10 +316,10 @@ export const AdminDashboard: React.FC = () => {
               className="bg-emerald-800 hover:bg-emerald-900 text-white px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 shadow-xs cursor-pointer"
             >
               <Printer className="w-3.5 h-3.5" />
-              <span>Print Kitchen Report</span>
+              <span>{t('printKitchenReport')}</span>
             </button>
             <div className="bg-emerald-100 border border-emerald-300 text-emerald-950 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-2">
-              <span>Portions to Cook:</span>
+              <span>{isTa ? 'சமைக்க வேண்டிய அளவுகள்:' : 'Portions to Cook:'}</span>
               <span className="bg-emerald-700 text-white px-2 py-0.5 rounded-md font-mono text-sm">
                 {totalPreparationQuantity}
               </span>
@@ -314,10 +336,10 @@ export const AdminDashboard: React.FC = () => {
               </div>
               <div>
                 <h3 className="text-sm font-black text-amber-950 uppercase tracking-wide">
-                  Tea / Milk and Coffee Preparation (Scheduled by Serving Times)
+                  {t('beveragePrepTitle')}
                 </h3>
                 <p className="text-[11px] text-amber-800 font-medium">
-                  Separated by 7:00 AM, 11:00 AM, 4:00 PM and 7:00 PM. Calculated dynamically from active patient orders.
+                  {t('beveragePrepSub')}
                 </p>
               </div>
             </div>
@@ -327,9 +349,9 @@ export const AdminDashboard: React.FC = () => {
             <table className="w-full text-xs text-left border-collapse">
               <thead>
                 <tr className="bg-amber-100 text-amber-950 font-black border-b border-amber-200 uppercase text-[11px]">
-                  <th className="p-2.5 w-36 border-r border-amber-200">Serving Time</th>
-                  <th className="p-2.5 border-r border-amber-200">Item</th>
-                  <th className="p-2.5 text-center w-36 bg-amber-200/60 font-black">Total Quantity</th>
+                  <th className="p-2.5 w-36 border-r border-amber-200">{isTa ? 'வழங்கும் நேரம்' : 'Serving Time'}</th>
+                  <th className="p-2.5 border-r border-amber-200">{isTa ? 'உணவு' : 'Item'}</th>
+                  <th className="p-2.5 text-center w-36 bg-amber-200/60 font-black">{isTa ? 'மொத்த அளவு' : 'Total Quantity'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-amber-100 text-slate-800 font-medium">
@@ -346,11 +368,13 @@ export const AdminDashboard: React.FC = () => {
                         <td className="p-2.5 border-r border-amber-100 font-black text-amber-900 bg-amber-50/30">
                           <div className="flex items-center gap-1.5">
                             <Clock className="w-3.5 h-3.5 text-amber-700" />
-                            <span>{slotGroup.serving_time}</span>
+                            <span>{translateSlot(slotGroup.serving_time)}</span>
                           </div>
                         </td>
-                        <td className="p-2.5 border-r border-amber-100 text-slate-400 italic">No orders scheduled</td>
-                        <td className="p-2.5 text-center font-bold text-slate-400">0 Nos</td>
+                        <td className="p-2.5 border-r border-amber-100 text-slate-400 italic">
+                          {isTa ? 'ஆர்டர்கள் எதுவும் இல்லை' : 'No orders scheduled'}
+                        </td>
+                        <td className="p-2.5 text-center font-bold text-slate-400">0 {isTa ? 'எண்ணிக்கை' : 'Nos'}</td>
                       </tr>
                     );
                   }
@@ -363,18 +387,19 @@ export const AdminDashboard: React.FC = () => {
                         >
                           <div className="flex items-center gap-1.5">
                             <Clock className="w-3.5 h-3.5 text-amber-700" />
-                            <span>{slotGroup.serving_time}</span>
+                            <span>{translateSlot(slotGroup.serving_time)}</span>
                           </div>
                           <span className="text-[10px] text-amber-700 block font-normal mt-0.5">
-                            Slot Total: <strong>{slotGroup.subtotal} Nos</strong>
+                            {isTa ? 'பிரிவு மொத்தம்:' : 'Slot Total:'}{' '}
+                            <strong>{slotGroup.subtotal} {isTa ? 'எண்ணிக்கை' : 'Nos'}</strong>
                           </span>
                         </td>
                       )}
                       <td className="p-2.5 border-r border-amber-100 font-bold text-slate-900">
-                        {item.item_name}
+                        {translateFood(item.item_name)}
                       </td>
                       <td className="p-2.5 text-center font-black text-sm font-mono text-amber-950 bg-amber-50/60">
-                        {item.total_quantity} Nos
+                        {item.total_quantity} {isTa ? 'எண்ணிக்கை' : 'Nos'}
                       </td>
                     </tr>
                   ));
@@ -388,7 +413,7 @@ export const AdminDashboard: React.FC = () => {
         <div className="p-4 bg-gray-50 border-b border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
           <div className="flex flex-wrap items-center gap-1.5">
             <span className="text-xs font-semibold text-gray-500 mr-1 flex items-center gap-1">
-              <Filter className="w-3.5 h-3.5 text-gray-500" /> Category:
+              <Filter className="w-3.5 h-3.5 text-gray-500" /> {t('category')}:
             </span>
             {categories.map((cat) => (
               <button
@@ -400,7 +425,7 @@ export const AdminDashboard: React.FC = () => {
                     : 'bg-white border border-slate-300 text-slate-700 hover:bg-procare-50'
                 }`}
               >
-                {cat}
+                {translateCategory(cat)}
               </button>
             ))}
           </div>
@@ -412,7 +437,9 @@ export const AdminDashboard: React.FC = () => {
               onChange={(e) => setShowOnlyRequired(e.target.checked)}
               className="rounded border-slate-300 text-procare-700 focus:ring-procare-500 mr-2"
             />
-            Show Only Items Needing Preparation ({distinctItemsToPrepareCount})
+            {isTa
+              ? `தயாரிக்க வேண்டிய உணவுகளை மட்டும் காட்டு (${distinctItemsToPrepareCount})`
+              : `Show Only Items Needing Preparation (${distinctItemsToPrepareCount})`}
           </label>
         </div>
 
@@ -420,7 +447,7 @@ export const AdminDashboard: React.FC = () => {
         <div className="p-6">
           {filteredItems.length === 0 ? (
             <div className="text-center py-8 text-slate-500 text-xs">
-              No food items match the selected filter.
+              {isTa ? 'தேர்ந்தெடுக்கப்பட்ட வடிகட்டலுக்கு உணவுகள் எதுவும் பொருந்தவில்லை.' : 'No food items match the selected filter.'}
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -439,12 +466,12 @@ export const AdminDashboard: React.FC = () => {
                       <div className="flex items-center gap-1.5">
                         <Utensils className={`w-3.5 h-3.5 ${isRequired ? 'text-procare-800' : 'text-slate-400'}`} />
                         <span className={`text-xs font-bold ${isRequired ? 'text-procare-950' : 'text-slate-700'}`}>
-                          {item.item_name}
+                          {translateFood(item.item_name)}
                         </span>
                       </div>
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] uppercase font-bold text-procare-800 bg-procare-100 px-2 py-0.5 rounded">
-                          {item.category}
+                          {translateCategory(item.category)}
                         </span>
                         <span className="text-[10px] text-slate-500">{item.portion_size}</span>
                       </div>
@@ -461,7 +488,7 @@ export const AdminDashboard: React.FC = () => {
                         {item.total_preparation_quantity}
                       </div>
                       <span className="text-[9px] font-bold text-slate-500 block mt-0.5">
-                        {isRequired ? 'REQUIRED' : 'NONE'}
+                        {isRequired ? (isTa ? 'தேவை' : 'REQUIRED') : (isTa ? 'இல்லை' : 'NONE')}
                       </span>
                     </div>
                   </div>
@@ -478,7 +505,7 @@ export const AdminDashboard: React.FC = () => {
           <div className="flex items-center gap-2">
             <Clock className="w-4 h-4 text-celadon" />
             <h2 className="text-sm font-black uppercase tracking-wide">
-              ACTIVE CYCLE PATIENT ORDERS
+              {isTa ? 'செயலில் உள்ள நோயாளி ஆர்டர்கள்' : 'ACTIVE CYCLE PATIENT ORDERS'}
             </h2>
           </div>
           <div className="flex items-center space-x-2">
@@ -487,24 +514,26 @@ export const AdminDashboard: React.FC = () => {
               className="bg-procare-700 hover:bg-procare-600 text-white px-3 py-1 rounded-lg text-xs font-bold flex items-center gap-1 shadow-xs cursor-pointer"
             >
               <RotateCcw className="w-3.5 h-3.5" />
-              <span>Clear / Refresh View</span>
+              <span>{isTa ? 'பார்வையை மீட்டமை' : 'Clear / Refresh View'}</span>
             </button>
             <button
               onClick={() => openReport('ROOM_WISE')}
               className="bg-celadon hover:bg-procare-400 text-slate-950 px-3 py-1 rounded-lg text-xs font-black flex items-center gap-1 shadow-xs cursor-pointer"
             >
               <Printer className="w-3.5 h-3.5 text-slate-950" />
-              <span>Print Room-Wise Report</span>
+              <span>{isTa ? 'அறை அறிக்கை' : 'Print Room-Wise Report'}</span>
             </button>
             <span className="text-xs font-black bg-celadon/30 text-celadon-light px-2.5 py-0.5 rounded-full border border-celadon/40">
-              {activeOrdersList.length} Active Orders
+              {activeOrdersList.length} {isTa ? 'ஆர்டர்கள்' : 'Active Orders'}
             </span>
           </div>
         </div>
 
         {activeOrdersList.length === 0 ? (
           <div className="p-12 text-center text-gray-500 text-xs">
-            No active cycle orders currently displayed. (New patient orders will appear here automatically).
+            {isTa
+              ? 'செயலில் உள்ள ஆர்டர்கள் எதுவும் இல்லை. (புதிய நோயாளி ஆர்டர்கள் தானாகவே இங்கே தோன்றும்).'
+              : 'No active cycle orders currently displayed. (New patient orders will appear here automatically).'}
           </div>
         ) : (
           <div className="divide-y divide-gray-200">
@@ -514,18 +543,18 @@ export const AdminDashboard: React.FC = () => {
                   <div className="flex flex-wrap items-center gap-3">
                     <span className="font-mono text-base font-bold text-blue-700">{order.order_id}</span>
                     <span className="text-xs font-bold text-gray-900 bg-blue-50 text-blue-900 border border-blue-200 px-2.5 py-0.5 rounded">
-                      Patient: {order.patient_name} ({order.patient_id})
+                      {isTa ? 'நோயாளி:' : 'Patient:'} {order.patient_name} ({order.patient_id})
                     </span>
                     <span className="text-xs font-extrabold text-slate-900 bg-slate-100 border border-slate-300 px-2.5 py-0.5 rounded">
-                      Room #{order.room_number || 'N/A'}
+                      {isTa ? 'அறை' : 'Room'} #{order.room_number || 'N/A'}
                     </span>
                     <span className="text-xs text-gray-500 font-medium">
-                      {order.order_date} • {order.order_time} ({order.meal_type})
+                      {order.order_date} • {order.order_time} ({translateCategory(order.meal_type)})
                     </span>
                     {order.serving_time && (
                       <span className="text-xs bg-amber-50 border border-amber-300 text-amber-900 font-bold px-2 py-0.5 rounded inline-flex items-center gap-1">
                         <Clock className="w-3 h-3 text-amber-700" />
-                        Serving Time: {order.serving_time}
+                        {isTa ? 'வழங்கும் நேரம்:' : 'Serving Time:'} {translateSlot(order.serving_time)}
                       </span>
                     )}
                   </div>
@@ -534,16 +563,18 @@ export const AdminDashboard: React.FC = () => {
                   <div className="text-xs text-gray-700 font-medium">
                     {order.items?.map((it) => (
                       <span key={it._id} className="inline-block bg-white border border-gray-200 px-2.5 py-1 rounded mr-2 my-0.5">
-                        <strong>{it.item_name_snapshot}</strong> × {it.quantity} (₹{it.subtotal})
+                        <strong>{translateFood(it.item_name_snapshot)}</strong> × {it.quantity} (₹{it.subtotal})
                         {it.serving_time && (
-                          <span className="ml-1 text-[10px] text-amber-800 font-bold">({it.serving_time})</span>
+                          <span className="ml-1 text-[10px] text-amber-800 font-bold">
+                            ({translateSlot(it.serving_time)})
+                          </span>
                         )}
                       </span>
                     ))}
                   </div>
 
                   <div className="text-xs font-extrabold text-slate-900">
-                    Total Amount: ₹{order.total_amount}
+                    {isTa ? 'மொத்தத் தொகை:' : 'Total Amount:'} ₹{order.total_amount}
                   </div>
                 </div>
 
@@ -554,7 +585,7 @@ export const AdminDashboard: React.FC = () => {
                     className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer"
                   >
                     <Truck className="w-4 h-4" />
-                    <span>MARK ORDER AS DELIVERED</span>
+                    <span>{isTa ? 'டெலிவரி செய்யப்பட்டதாக குறி' : 'MARK ORDER AS DELIVERED'}</span>
                   </button>
                 </div>
               </div>
@@ -572,15 +603,19 @@ export const AdminDashboard: React.FC = () => {
                 <RotateCcw className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="text-base font-extrabold text-slate-900">Clear Active Cycle View?</h3>
-                <p className="text-xs text-slate-500 font-medium">Start a fresh order preparation cycle</p>
+                <h3 className="text-base font-extrabold text-slate-900">
+                  {isTa ? 'செயலில் உள்ள பார்வையை அழிக்கவா?' : 'Clear Active Cycle View?'}
+                </h3>
+                <p className="text-xs text-slate-500 font-medium">
+                  {isTa ? 'புதிய தயாரிப்பு சுழற்சியைத் தொடங்கு' : 'Start a fresh order preparation cycle'}
+                </p>
               </div>
             </div>
 
             <p className="text-xs text-slate-600 font-medium leading-relaxed bg-purple-50/70 p-4 rounded-xl border border-purple-200/80">
-              This will clear the current orders from the active dashboard view so you can prepare a fresh cycle of reports.
-              <br /><br />
-              <strong className="text-slate-900 font-bold">Important:</strong> Historical order records in MongoDB database and final patient discharge bills will <strong className="text-purple-900 underline">NOT</strong> be deleted.
+              {isTa
+                ? 'இது தற்போதைய ஆர்டர்களை செயலில் உள்ள பார்வையில் இருந்து அழிக்கும், இதனால் புதிய சுழற்சியை நீங்கள் தொடங்கலாம். தரவுத்தளத்தில் உள்ள வரலாற்று பதிவுகளோ அல்லது பில்களோ நீக்கப்படாது.'
+                : 'This will clear the current orders from the active dashboard view so you can prepare a fresh cycle of reports. Historical order records in database will NOT be deleted.'}
             </p>
 
             <div className="flex gap-3 pt-2">
@@ -589,7 +624,7 @@ export const AdminDashboard: React.FC = () => {
                 onClick={() => setIsClearModalOpen(false)}
                 className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-xl transition-colors cursor-pointer"
               >
-                Cancel
+                {t('cancel')}
               </button>
               <button
                 type="button"
@@ -597,7 +632,7 @@ export const AdminDashboard: React.FC = () => {
                 disabled={clearLoading}
                 className="flex-1 py-2.5 bg-purple-700 hover:bg-purple-800 text-white font-extrabold text-xs rounded-xl transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
               >
-                {clearLoading ? 'Clearing View...' : 'Confirm Clear View'}
+                {clearLoading ? (isTa ? 'அழிக்கப்படுகிறது...' : 'Clearing View...') : (isTa ? 'பார்வையை அழி' : 'Confirm Clear View')}
               </button>
             </div>
           </div>

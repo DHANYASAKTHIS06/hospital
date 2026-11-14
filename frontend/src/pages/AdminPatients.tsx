@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
+import { useLanguage } from '../context/LanguageContext';
 import { PatientRecord } from '../types';
 import { Users, Search, Eye, X, UserPlus, KeyRound, CheckCircle2, Copy, Check, Trash2, AlertTriangle, Wallet, PlusCircle, MinusCircle } from 'lucide-react';
 
@@ -14,6 +15,9 @@ export const AdminPatients: React.FC = () => {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [addLoading, setAddLoading] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
+
+  const { t, language } = useLanguage();
+  const isTa = language === 'ta';
 
   const [formData, setFormData] = useState({
     patient_id: '',
@@ -56,7 +60,7 @@ export const AdminPatients: React.FC = () => {
       setPatients(response.data);
     } catch (err: any) {
       console.error('Error fetching patients:', err);
-      setFetchError(err.response?.data?.message || 'Failed to connect to database. Please try again.');
+      setFetchError(err.response?.data?.message || (isTa ? 'தரவுத்தளத்துடன் இணைப்பதில் தோல்வி. மீண்டும் முயற்சிக்கவும்.' : 'Failed to connect to database. Please try again.'));
     } finally {
       setLoading(false);
     }
@@ -101,7 +105,7 @@ export const AdminPatients: React.FC = () => {
 
       fetchPatients();
     } catch (err: any) {
-      setAddError(err.response?.data?.message || 'Failed to create patient account.');
+      setAddError(err.response?.data?.message || (isTa ? 'நோயாளி கணக்கை உருவாக்குவதில் தோல்வி.' : 'Failed to create patient account.'));
     } finally {
       setAddLoading(false);
     }
@@ -114,7 +118,7 @@ export const AdminPatients: React.FC = () => {
 
     const parsedAmt = Number(rechargeAmount);
     if (!rechargeAmount || isNaN(parsedAmt) || parsedAmt <= 0) {
-      setRechargeError('Please enter a valid amount greater than 0 (e.g. ₹1050, ₹1030, ₹125, ₹275).');
+      setRechargeError(isTa ? '0-ஐ விட அதிகமான சரியான தொகையை உள்ளிடவும்.' : 'Please enter a valid amount greater than 0.');
       return;
     }
 
@@ -128,7 +132,7 @@ export const AdminPatients: React.FC = () => {
       setRechargingPatient(null);
       fetchPatients();
     } catch (err: any) {
-      setRechargeError(err.response?.data?.message || 'Failed to adjust patient balance.');
+      setRechargeError(err.response?.data?.message || (isTa ? 'இருப்பை மாற்றுவதில் தோல்வி.' : 'Failed to adjust patient balance.'));
     } finally {
       setRechargeLoading(false);
     }
@@ -144,7 +148,7 @@ export const AdminPatients: React.FC = () => {
       setDeletingPatient(null);
       fetchPatients();
     } catch (err: any) {
-      setDeleteError(err.response?.data?.message || 'Failed to delete patient account.');
+      setDeleteError(err.response?.data?.message || (isTa ? 'நோயாளி கணக்கை நீக்குவதில் தோல்வி.' : 'Failed to delete patient account.'));
     } finally {
       setDeleteLoading(false);
     }
@@ -152,7 +156,9 @@ export const AdminPatients: React.FC = () => {
 
   const handleCopyCredentials = () => {
     if (!createdCredentials) return;
-    const text = `Hospital Canteen Patient Credentials:\nPatient ID: ${createdCredentials.patient_id}\nPassword: ${createdCredentials.plain_password}\nName: ${createdCredentials.name}\nRoom: ${createdCredentials.room_number}\nInitial Advance Balance: ₹${createdCredentials.advance_balance}`;
+    const text = isTa
+      ? `மருத்துவமனை கேன்டீன் நோயாளி உள்நுழைவு சான்றுகள்:\nநோயாளி அடையாள எண்: ${createdCredentials.patient_id}\nகடவுச்சொல்: ${createdCredentials.plain_password}\nபெயர்: ${createdCredentials.name}\nஅறை: ${createdCredentials.room_number}\nஆரம்ப முன்பண இருப்பு: ₹${createdCredentials.advance_balance}`
+      : `Hospital Canteen Patient Credentials:\nPatient ID: ${createdCredentials.patient_id}\nPassword: ${createdCredentials.plain_password}\nName: ${createdCredentials.name}\nRoom: ${createdCredentials.room_number}\nInitial Advance Balance: ₹${createdCredentials.advance_balance}`;
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -164,14 +170,16 @@ export const AdminPatients: React.FC = () => {
       <div className="bg-white p-6 rounded-2xl border border-procare-200 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <span className="text-[10px] font-black text-procare-800 uppercase tracking-wider">
-            PROCARE PHYSIOTHERAPY & REHABILITATION CENTRE
+            {t('appName')} • {t('clinicName')}
           </span>
           <h1 className="text-xl font-black text-slate-900 flex items-center gap-2 mt-0.5">
             <Users className="w-5 h-5 text-procare-700" />
-            Manage Patients & Advance Balances (Admin)
+            {isTa ? 'நோயாளிகள் மற்றும் முன்பண இருப்பை நிர்வகிக்கவும்' : 'Manage Patients & Advance Balances (Admin)'}
           </h1>
           <p className="text-xs text-slate-500 mt-0.5 font-medium">
-            Register patients with initial advance balances, manage credentials, and process top-up recharges.
+            {isTa
+              ? 'நோயாளிகளைப் பதிவு செய்யவும், முன்பண இருப்பை நிர்வகிக்கவும் மற்றும் கடவுச்சொற்களை வழங்கவும்.'
+              : 'Register patients with initial advance balances, manage credentials, and process top-up recharges.'}
           </p>
         </div>
 
@@ -182,7 +190,7 @@ export const AdminPatients: React.FC = () => {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search by ID, Name, Room, Mobile..."
+              placeholder={isTa ? 'அடையாள எண், பெயர், அறை மூலம் தேடு...' : 'Search by ID, Name, Room, Mobile...'}
               className="w-full pl-9 pr-3 py-2 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-procare-400 outline-none"
             />
           </div>
@@ -195,7 +203,7 @@ export const AdminPatients: React.FC = () => {
             className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-celadon hover:bg-procare-400 text-slate-950 font-black text-xs px-4 py-2.5 rounded-xl transition-all shadow-xs shrink-0 cursor-pointer"
           >
             <UserPlus className="w-4 h-4 text-slate-950" />
-            Add New Patient
+            {t('addNewPatient')}
           </button>
         </div>
       </div>
@@ -206,19 +214,21 @@ export const AdminPatients: React.FC = () => {
           <span>{fetchError}</span>
           <button
             onClick={fetchPatients}
-            className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-all"
+            className="px-3 py-1 bg-rose-600 hover:bg-rose-700 text-white rounded-lg text-xs font-bold transition-all cursor-pointer"
           >
-            Retry Connection
+            {isTa ? 'மீண்டும் முயற்சி செய்' : 'Retry Connection'}
           </button>
         </div>
       )}
 
       {/* Patient Directory Table */}
       {loading ? (
-        <div className="text-center py-12 text-slate-500 text-xs">Loading patient records...</div>
+        <div className="text-center py-12 text-slate-500 text-xs">
+          {isTa ? 'நோயாளி பதிவுகள் ஏற்றப்படுகின்றன...' : 'Loading patient records...'}
+        </div>
       ) : patients.length === 0 ? (
         <div className="bg-white rounded-2xl border border-slate-200/80 p-12 text-center text-slate-500 text-xs">
-          No patient records found in MongoDB database. Click "Add New Patient" to register a patient.
+          {isTa ? 'நோயாளி பதிவுகள் எதுவும் கிடைக்கவில்லை.' : 'No patient records found in MongoDB database.'}
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200/80 shadow-xs overflow-hidden">
@@ -226,13 +236,13 @@ export const AdminPatients: React.FC = () => {
             <table className="w-full text-xs text-left">
               <thead className="bg-slate-50 border-b border-slate-200 text-slate-600 font-bold uppercase tracking-wider">
                 <tr>
-                  <th className="px-4 py-3.5">Patient ID</th>
-                  <th className="px-4 py-3.5">Patient Name</th>
-                  <th className="px-4 py-3.5">Room No</th>
-                  <th className="px-4 py-3.5">Mobile</th>
-                  <th className="px-4 py-3.5">Advance Balance</th>
-                  <th className="px-4 py-3.5">Status</th>
-                  <th className="px-4 py-3.5 text-right">Actions</th>
+                  <th className="px-4 py-3.5">{t('patientId')}</th>
+                  <th className="px-4 py-3.5">{isTa ? 'நோயாளி பெயர்' : 'Patient Name'}</th>
+                  <th className="px-4 py-3.5">{t('roomNo')}</th>
+                  <th className="px-4 py-3.5">{t('mobile')}</th>
+                  <th className="px-4 py-3.5">{t('advanceBalance')}</th>
+                  <th className="px-4 py-3.5">{t('status')}</th>
+                  <th className="px-4 py-3.5 text-right">{t('actions')}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-200/80 font-medium">
@@ -243,9 +253,9 @@ export const AdminPatients: React.FC = () => {
                     <tr key={p._id} className={`hover:bg-slate-50/80 transition-colors ${isLow ? 'bg-rose-50/40' : ''}`}>
                       <td className="px-4 py-3 font-mono font-bold text-blue-700">{p.patient_id}</td>
                       <td className="px-4 py-3 font-extrabold text-slate-900">
-                        {p.name} <span className="text-[10px] text-slate-400 font-normal">({p.age} yrs)</span>
+                        {p.name} <span className="text-[10px] text-slate-400 font-normal">({p.age} {isTa ? 'வயது' : 'yrs'})</span>
                       </td>
-                      <td className="px-4 py-3 font-bold text-slate-800">Room {p.room_number}</td>
+                      <td className="px-4 py-3 font-bold text-slate-800">{isTa ? 'அறை' : 'Room'} {p.room_number}</td>
                       <td className="px-4 py-3 text-slate-700">{p.mobile}</td>
                       <td className="px-4 py-3">
                         <span className={`font-mono font-black text-sm px-2.5 py-1 rounded-lg border ${
@@ -257,11 +267,11 @@ export const AdminPatients: React.FC = () => {
                       <td className="px-4 py-3">
                         {isLow ? (
                           <span className="inline-flex items-center gap-1 font-extrabold text-[10px] bg-rose-600 text-white px-2 py-0.5 rounded-md animate-pulse">
-                            ⚠️ LOW BALANCE (&lt; ₹500)
+                            ⚠️ {t('lowBalanceAlert')}
                           </span>
                         ) : (
                           <span className="inline-flex items-center gap-1 font-bold text-[10px] bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-md">
-                            ✓ ACTIVE BALANCE
+                            ✓ {t('activeBalance')}
                           </span>
                         )}
                       </td>
@@ -277,12 +287,12 @@ export const AdminPatients: React.FC = () => {
                           title="Top Up / Adjust Balance"
                         >
                           <PlusCircle className="w-3.5 h-3.5" />
-                          <span>Recharge</span>
+                          <span>{t('recharge')}</span>
                         </button>
                         <button
                           onClick={() => setSelectedPatient(p)}
                           className="p-1.5 text-blue-700 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
-                          title="View Details"
+                          title={isTa ? 'விவரங்களைப் பார்' : 'View Details'}
                         >
                           <Eye className="w-4 h-4" />
                         </button>
@@ -292,7 +302,7 @@ export const AdminPatients: React.FC = () => {
                             setDeletingPatient(p);
                           }}
                           className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                          title="Delete Patient"
+                          title={isTa ? 'நீக்கு' : 'Delete Patient'}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -316,13 +326,15 @@ export const AdminPatients: React.FC = () => {
                   <UserPlus className="w-5 h-5" />
                 </div>
                 <div>
-                  <h3 className="text-base font-extrabold text-slate-900">Add New Patient</h3>
-                  <p className="text-[11px] text-slate-500 font-medium">Create a patient account with initial advance balance</p>
+                  <h3 className="text-base font-extrabold text-slate-900">{t('addNewPatient')}</h3>
+                  <p className="text-[11px] text-slate-500 font-medium">
+                    {isTa ? 'ஆரம்ப முன்பண இருப்புடன் புதிய நோயாளி கணக்கை உருவாக்கவும்' : 'Create a patient account with initial advance balance'}
+                  </p>
                 </div>
               </div>
               <button
                 onClick={() => setIsAddModalOpen(false)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -338,19 +350,21 @@ export const AdminPatients: React.FC = () => {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1">
-                    Patient ID <span className="text-slate-400 font-normal">(Optional)</span>
+                    {t('patientId')} <span className="text-slate-400 font-normal">({isTa ? 'விருப்பத்தேர்வு' : 'Optional'})</span>
                   </label>
                   <input
                     type="text"
                     name="patient_id"
                     value={formData.patient_id}
                     onChange={handleInputChange}
-                    placeholder="Auto-generated if empty"
+                    placeholder={isTa ? 'காலியாக இருந்தால் தானாக உருவாகும்' : 'Auto-generated if empty'}
                     className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-mono uppercase font-bold focus:ring-2 focus:ring-blue-500 outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Full Name *</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    {isTa ? 'முழுப் பெயர் *' : 'Full Name *'}
+                  </label>
                   <input
                     type="text"
                     name="name"
@@ -365,7 +379,7 @@ export const AdminPatients: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Age *</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">{t('age')} *</label>
                   <input
                     type="number"
                     name="age"
@@ -379,7 +393,7 @@ export const AdminPatients: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Room Number *</label>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">{t('roomNumber')} *</label>
                   <input
                     type="text"
                     name="room_number"
@@ -396,10 +410,10 @@ export const AdminPatients: React.FC = () => {
               <div className="bg-emerald-50/70 p-4 rounded-2xl border border-emerald-200 space-y-1">
                 <label className="block text-xs font-extrabold text-emerald-950 flex items-center gap-1.5">
                   <Wallet className="w-4 h-4 text-emerald-700" />
-                  Initial Advance Balance Amount (₹) *
+                  {t('initialAdvance')}
                 </label>
                 <p className="text-[11px] text-emerald-800 font-medium">
-                  Set initial food order balance for this patient (e.g. ₹5,000 or ₹6,000).
+                  {isTa ? 'நோயாளிக்கான ஆரம்ப உணவு முன்பண இருப்பு (எ.கா. ₹5,000).' : 'Set initial food order balance for this patient (e.g. ₹5,000).'}
                 </p>
                 <input
                   type="number"
@@ -415,7 +429,7 @@ export const AdminPatients: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Mobile Number *</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">{t('mobile')} *</label>
                 <input
                   type="text"
                   name="mobile"
@@ -429,30 +443,30 @@ export const AdminPatients: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Address *</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1">{t('address')} *</label>
                 <textarea
                   name="address"
                   required
                   rows={2}
                   value={formData.address}
                   onChange={handleInputChange}
-                  placeholder="Residential address"
+                  placeholder={isTa ? 'வீட்டு முகவரி' : 'Residential address'}
                   className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-blue-500 outline-none"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center justify-between">
-                  <span>Patient Password *</span>
+                  <span>{t('password')}</span>
                   <button
                     type="button"
                     onClick={() => {
                       const randPass = 'P@' + Math.floor(100000 + Math.random() * 900000);
                       setFormData({ ...formData, password: randPass });
                     }}
-                    className="text-[10px] text-blue-600 hover:underline font-bold"
+                    className="text-[10px] text-blue-600 hover:underline font-bold cursor-pointer"
                   >
-                    Auto-Generate Password
+                    {isTa ? 'தானாக கடவுச்சொல் உருவாக்கு' : 'Auto-Generate Password'}
                   </button>
                 </label>
                 <input
@@ -462,7 +476,7 @@ export const AdminPatients: React.FC = () => {
                   minLength={4}
                   value={formData.password}
                   onChange={handleInputChange}
-                  placeholder="Set patient login password"
+                  placeholder={isTa ? 'கடவுச்சொல்லை அமைக்கவும்' : 'Set patient login password'}
                   className="w-full px-3.5 py-2 border border-slate-200 rounded-xl text-xs font-mono font-bold focus:ring-2 focus:ring-blue-500 outline-none"
                 />
               </div>
@@ -471,16 +485,22 @@ export const AdminPatients: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setIsAddModalOpen(false)}
-                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-xl transition-colors"
+                  className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-xl transition-colors cursor-pointer"
                 >
-                  Cancel
+                  {t('cancel')}
                 </button>
                 <button
                   type="submit"
                   disabled={addLoading}
-                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl transition-colors shadow-sm disabled:opacity-50"
+                  className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs rounded-xl transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
                 >
-                  {addLoading ? 'Creating Patient...' : 'Create & Show Credentials'}
+                  {addLoading
+                    ? isTa
+                      ? 'உருவாக்கப்படுகிறது...'
+                      : 'Creating Patient...'
+                    : isTa
+                    ? 'உருவாக்கி சான்றுகளைக் காட்டு'
+                    : 'Create & Show Credentials'}
                 </button>
               </div>
             </form>
@@ -497,32 +517,34 @@ export const AdminPatients: React.FC = () => {
             </div>
 
             <div>
-              <h3 className="text-lg font-black text-slate-900">Patient Account Created!</h3>
+              <h3 className="text-lg font-black text-slate-900">
+                {isTa ? 'நோயாளி கணக்கு உருவாக்கப்பட்டது!' : 'Patient Account Created!'}
+              </h3>
               <p className="text-xs text-slate-500 mt-1 font-medium">
-                Share these login credentials securely with the patient.
+                {isTa ? 'இந்த உள்நுழைவு சான்றுகளை நோயாளியுடன் பாதுகாப்பாகப் பகிரவும்.' : 'Share these login credentials securely with the patient.'}
               </p>
             </div>
 
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 text-left space-y-3 font-mono text-xs">
               <div className="flex justify-between items-center pb-2 border-b border-slate-200">
-                <span className="text-slate-500 font-bold">Patient Name:</span>
+                <span className="text-slate-500 font-bold">{isTa ? 'நோயாளி பெயர்:' : 'Patient Name:'}</span>
                 <span className="font-extrabold text-slate-900">{createdCredentials.name}</span>
               </div>
               <div className="flex justify-between items-center pb-2 border-b border-slate-200">
-                <span className="text-slate-500 font-bold">Room Number:</span>
-                <span className="font-extrabold text-slate-900">Room {createdCredentials.room_number}</span>
+                <span className="text-slate-500 font-bold">{t('roomNumber')}:</span>
+                <span className="font-extrabold text-slate-900">{isTa ? 'அறை' : 'Room'} {createdCredentials.room_number}</span>
               </div>
               <div className="flex justify-between items-center pb-2 border-b border-slate-200 bg-emerald-50 p-2.5 rounded-xl border-emerald-200">
-                <span className="text-emerald-800 font-bold">Initial Advance Balance:</span>
+                <span className="text-emerald-800 font-bold">{t('initialAdvance')}:</span>
                 <span className="font-black text-emerald-950 text-sm">₹{createdCredentials.advance_balance}</span>
               </div>
               <div className="bg-blue-50/80 p-3 rounded-xl border border-blue-200 space-y-1">
-                <div className="text-blue-600 text-[10px] font-bold uppercase tracking-wider">Login Patient ID</div>
+                <div className="text-blue-600 text-[10px] font-bold uppercase tracking-wider">{t('patientId')}</div>
                 <div className="text-base font-black text-blue-900">{createdCredentials.patient_id}</div>
               </div>
               <div className="bg-amber-50/80 p-3 rounded-xl border border-amber-200 space-y-1">
                 <div className="text-amber-700 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
-                  <KeyRound className="w-3 h-3" /> Login Password
+                  <KeyRound className="w-3 h-3" /> {t('password')}
                 </div>
                 <div className="text-base font-black text-amber-950">{createdCredentials.plain_password}</div>
               </div>
@@ -534,13 +556,13 @@ export const AdminPatients: React.FC = () => {
                 className="flex-1 bg-slate-900 hover:bg-black text-white font-extrabold text-xs py-3 px-4 rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
               >
                 {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-                {copied ? 'Copied to Clipboard!' : 'Copy Credentials'}
+                {copied ? (isTa ? 'நகலெடுக்கப்பட்டது!' : 'Copied to Clipboard!') : (isTa ? 'சான்றுகளை நகலெடு' : 'Copy Credentials')}
               </button>
               <button
                 onClick={() => setCreatedCredentials(null)}
                 className="bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs py-3 px-4 rounded-xl transition-colors cursor-pointer"
               >
-                Done
+                {t('done')}
               </button>
             </div>
           </div>
@@ -558,16 +580,22 @@ export const AdminPatients: React.FC = () => {
                 </div>
                 <div>
                   <h3 className="text-base font-extrabold text-slate-900">
-                    {adjustmentAction === 'deduct' ? 'Deduct Advance Balance' : 'Recharge Advance Balance'}
+                    {adjustmentAction === 'deduct' ? t('deductAdvanceBalance') : t('rechargeAdvanceBalance')}
                   </h3>
                   <p className="text-[11px] text-slate-500 font-medium">
-                    {adjustmentAction === 'deduct' ? 'Deduct funds from patient account' : 'Add food order funds for patient'}
+                    {adjustmentAction === 'deduct'
+                      ? isTa
+                        ? 'நோயாளி கணக்கிலிருந்து தொகையைக் கழிக்கவும்'
+                        : 'Deduct funds from patient account'
+                      : isTa
+                      ? 'நோயாளிக்கான உணவு ஆர்டர் முன்பணத்தைச் சேர்க்கவும்'
+                      : 'Add food order funds for patient'}
                   </p>
                 </div>
               </div>
               <button
                 onClick={() => setRechargingPatient(null)}
-                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg"
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -575,15 +603,15 @@ export const AdminPatients: React.FC = () => {
 
             <div className="bg-slate-50 p-4 rounded-2xl border border-slate-200/80 space-y-2 text-xs">
               <div className="flex justify-between">
-                <span className="text-slate-500 font-semibold">Patient Name:</span>
+                <span className="text-slate-500 font-semibold">{isTa ? 'நோயாளி பெயர்:' : 'Patient Name:'}</span>
                 <span className="font-extrabold text-slate-900">{rechargingPatient.name}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-slate-500 font-semibold">Patient ID:</span>
+                <span className="text-slate-500 font-semibold">{t('patientId')}:</span>
                 <span className="font-mono font-bold text-blue-700">{rechargingPatient.patient_id}</span>
               </div>
               <div className="flex justify-between pt-1 border-t border-slate-200">
-                <span className="text-slate-500 font-semibold">Current Balance:</span>
+                <span className="text-slate-500 font-semibold">{isTa ? 'தற்போதைய இருப்பு:' : 'Current Balance:'}</span>
                 <span className="font-mono font-black text-emerald-800 text-sm">₹{rechargingPatient.advance_balance || 0}</span>
               </div>
             </div>
@@ -597,7 +625,7 @@ export const AdminPatients: React.FC = () => {
             <form onSubmit={handleRechargeSubmit} noValidate className="space-y-4">
               {/* Action Selector: Add or Deduct */}
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1.5">Adjustment Action</label>
+                <label className="block text-xs font-bold text-slate-700 mb-1.5">{t('adjustmentAction')}</label>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
@@ -609,7 +637,7 @@ export const AdminPatients: React.FC = () => {
                     }`}
                   >
                     <PlusCircle className="w-3.5 h-3.5" />
-                    <span>Add Balance (+)</span>
+                    <span>{t('addBalance')}</span>
                   </button>
                   <button
                     type="button"
@@ -621,14 +649,14 @@ export const AdminPatients: React.FC = () => {
                     }`}
                   >
                     <MinusCircle className="w-3.5 h-3.5" />
-                    <span>Deduct Balance (-)</span>
+                    <span>{t('deductBalance')}</span>
                   </button>
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
-                  {adjustmentAction === 'deduct' ? 'Deduct Amount (₹) *' : 'Top-Up Amount (₹) *'}
+                  {adjustmentAction === 'deduct' ? t('deductAmount') : t('topUpAmount')}
                 </label>
                 <div className="flex gap-2 mb-2">
                   {['500', '1000', '2000', '5000'].map((amt) => (
@@ -638,7 +666,9 @@ export const AdminPatients: React.FC = () => {
                       onClick={() => setRechargeAmount(amt)}
                       className={`flex-1 py-1.5 text-xs font-bold rounded-lg border transition-colors cursor-pointer ${
                         rechargeAmount === amt
-                          ? (adjustmentAction === 'deduct' ? 'bg-rose-700 text-white border-rose-700' : 'bg-emerald-700 text-white border-emerald-700')
+                          ? adjustmentAction === 'deduct'
+                            ? 'bg-rose-700 text-white border-rose-700'
+                            : 'bg-emerald-700 text-white border-emerald-700'
                           : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-100'
                       }`}
                     >
@@ -664,7 +694,7 @@ export const AdminPatients: React.FC = () => {
                   onClick={() => setRechargingPatient(null)}
                   className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-xl transition-colors cursor-pointer"
                 >
-                  Cancel
+                  {t('cancel')}
                 </button>
                 <button
                   type="submit"
@@ -676,9 +706,15 @@ export const AdminPatients: React.FC = () => {
                   }`}
                 >
                   {rechargeLoading
-                    ? 'Processing...'
+                    ? isTa
+                      ? 'செயல்படுத்தப்படுகிறது...'
+                      : 'Processing...'
                     : adjustmentAction === 'deduct'
-                    ? 'Confirm Deduction'
+                    ? isTa
+                      ? 'கழிப்பதை உறுதிசெய்'
+                      : 'Confirm Deduction'
+                    : isTa
+                    ? 'ரீசார்ஜ் உறுதிசெய்'
                     : 'Confirm Recharge'}
                 </button>
               </div>
@@ -692,8 +728,10 @@ export const AdminPatients: React.FC = () => {
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-3xl max-w-md w-full p-6 space-y-4 shadow-xl border border-slate-200">
             <div className="flex justify-between items-center pb-2 border-b border-slate-200">
-              <h3 className="text-base font-bold text-slate-900">Patient Details & Balance</h3>
-              <button onClick={() => setSelectedPatient(null)} className="text-slate-400 hover:text-slate-600">
+              <h3 className="text-base font-bold text-slate-900">
+                {isTa ? 'நோயாளி விவரங்கள் & இருப்பு' : 'Patient Details & Balance'}
+              </h3>
+              <button onClick={() => setSelectedPatient(null)} className="text-slate-400 hover:text-slate-600 cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -701,42 +739,42 @@ export const AdminPatients: React.FC = () => {
             <div className="space-y-3 text-xs">
               <div className="bg-emerald-50 p-3 rounded-xl border border-emerald-200 flex justify-between items-center">
                 <div>
-                  <div className="text-slate-500 font-semibold">Advance Balance Available</div>
+                  <div className="text-slate-500 font-semibold">{t('advanceBalance')}</div>
                   <div className="text-xl font-mono font-black text-emerald-950">₹{selectedPatient.advance_balance || 0}</div>
                 </div>
                 {(selectedPatient.advance_balance || 0) < 500 && (
                   <span className="text-[10px] font-extrabold bg-rose-600 text-white px-2.5 py-1 rounded-md">
-                    ⚠️ LOW BALANCE
+                    ⚠️ {t('lowBalanceAlert')}
                   </span>
                 )}
               </div>
 
               <div className="bg-blue-50 p-3 rounded-xl border border-blue-200">
-                <div className="text-slate-500 font-semibold">Patient ID</div>
+                <div className="text-slate-500 font-semibold">{t('patientId')}</div>
                 <div className="text-lg font-mono font-bold text-blue-900">{selectedPatient.patient_id}</div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <span className="text-slate-500 font-semibold">Name:</span>
+                  <span className="text-slate-500 font-semibold">{isTa ? 'பெயர்:' : 'Name:'}</span>
                   <div className="font-bold text-slate-900">{selectedPatient.name}</div>
                 </div>
                 <div>
-                  <span className="text-slate-500 font-semibold">Age:</span>
-                  <div className="font-bold text-slate-900">{selectedPatient.age} years</div>
+                  <span className="text-slate-500 font-semibold">{t('age')}:</span>
+                  <div className="font-bold text-slate-900">{selectedPatient.age} {isTa ? 'வயது' : 'years'}</div>
                 </div>
                 <div>
-                  <span className="text-slate-500 font-semibold">Room Number:</span>
-                  <div className="font-bold text-slate-900">Room {selectedPatient.room_number}</div>
+                  <span className="text-slate-500 font-semibold">{t('roomNumber')}:</span>
+                  <div className="font-bold text-slate-900">{isTa ? 'அறை' : 'Room'} {selectedPatient.room_number}</div>
                 </div>
                 <div>
-                  <span className="text-slate-500 font-semibold">Mobile:</span>
+                  <span className="text-slate-500 font-semibold">{t('mobile')}:</span>
                   <div className="font-bold text-slate-900">{selectedPatient.mobile}</div>
                 </div>
               </div>
 
               <div>
-                <span className="text-slate-500 font-semibold">Address:</span>
+                <span className="text-slate-500 font-semibold">{t('address')}:</span>
                 <div className="p-2.5 bg-slate-50 rounded-xl border border-slate-200 mt-1">{selectedPatient.address}</div>
               </div>
             </div>
@@ -746,7 +784,7 @@ export const AdminPatients: React.FC = () => {
                 onClick={() => setSelectedPatient(null)}
                 className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs rounded-xl cursor-pointer"
               >
-                Close
+                {t('close')}
               </button>
             </div>
           </div>
@@ -762,13 +800,19 @@ export const AdminPatients: React.FC = () => {
                 <AlertTriangle className="w-6 h-6" />
               </div>
               <div>
-                <h3 className="text-base font-extrabold text-slate-900">Delete Patient Account</h3>
-                <p className="text-xs text-slate-500 font-medium">This action cannot be undone.</p>
+                <h3 className="text-base font-extrabold text-slate-900">
+                  {isTa ? 'நோயாளி கணக்கை நீக்கு' : 'Delete Patient Account'}
+                </h3>
+                <p className="text-xs text-slate-500 font-medium">
+                  {isTa ? 'இந்த செயலை செயல்தவிர்க்க முடியாது.' : 'This action cannot be undone.'}
+                </p>
               </div>
             </div>
 
             <p className="text-xs text-slate-600 font-medium leading-relaxed bg-slate-50 p-3.5 rounded-xl border border-slate-200/80">
-              Are you sure you want to permanently delete patient <strong className="text-slate-900">{deletingPatient.name}</strong> (Patient ID: <span className="font-mono text-blue-700 font-bold">{deletingPatient.patient_id}</span>, Room {deletingPatient.room_number})?
+              {isTa
+                ? `நோயாளி ${deletingPatient.name}-ஐ (அடையாள எண்: ${deletingPatient.patient_id}, அறை ${deletingPatient.room_number}) நிச்சயமாக நிரந்தரமாக நீக்க விரும்புகிறீர்களா?`
+                : `Are you sure you want to permanently delete patient ${deletingPatient.name} (Patient ID: ${deletingPatient.patient_id}, Room ${deletingPatient.room_number})?`}
             </p>
 
             {deleteError && (
@@ -783,7 +827,7 @@ export const AdminPatients: React.FC = () => {
                 onClick={() => setDeletingPatient(null)}
                 className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-extrabold text-xs rounded-xl transition-colors cursor-pointer"
               >
-                Cancel
+                {t('cancel')}
               </button>
               <button
                 type="button"
@@ -791,7 +835,7 @@ export const AdminPatients: React.FC = () => {
                 disabled={deleteLoading}
                 className="flex-1 py-2.5 bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs rounded-xl transition-colors shadow-sm disabled:opacity-50 cursor-pointer"
               >
-                {deleteLoading ? 'Deleting...' : 'Delete Patient'}
+                {deleteLoading ? (isTa ? 'நீக்கப்படுகிறது...' : 'Deleting...') : (isTa ? 'நோயாளியை நீக்கு' : 'Delete Patient')}
               </button>
             </div>
           </div>

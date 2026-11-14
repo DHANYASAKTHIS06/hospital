@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useSocket } from '../context/SocketContext';
+import { useLanguage } from '../context/LanguageContext';
 import { api } from '../services/api';
 import { FoodOrder, Bill } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
@@ -22,10 +23,13 @@ import {
 export const PatientDashboard: React.FC = () => {
   const { user } = useAuth();
   const { socket } = useSocket();
+  const { t, language, translateFood } = useLanguage();
 
   const [activeOrders, setActiveOrders] = useState<FoodOrder[]>([]);
   const [latestBill, setLatestBill] = useState<Bill | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const isTa = language === 'ta';
 
   const fetchData = async () => {
     try {
@@ -66,12 +70,48 @@ export const PatientDashboard: React.FC = () => {
   }, [socket]);
 
   const quickNavTabs = [
-    { title: 'Meal Menu', path: '/patient/menu', icon: Utensils, desc: 'Order fresh breakfast, lunch & dinner', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-    { title: 'My Orders', path: '/patient/orders', icon: ShoppingBag, desc: 'Track live order status & submit feedback', color: 'bg-blue-50 text-blue-700 border-blue-200' },
-    { title: 'Food History', path: '/patient/food-history', icon: History, desc: 'View past ordered meals & dates', color: 'bg-purple-50 text-purple-700 border-purple-200' },
-    { title: 'My Bills', path: '/patient/bills', icon: FileText, desc: 'View day-wise bills & print receipts', color: 'bg-amber-50 text-amber-700 border-amber-200' },
-    { title: 'Payment Status', path: '/patient/payment-status', icon: CreditCard, desc: 'Check advance balance & billing summary', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-    { title: 'Profile Details', path: '/patient/profile', icon: User, desc: 'Manage your patient profile & room details', color: 'bg-rose-50 text-rose-700 border-rose-200' },
+    {
+      title: isTa ? 'உணவு மெனு' : 'Meal Menu',
+      path: '/patient/menu',
+      icon: Utensils,
+      desc: isTa ? 'புதிய காலை, மதிய & இரவு உணவை ஆர்டர் செய்க' : 'Order fresh breakfast, lunch & dinner',
+      color: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    },
+    {
+      title: t('navOrders'),
+      path: '/patient/orders',
+      icon: ShoppingBag,
+      desc: isTa ? 'நேரலை ஆர்டர் நிலை மற்றும் கருத்து சமர்ப்பிக்கவும்' : 'Track live order status & submit feedback',
+      color: 'bg-blue-50 text-blue-700 border-blue-200',
+    },
+    {
+      title: t('navFoodHistory'),
+      path: '/patient/food-history',
+      icon: History,
+      desc: isTa ? 'முந்தைய உணவு ஆர்டர்கள் மற்றும் தேதிகளைப் பார்க்கவும்' : 'View past ordered meals & dates',
+      color: 'bg-purple-50 text-purple-700 border-purple-200',
+    },
+    {
+      title: t('navBills'),
+      path: '/patient/bills',
+      icon: FileText,
+      desc: isTa ? 'தினசரி ரசீதுகளைப் பார்த்து அச்சிடவும்' : 'View day-wise bills & print receipts',
+      color: 'bg-amber-50 text-amber-700 border-amber-200',
+    },
+    {
+      title: t('navPaymentStatus'),
+      path: '/patient/payment-status',
+      icon: CreditCard,
+      desc: isTa ? 'முன்பண இருப்பு மற்றும் கட்டண சுருக்கம்' : 'Check advance balance & billing summary',
+      color: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+    },
+    {
+      title: isTa ? 'சுயவிவர விவரங்கள்' : 'Profile Details',
+      path: '/patient/profile',
+      icon: User,
+      desc: isTa ? 'சுயவிவரம் மற்றும் அறை விவரங்களை நிர்வகிக்கவும்' : 'Manage your patient profile & room details',
+      color: 'bg-rose-50 text-rose-700 border-rose-200',
+    },
   ];
 
   return (
@@ -90,26 +130,35 @@ export const PatientDashboard: React.FC = () => {
             />
             <div className="space-y-1">
               <span className="inline-flex items-center text-[10px] font-black uppercase tracking-wider bg-celadon text-slate-950 px-2.5 py-0.5 rounded-full border border-celadon">
-                PROCARE CANTEEN PATIENT PORTAL
+                {isTa ? 'ப்ரோகேர் கேன்டீன் நோயாளி போர்டல்' : 'PROCARE CANTEEN PATIENT PORTAL'}
               </span>
               <h1 className="text-xl sm:text-2xl font-black tracking-tight leading-snug">
-                Welcome, {user?.name || 'Patient'}
+                {isTa ? `நல்வரவு, ${user?.name || 'நோயாளி'}` : `Welcome, ${user?.name || 'Patient'}`}
               </h1>
 
               {/* Quick Details Chips */}
               <div className="flex flex-wrap items-center gap-2 pt-1">
                 <div className="inline-flex items-center gap-1.5 bg-procare-800/80 text-white text-xs font-semibold px-2.5 py-1 rounded-lg border border-procare-700">
                   <UserCheck className="w-3.5 h-3.5 text-celadon" />
-                  <span>ID: <strong className="font-mono text-white">{user?.patient_id || 'N/A'}</strong></span>
+                  <span>
+                    {isTa ? 'அடையாள எண்' : 'ID'}:{' '}
+                    <strong className="font-mono text-white">{user?.patient_id || 'N/A'}</strong>
+                  </span>
                 </div>
                 <div className="inline-flex items-center gap-1.5 bg-procare-800/80 text-white text-xs font-semibold px-2.5 py-1 rounded-lg border border-procare-700">
                   <Bed className="w-3.5 h-3.5 text-celadon" />
-                  <span>Room: <strong className="text-white">#{user?.room_number || 'N/A'}</strong></span>
+                  <span>
+                    {isTa ? 'அறை' : 'Room'}:{' '}
+                    <strong className="text-white">#{user?.room_number || 'N/A'}</strong>
+                  </span>
                 </div>
                 {user?.mobile && (
                   <div className="inline-flex items-center gap-1.5 bg-procare-800/80 text-white text-xs font-semibold px-2.5 py-1 rounded-lg border border-procare-700">
                     <Phone className="w-3.5 h-3.5 text-celadon" />
-                    <span>Mob: <strong className="text-white">{user.mobile}</strong></span>
+                    <span>
+                      {isTa ? 'கைபேசி' : 'Mob'}:{' '}
+                      <strong className="text-white">{user.mobile}</strong>
+                    </span>
                   </div>
                 )}
               </div>
@@ -121,7 +170,7 @@ export const PatientDashboard: React.FC = () => {
             className="w-full sm:w-auto inline-flex items-center justify-center space-x-2 bg-celadon hover:bg-procare-400 text-slate-950 font-black text-xs sm:text-sm px-5 py-3 rounded-xl shadow-xs transition-all transform active:scale-95 shrink-0 cursor-pointer"
           >
             <Utensils className="w-4 h-4 text-slate-950" />
-            <span>View Menu & Order</span>
+            <span>{isTa ? 'மெனுவைப் பார்த்து ஆர்டர் செய்க' : 'View Menu & Order'}</span>
           </Link>
         </div>
       </div>
@@ -129,7 +178,7 @@ export const PatientDashboard: React.FC = () => {
       {/* Quick Access Navigation Tabs Grid */}
       <div className="space-y-2">
         <h2 className="text-xs font-extrabold text-slate-400 uppercase tracking-wider px-1">
-          Patient Portal Navigation Tabs
+          {isTa ? 'நோயாளி போர்டல் வழிசெலுத்தல்' : 'Patient Portal Navigation Tabs'}
         </h2>
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           {quickNavTabs.map((tab) => {
@@ -166,25 +215,25 @@ export const PatientDashboard: React.FC = () => {
                 <div className="p-1.5 rounded-lg bg-blue-50 text-blue-600">
                   <ShoppingBag className="w-4 h-4" />
                 </div>
-                Active Food Orders
+                {t('activeFoodOrders')}
               </h2>
               <span className="text-xs font-bold bg-blue-50 text-blue-700 px-2.5 py-1 rounded-full border border-blue-100">
-                {activeOrders.length} Active
+                {activeOrders.length} {isTa ? 'செயலில்' : 'Active'}
               </span>
             </div>
 
             {loading ? (
               <div className="text-xs text-slate-400 py-6 text-center animate-pulse">
-                Loading active orders...
+                {isTa ? 'செயலில் உள்ள ஆர்டர்கள் ஏற்றப்படுகின்றன...' : 'Loading active orders...'}
               </div>
             ) : activeOrders.length === 0 ? (
               <div className="text-center py-8 text-slate-500 space-y-2">
                 <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center mx-auto text-slate-300">
                   <Clock className="w-6 h-6" />
                 </div>
-                <p className="text-sm font-bold text-slate-700">No Active Food Orders</p>
+                <p className="text-sm font-bold text-slate-700">{t('noActiveOrders')}</p>
                 <p className="text-xs text-slate-400 max-w-xs mx-auto">
-                  Select fresh meals from the canteen menu to place your daily order.
+                  {t('noActiveOrdersSub')}
                 </p>
               </div>
             ) : (
@@ -194,26 +243,33 @@ export const PatientDashboard: React.FC = () => {
                     <div className="flex justify-between items-start gap-2">
                       <div>
                         <span className="font-mono text-xs font-bold text-blue-700">{order.order_id}</span>
-                        <div className="text-[11px] text-slate-500 font-medium">{order.order_date} • {order.order_time}</div>
+                        <div className="text-[11px] text-slate-500 font-medium">
+                          {order.order_date} • {order.order_time}
+                        </div>
                       </div>
                       <StatusBadge status={order.order_status} />
                     </div>
 
                     <div className="text-xs text-slate-700 font-medium">
                       {order.items?.map((item) => (
-                        <span key={item._id} className="inline-block bg-white border border-slate-200 px-2 py-0.5 rounded-md mr-1.5 mb-1 text-[11px]">
-                          {item.item_name_snapshot} × <strong>{item.quantity}</strong>
+                        <span
+                          key={item._id}
+                          className="inline-block bg-white border border-slate-200 px-2 py-0.5 rounded-md mr-1.5 mb-1 text-[11px]"
+                        >
+                          {translateFood(item.item_name_snapshot)} × <strong>{item.quantity}</strong>
                         </span>
                       ))}
                     </div>
 
                     <div className="pt-2 border-t border-slate-200/60 flex justify-between items-center text-xs">
-                      <span className="font-bold text-slate-900">Total: ₹{order.total_amount}</span>
+                      <span className="font-bold text-slate-900">
+                        {isTa ? 'மொத்தம்' : 'Total'}: ₹{order.total_amount}
+                      </span>
                       <Link
                         to="/patient/orders"
                         className="text-blue-600 font-bold hover:underline inline-flex items-center gap-1 text-xs"
                       >
-                        <span>Track Order</span>
+                        <span>{t('trackOrder')}</span>
                         <ArrowRight className="w-3.5 h-3.5" />
                       </Link>
                     </div>
@@ -224,8 +280,11 @@ export const PatientDashboard: React.FC = () => {
           </div>
 
           <div className="pt-4 mt-4 border-t border-slate-100 text-right">
-            <Link to="/patient/orders" className="text-xs font-bold text-blue-600 hover:text-blue-700 inline-flex items-center gap-1">
-              <span>View Full Order History</span>
+            <Link
+              to="/patient/orders"
+              className="text-xs font-bold text-blue-600 hover:text-blue-700 inline-flex items-center gap-1"
+            >
+              <span>{t('viewFullHistory')}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>
@@ -239,53 +298,53 @@ export const PatientDashboard: React.FC = () => {
                 <div className="p-1.5 rounded-lg bg-emerald-50 text-emerald-600">
                   <CreditCard className="w-4 h-4" />
                 </div>
-                Bill & Payment Status
+                {t('billPaymentStatus')}
               </h2>
               {latestBill && <StatusBadge status={latestBill.payment_status} type="payment" />}
             </div>
 
             {loading ? (
               <div className="text-xs text-slate-400 py-6 text-center animate-pulse">
-                Loading billing details...
+                {isTa ? 'ரசீது விவரங்கள் ஏற்றப்படுகின்றன...' : 'Loading billing details...'}
               </div>
             ) : !latestBill ? (
               <div className="text-center py-8 text-slate-500 space-y-2">
                 <div className="w-12 h-12 rounded-full bg-slate-50 flex items-center justify-center mx-auto text-slate-300">
                   <FileText className="w-6 h-6" />
                 </div>
-                <p className="text-sm font-bold text-slate-700">No Bills Generated Yet</p>
+                <p className="text-sm font-bold text-slate-700">{t('noBillsGenerated')}</p>
                 <p className="text-xs text-slate-400 max-w-xs mx-auto">
-                  Bills will appear here once generated by the hospital canteen administration.
+                  {t('noBillsGeneratedSub')}
                 </p>
               </div>
             ) : (
               <div className="space-y-3.5">
                 <div className="bg-slate-50 border border-slate-200/80 rounded-xl p-3.5 text-xs space-y-1.5">
                   <div className="flex justify-between">
-                    <span className="text-slate-500 font-semibold">Bill ID:</span>
+                    <span className="text-slate-500 font-semibold">{isTa ? 'ரசீது எண்:' : 'Bill ID:'}</span>
                     <span className="font-bold text-slate-900 font-mono">{latestBill.bill_id}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500 font-medium">Period:</span>
+                    <span className="text-slate-500 font-medium">{isTa ? 'காலம்:' : 'Period:'}</span>
                     <span className="text-slate-800 font-medium">{latestBill.billing_period}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-slate-500 font-medium">Due Date:</span>
+                    <span className="text-slate-500 font-medium">{isTa ? 'கடைசி தேதி:' : 'Due Date:'}</span>
                     <span className="text-slate-800 font-medium">{latestBill.due_date}</span>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-3 gap-2 text-center">
                   <div className="bg-slate-50 p-2.5 rounded-xl border border-slate-200/80">
-                    <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">Total Bill</div>
+                    <div className="text-[10px] text-slate-500 font-bold uppercase tracking-wider">{t('totalBill')}</div>
                     <div className="text-sm font-black text-slate-900 mt-0.5">₹{latestBill.total_amount}</div>
                   </div>
                   <div className="bg-emerald-50/60 p-2.5 rounded-xl border border-emerald-200/60">
-                    <div className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider">Advance Paid</div>
+                    <div className="text-[10px] text-emerald-700 font-bold uppercase tracking-wider">{t('advancePaid')}</div>
                     <div className="text-sm font-black text-emerald-700 mt-0.5">₹{latestBill.advance_amount}</div>
                   </div>
                   <div className="bg-rose-50/60 p-2.5 rounded-xl border border-rose-200/60">
-                    <div className="text-[10px] text-rose-700 font-bold uppercase tracking-wider">Remaining</div>
+                    <div className="text-[10px] text-rose-700 font-bold uppercase tracking-wider">{t('remaining')}</div>
                     <div className="text-sm font-black text-rose-700 mt-0.5">₹{latestBill.remaining_amount}</div>
                   </div>
                 </div>
@@ -294,8 +353,11 @@ export const PatientDashboard: React.FC = () => {
           </div>
 
           <div className="pt-4 mt-4 border-t border-slate-100 text-right">
-            <Link to="/patient/payment-status" className="text-xs font-bold text-blue-600 hover:text-blue-700 inline-flex items-center gap-1">
-              <span>View Detailed Payment Breakdown</span>
+            <Link
+              to="/patient/payment-status"
+              className="text-xs font-bold text-blue-600 hover:text-blue-700 inline-flex items-center gap-1"
+            >
+              <span>{isTa ? 'விரிவான கட்டண விவரங்களைப் பார்க்கவும்' : 'View Detailed Payment Breakdown'}</span>
               <ArrowRight className="w-3.5 h-3.5" />
             </Link>
           </div>

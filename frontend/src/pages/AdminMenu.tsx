@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
+import { useLanguage } from '../context/LanguageContext';
 import { MenuItem, Category } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
-import { Plus, Edit, Trash2, Utensils, Check, X } from 'lucide-react';
+import { Plus, Edit, Trash2, Utensils, X } from 'lucide-react';
 
 export const AdminMenu: React.FC = () => {
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
@@ -10,7 +11,20 @@ export const AdminMenu: React.FC = () => {
   const [modalOpen, setModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<MenuItem | null>(null);
 
+  const { t, language, translateFood, translateCategory, translateSlot } = useLanguage();
+  const isTa = language === 'ta';
+
   const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+  const dayLabelsTa: Record<string, string> = {
+    Monday: 'திங்கள்',
+    Tuesday: 'செவ்வாய்',
+    Wednesday: 'புதன்',
+    Thursday: 'வியாழன்',
+    Friday: 'வெள்ளி',
+    Saturday: 'சனி',
+    Sunday: 'ஞாயிறு',
+  };
+
   const standardTimeSlots = ['7:00 AM', '11:00 AM', '4:00 PM', '7:00 PM'];
   const categories: Category[] = ['COMMON MENU', 'TEA / MILK', 'BREAKFAST', 'LUNCH', 'DINNER', 'SNACKS'];
 
@@ -97,17 +111,17 @@ export const AdminMenu: React.FC = () => {
       setModalOpen(false);
       fetchMenu();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Error saving menu item.');
+      alert(err.response?.data?.message || (isTa ? 'மெனு உருப்படியைச் சேமிப்பதில் பிழை.' : 'Error saving menu item.'));
     }
   };
 
   const handleDelete = async (menuId: number) => {
-    if (!window.confirm('Are you sure you want to delete this menu item?')) return;
+    if (!window.confirm(isTa ? 'இந்த மெனு உருப்படியை நிச்சயமாக நீக்க விரும்புகிறீர்களா?' : 'Are you sure you want to delete this menu item?')) return;
     try {
       await api.delete(`/admin/menu/${menuId}`);
       fetchMenu();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to delete item.');
+      alert(err.response?.data?.message || (isTa ? 'உருப்படியை நீக்குவதில் தோல்வி.' : 'Failed to delete item.'));
     }
   };
 
@@ -116,14 +130,16 @@ export const AdminMenu: React.FC = () => {
       <div className="bg-white p-6 rounded-2xl border border-procare-200 shadow-xs flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
           <span className="text-[10px] font-black text-procare-800 uppercase tracking-wider">
-            PROCARE PHYSIOTHERAPY & REHABILITATION CENTRE
+            {t('appName')} • {t('clinicName')}
           </span>
           <h1 className="text-xl font-black text-slate-900 flex items-center gap-2 mt-0.5">
             <Utensils className="w-5 h-5 text-procare-700" />
-            Menu Management (Admin Only)
+            {isTa ? 'மெனு மேலாண்மை (நிர்வாகி மட்டும்)' : 'Menu Management (Admin Only)'}
           </h1>
           <p className="text-xs text-slate-500 mt-0.5 font-medium">
-            Add, edit, delete menu items, modify prices, quantities, and day-wise availability.
+            {isTa
+              ? 'மெனு உருப்படிகளைச் சேர்க்கவும், திருத்தவும், நீக்கவும், விலைகள், அளவுகள் மற்றும் கிடைக்கும் நாட்களை மாற்றவும்.'
+              : 'Add, edit, delete menu items, modify prices, quantities, and day-wise availability.'}
           </p>
         </div>
 
@@ -132,42 +148,50 @@ export const AdminMenu: React.FC = () => {
           className="bg-celadon hover:bg-procare-400 text-slate-950 font-black text-xs px-4 py-2.5 rounded-xl shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
         >
           <Plus className="w-4 h-4 text-slate-950" />
-          <span>Add Menu Item</span>
+          <span>{isTa ? 'புதிய உருப்படியைச் சேர்' : 'Add Menu Item'}</span>
         </button>
       </div>
 
       {/* Menu Table */}
       {loading ? (
-        <div className="text-center py-12 text-gray-500 text-xs">Loading menu items...</div>
+        <div className="text-center py-12 text-gray-500 text-xs">
+          {isTa ? 'மெனு உருப்படிகள் ஏற்றப்படுகின்றன...' : 'Loading menu items...'}
+        </div>
       ) : (
         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-xs text-left">
               <thead className="bg-gray-50 border-b border-gray-200 text-gray-600 font-semibold uppercase tracking-wider">
                 <tr>
-                  <th className="px-4 py-3">ID</th>
-                  <th className="px-4 py-3">Item Name</th>
-                  <th className="px-4 py-3">Category</th>
-                  <th className="px-4 py-3">Quantity</th>
-                  <th className="px-4 py-3">Price</th>
-                  <th className="px-4 py-3">Available Days</th>
-                  <th className="px-4 py-3 text-center">Status</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
+                  <th className="px-4 py-3">{isTa ? 'எண்' : 'ID'}</th>
+                  <th className="px-4 py-3">{isTa ? 'உணவின் பெயர்' : 'Item Name'}</th>
+                  <th className="px-4 py-3">{isTa ? 'பிரிவு' : 'Category'}</th>
+                  <th className="px-4 py-3">{isTa ? 'அளவு' : 'Quantity'}</th>
+                  <th className="px-4 py-3">{isTa ? 'விலை' : 'Price'}</th>
+                  <th className="px-4 py-3">{isTa ? 'கிடைக்கும் நாட்கள்' : 'Available Days'}</th>
+                  <th className="px-4 py-3 text-center">{isTa ? 'நிலை' : 'Status'}</th>
+                  <th className="px-4 py-3 text-right">{isTa ? 'செயல்கள்' : 'Actions'}</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200">
                 {menuItems.map((item) => (
                   <tr key={item._id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 font-mono font-bold text-gray-600">#{item.menu_id}</td>
-                    <td className="px-4 py-3 font-bold text-gray-900">{item.item_name}</td>
+                    <td className="px-4 py-3 font-bold text-gray-900">{translateFood(item.item_name)}</td>
                     <td className="px-4 py-3 font-semibold text-blue-700">
                       <div>
-                        <span>{item.category === 'COMMON MENU' ? 'ALL MEALS (BREAKFAST / LUNCH / DINNER)' : item.category}</span>
+                        <span>
+                          {item.category === 'COMMON MENU'
+                            ? isTa
+                              ? 'அனைத்து உணவுகள் (காலை / மதிய / இரவு)'
+                              : 'ALL MEALS (BREAKFAST / LUNCH / DINNER)'
+                            : translateCategory(item.category)}
+                        </span>
                         {(item.requires_serving_time || item.category === 'TEA / MILK') && (
                           <div className="mt-1 flex flex-wrap gap-1">
                             {(item.serving_time_slots && item.serving_time_slots.length > 0 ? item.serving_time_slots : standardTimeSlots).map((slot) => (
                               <span key={slot} className="inline-block text-[10px] font-mono bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-bold border border-amber-200">
-                                {slot}
+                                {translateSlot(slot)}
                               </span>
                             ))}
                           </div>
@@ -178,8 +202,10 @@ export const AdminMenu: React.FC = () => {
                     <td className="px-4 py-3 font-bold text-gray-900">₹{item.price}</td>
                     <td className="px-4 py-3 text-gray-600">
                       {item.available_days.length === 7
-                        ? 'All Days'
-                        : item.available_days.join(', ')}
+                        ? isTa
+                          ? 'அனைத்து நாட்கள்'
+                          : 'All Days'
+                        : item.available_days.map((d) => (isTa ? dayLabelsTa[d] || d : d)).join(', ')}
                     </td>
                     <td className="px-4 py-3 text-center">
                       <StatusBadge
@@ -190,15 +216,15 @@ export const AdminMenu: React.FC = () => {
                     <td className="px-4 py-3 text-right space-x-2">
                       <button
                         onClick={() => openEditModal(item)}
-                        className="p-1.5 text-blue-700 hover:bg-blue-50 rounded transition-colors"
-                        title="Edit Item"
+                        className="p-1.5 text-blue-700 hover:bg-blue-50 rounded transition-colors cursor-pointer"
+                        title={isTa ? 'திருத்து' : 'Edit Item'}
                       >
                         <Edit className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => handleDelete(item.menu_id)}
-                        className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors"
-                        title="Delete Item"
+                        className="p-1.5 text-red-600 hover:bg-red-50 rounded transition-colors cursor-pointer"
+                        title={isTa ? 'நீக்கு' : 'Delete Item'}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -217,16 +243,24 @@ export const AdminMenu: React.FC = () => {
           <div className="bg-white rounded-xl max-w-lg w-full p-6 space-y-4 shadow-xl border border-gray-200 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center pb-2 border-b border-gray-200">
               <h3 className="text-base font-bold text-gray-900">
-                {editingItem ? `Edit Menu Item #${editingItem.menu_id}` : 'Add New Menu Item'}
+                {editingItem
+                  ? isTa
+                    ? `மெனு உருப்படி #${editingItem.menu_id}-ஐ திருத்து`
+                    : `Edit Menu Item #${editingItem.menu_id}`
+                  : isTa
+                  ? 'புதிய மெனு உருப்படியைச் சேர்க்கவும்'
+                  : 'Add New Menu Item'}
               </h3>
-              <button onClick={() => setModalOpen(false)} className="text-gray-400 hover:text-gray-600">
+              <button onClick={() => setModalOpen(false)} className="text-gray-400 hover:text-gray-600 cursor-pointer">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4 text-xs">
               <div>
-                <label className="block font-semibold text-gray-700 mb-1">Item Name *</label>
+                <label className="block font-semibold text-gray-700 mb-1">
+                  {isTa ? 'உணவின் பெயர் *' : 'Item Name *'}
+                </label>
                 <input
                   type="text"
                   required
@@ -239,7 +273,9 @@ export const AdminMenu: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block font-semibold text-gray-700 mb-1">Category *</label>
+                  <label className="block font-semibold text-gray-700 mb-1">
+                    {isTa ? 'பிரிவு *' : 'Category *'}
+                  </label>
                   <select
                     value={formData.category}
                     onChange={(e) => {
@@ -254,14 +290,20 @@ export const AdminMenu: React.FC = () => {
                   >
                     {categories.map((c) => (
                       <option key={c} value={c}>
-                        {c === 'COMMON MENU' ? 'ALL MEALS (BREAKFAST / LUNCH / DINNER)' : c}
+                        {c === 'COMMON MENU'
+                          ? isTa
+                            ? 'அனைத்து உணவுகள் (காலை / மதிய / இரவு)'
+                            : 'ALL MEALS (BREAKFAST / LUNCH / DINNER)'
+                          : translateCategory(c)}
                       </option>
                     ))}
                   </select>
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-gray-700 mb-1">Quantity Format *</label>
+                  <label className="block font-semibold text-gray-700 mb-1">
+                    {isTa ? 'அளவு வடிவம் *' : 'Quantity Format *'}
+                  </label>
                   <input
                     type="text"
                     required
@@ -274,7 +316,9 @@ export const AdminMenu: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold text-gray-700 mb-1">Price (₹) *</label>
+                <label className="block font-semibold text-gray-700 mb-1">
+                  {isTa ? 'விலை (₹) *' : 'Price (₹) *'}
+                </label>
                 <input
                   type="number"
                   required
@@ -287,7 +331,9 @@ export const AdminMenu: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold text-gray-700 mb-1">Description</label>
+                <label className="block font-semibold text-gray-700 mb-1">
+                  {isTa ? 'விளக்கம்' : 'Description'}
+                </label>
                 <input
                   type="text"
                   value={formData.description}
@@ -306,7 +352,7 @@ export const AdminMenu: React.FC = () => {
                   className="w-4 h-4 text-blue-600 rounded"
                 />
                 <label htmlFor="availability" className="font-semibold text-gray-800">
-                  Item Enabled (Available for Ordering)
+                  {isTa ? 'உருப்படி இயக்கப்பட்டது (ஆர்டர் செய்ய கிடைக்கும்)' : 'Item Enabled (Available for Ordering)'}
                 </label>
               </div>
 
@@ -321,13 +367,13 @@ export const AdminMenu: React.FC = () => {
                     className="w-4 h-4 text-amber-600 rounded"
                   />
                   <label htmlFor="requires_serving_time" className="font-bold text-amber-950">
-                    Requires Serving Time (e.g., Tea, Coffee, Milk)
+                    {isTa ? 'வழங்கும் நேரம் தேவை (எ.கா. தேநீர், காபி, பால்)' : 'Requires Serving Time (e.g., Tea, Coffee, Milk)'}
                   </label>
                 </div>
                 {formData.requires_serving_time && (
                   <div className="pt-1">
                     <label className="block text-[11px] font-bold text-amber-900 mb-1.5">
-                      Available Serving Time Slots (Select enabled slots)
+                      {isTa ? 'கிடைக்கும் நேர இடங்கள்' : 'Available Serving Time Slots (Select enabled slots)'}
                     </label>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                       {standardTimeSlots.map((slot) => {
@@ -345,13 +391,13 @@ export const AdminMenu: React.FC = () => {
                                 };
                               });
                             }}
-                            className={`py-1.5 px-2 rounded-lg text-center border font-bold text-xs transition-all ${
+                            className={`py-1.5 px-2 rounded-lg text-center border font-bold text-xs transition-all cursor-pointer ${
                               checked
                                 ? 'bg-amber-600 text-white border-amber-600 shadow-2xs'
                                 : 'bg-white text-slate-600 border-amber-200 hover:bg-amber-50'
                             }`}
                           >
-                            {slot} {checked ? '✓' : ''}
+                            {translateSlot(slot)} {checked ? '✓' : ''}
                           </button>
                         );
                       })}
@@ -361,7 +407,9 @@ export const AdminMenu: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold text-gray-700 mb-2">Available Days</label>
+                <label className="block font-semibold text-gray-700 mb-2">
+                  {isTa ? 'கிடைக்கும் நாட்கள்' : 'Available Days'}
+                </label>
                 <div className="grid grid-cols-4 gap-2">
                   {daysOfWeek.map((day) => {
                     const checked = formData.available_days.includes(day);
@@ -370,13 +418,13 @@ export const AdminMenu: React.FC = () => {
                         type="button"
                         key={day}
                         onClick={() => handleDayToggle(day)}
-                        className={`py-1.5 px-2 rounded text-center border font-semibold ${
+                        className={`py-1.5 px-2 rounded text-center border font-semibold cursor-pointer ${
                           checked
                             ? 'bg-blue-50 border-blue-400 text-blue-800'
                             : 'bg-gray-50 border-gray-200 text-gray-500'
                         }`}
                       >
-                        {day.slice(0, 3)} {checked ? '✓' : ''}
+                        {isTa ? dayLabelsTa[day] : day.slice(0, 3)} {checked ? '✓' : ''}
                       </button>
                     );
                   })}
@@ -387,15 +435,15 @@ export const AdminMenu: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setModalOpen(false)}
-                  className="px-4 py-2 rounded-lg font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200"
+                  className="px-4 py-2 rounded-lg font-semibold text-gray-600 bg-gray-100 hover:bg-gray-200 cursor-pointer"
                 >
-                  Cancel
+                  {t('cancel')}
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 rounded-lg font-bold text-white bg-blue-700 hover:bg-blue-800 shadow-sm"
+                  className="px-5 py-2 rounded-lg font-bold text-white bg-blue-700 hover:bg-blue-800 shadow-sm cursor-pointer"
                 >
-                  Save Item
+                  {isTa ? 'உருப்படியைச் சேமி' : 'Save Item'}
                 </button>
               </div>
             </form>

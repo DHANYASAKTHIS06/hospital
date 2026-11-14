@@ -2,11 +2,14 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { api } from '../services/api';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
+import { LanguageToggle } from '../components/LanguageToggle';
 import { ArrowLeft, Lock, User, KeyRound, UtensilsCrossed } from 'lucide-react';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const { t, language } = useLanguage();
 
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
@@ -33,7 +36,7 @@ export const LoginPage: React.FC = () => {
         navigate('/patient/dashboard', { replace: true });
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Invalid Patient ID / Admin Username or Password.');
+      setError(err.response?.data?.message || t('loginError'));
     } finally {
       setLoading(false);
     }
@@ -49,7 +52,7 @@ export const LoginPage: React.FC = () => {
           to="/"
           className="inline-flex items-center text-xs font-bold text-procare-800 hover:text-procare-950 transition-colors"
         >
-          <ArrowLeft className="w-4 h-4 mr-1 text-procare-700" /> Back to Home
+          <ArrowLeft className="w-4 h-4 mr-1 text-procare-700" /> {t('backHome')}
         </Link>
 
         <div className="text-center space-y-2">
@@ -60,11 +63,18 @@ export const LoginPage: React.FC = () => {
               className="h-20 w-auto object-contain shrink-0"
             />
           </div>
-          <h1 className="text-xl font-black text-slate-900 tracking-tight uppercase">
-            PROCARE CANTEEN LOGIN
+          
+          <h1 className="text-xl font-black text-slate-900 tracking-tight">
+            {language === 'ta' ? 'ப்ரோகேர் கேன்டீன் போர்ட்டலில் உள்நுழையவும்' : 'Sign in to ProCare Canteen Portal'}
           </h1>
+
+          {/* Language Toggle Directly Below "Sign in to ProCare Canteen Portal" */}
+          <div className="flex justify-center pt-1.5 pb-1">
+            <LanguageToggle />
+          </div>
+
           <p className="text-xs text-procare-800 font-bold uppercase tracking-wide">
-            Physiotherapy & Rehabilitation Centre
+            {t('clinicName')}
           </p>
         </div>
 
@@ -81,14 +91,14 @@ export const LoginPage: React.FC = () => {
           <div>
             <label className="block text-xs font-extrabold text-slate-800 mb-1 flex items-center gap-1.5">
               <User className="w-3.5 h-3.5 text-procare-700" />
-              Patient ID / Admin Username *
+              {t('patientIdOrUsername')}
             </label>
             <input
               type="text"
               required
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
-              placeholder="e.g. PAT-1001 or admin"
+              placeholder={language === 'ta' ? 'எ.கா. 101 அல்லது admin' : 'e.g. 101 or admin'}
               className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-bold focus:ring-2 focus:ring-procare-400 focus:border-procare-400 outline-none bg-slate-50/50"
             />
           </div>
@@ -96,14 +106,14 @@ export const LoginPage: React.FC = () => {
           <div>
             <label className="block text-xs font-extrabold text-slate-700 mb-1 flex items-center gap-1.5">
               <KeyRound className="w-3.5 h-3.5 text-procare-700" />
-              Password *
+              {t('password')}
             </label>
             <input
               type="password"
               required
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter password"
+              placeholder={language === 'ta' ? 'கடவுச்சொல்லை உள்ளிடவும்' : 'Enter password'}
               className="w-full px-3.5 py-2.5 border border-slate-200 rounded-xl text-xs font-medium focus:ring-2 focus:ring-procare-400 focus:border-procare-400 outline-none bg-slate-50/50"
             />
           </div>
@@ -111,14 +121,23 @@ export const LoginPage: React.FC = () => {
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-celadon hover:bg-procare-500 active:bg-procare-600 text-slate-950 font-black py-3 px-4 rounded-xl text-xs transition-all shadow-xs disabled:opacity-50 mt-2 cursor-pointer"
+            className="w-full bg-celadon hover:bg-procare-500 active:bg-procare-600 text-slate-950 font-black py-3 px-4 rounded-xl text-xs transition-all shadow-xs disabled:opacity-50 mt-2 cursor-pointer flex items-center justify-center gap-2"
           >
-            {loading ? 'Authenticating...' : 'SIGN IN TO PROCARE CANTEEN'}
+            {loading ? (
+              <span>{t('signingIn')}</span>
+            ) : (
+              <>
+                <UtensilsCrossed className="w-4 h-4 text-slate-950" />
+                <span>{t('signInBtn')}</span>
+              </>
+            )}
           </button>
         </form>
 
         <div className="pt-2 text-center text-[11px] text-slate-500 font-medium border-t border-slate-100">
-          Patient credentials are generated and provided exclusively by the ProCare Canteen Admin.
+          {language === 'ta'
+            ? 'நோயாளி உள்நுழைவு சான்றுகள் ப்ரோகேர் கேன்டீன் நிர்வாகியால் பிரத்தியேகமாக உருவாக்கப்பட்டு வழங்கப்படுகின்றன.'
+            : 'Patient credentials are generated and provided exclusively by the ProCare Canteen Admin.'}
         </div>
       </div>
     </div>

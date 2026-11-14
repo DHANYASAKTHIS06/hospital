@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { useSocket } from '../context/SocketContext';
+import { useLanguage } from '../context/LanguageContext';
 import { FoodOrder, FoodItemToPrepare } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
 import { PrintableReportsModal } from '../components/PrintableReportsModal';
@@ -18,6 +19,9 @@ export const AdminOrders: React.FC = () => {
   const [reportType, setReportType] = useState<'ROOM_WISE' | 'ITEMS_TO_PREPARE'>('ROOM_WISE');
 
   const { socket } = useSocket();
+  const { t, language, translateFood, translateCategory, translateSlot } = useLanguage();
+
+  const isTa = language === 'ta';
 
   const fetchOrders = async () => {
     try {
@@ -58,7 +62,7 @@ export const AdminOrders: React.FC = () => {
       await api.post(`/admin/orders/${orderId}/confirm-delivery`);
       fetchOrders();
     } catch (err: any) {
-      alert(err.response?.data?.message || 'Failed to confirm admin delivery.');
+      alert(err.response?.data?.message || (isTa ? 'டெலிவரியை உறுதிப்படுத்துவதில் தோல்வி.' : 'Failed to confirm admin delivery.'));
     }
   };
 
@@ -132,14 +136,16 @@ export const AdminOrders: React.FC = () => {
       <div className="bg-white p-6 rounded-2xl border border-procare-200 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <span className="text-[10px] font-black text-procare-800 uppercase tracking-wider">
-            PROCARE PHYSIOTHERAPY & REHABILITATION CENTRE
+            {t('appName')} • {t('clinicName')}
           </span>
           <h1 className="text-xl font-black text-slate-900 flex items-center gap-2 mt-0.5">
             <ShoppingBag className="w-5 h-5 text-procare-700" />
-            Admin Order Management (Meal-Wise View)
+            {isTa ? 'நிர்வாக ஆர்டர் மேலாண்மை (உணவு அமர்வு வாரியானது)' : 'Admin Order Management (Meal-Wise View)'}
           </h1>
           <p className="text-xs text-slate-500 mt-0.5 font-medium">
-            View patient food orders grouped by Breakfast, Lunch, and Dinner with live balance alerts.
+            {isTa
+              ? 'காலை, மதிய மற்றும் இரவு உணவு வாரியாக பிரிக்கப்பட்ட நோயாளிகளின் உணவு ஆர்டர்கள்.'
+              : 'View patient food orders grouped by Breakfast, Lunch, and Dinner with live balance alerts.'}
           </p>
         </div>
 
@@ -149,7 +155,7 @@ export const AdminOrders: React.FC = () => {
             className="bg-procare-800 hover:bg-procare-700 text-white px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer border border-procare-700"
           >
             <Building2 className="w-4 h-4" />
-            <span>Print Room-Wise Report</span>
+            <span>{isTa ? 'அறை வாரியான அறிக்கை' : 'Print Room-Wise Report'}</span>
           </button>
 
           <button
@@ -157,7 +163,7 @@ export const AdminOrders: React.FC = () => {
             className="bg-celadon hover:bg-procare-400 text-slate-950 px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition-colors shadow-xs cursor-pointer"
           >
             <Printer className="w-4 h-4 text-slate-950" />
-            <span>Print Items to Be Prepared</span>
+            <span>{isTa ? 'தயாரிப்புப் பட்டியல்' : 'Print Items to Be Prepared'}</span>
           </button>
         </div>
       </div>
@@ -169,9 +175,13 @@ export const AdminOrders: React.FC = () => {
             <AlertTriangle className="w-5 h-5" />
           </div>
           <div>
-            <h3 className="font-black text-sm text-rose-900">⚠️ LOW BALANCE PATIENTS DETECTED</h3>
+            <h3 className="font-black text-sm text-rose-900">
+              ⚠️ {isTa ? 'குறைந்த முன்பண இருப்பு நோயாளிகள் கண்டறியப்பட்டனர்' : 'LOW BALANCE PATIENTS DETECTED'}
+            </h3>
             <p className="text-xs text-rose-800 font-semibold mt-0.5">
-              Some patients with orders have a remaining advance balance below ₹500. Please recharge their balance under the Manage Patients tab.
+              {isTa
+                ? 'ஆர்டர் செய்துள்ள சில நோயாளிகளின் முன்பண இருப்பு ₹500-க்குக் குறைவாக உள்ளது. நோயாளிகள் பக்கத்தில் இருப்பை ரீசார்ஜ் செய்யவும்.'
+                : 'Some patients with orders have a remaining advance balance below ₹500. Please recharge their balance under the Manage Patients tab.'}
             </p>
           </div>
         </div>
@@ -182,27 +192,27 @@ export const AdminOrders: React.FC = () => {
         {/* Status Filter */}
         <div className="flex flex-wrap gap-2">
           {[
-            { label: 'ALL ORDERS', value: 'ALL', count: orders.length },
-            { label: 'ACTIVE ORDERS', value: 'ACTIVE', count: activeOrdersCount },
-            { label: 'DELIVERED', value: 'DELIVERED', count: deliveredOrdersCount },
-          ].map((t) => (
+            { label: isTa ? 'அனைத்து ஆர்டர்கள்' : 'ALL ORDERS', value: 'ALL', count: orders.length },
+            { label: isTa ? 'செயலில் உள்ளவை' : 'ACTIVE ORDERS', value: 'ACTIVE', count: activeOrdersCount },
+            { label: isTa ? 'டெலிவரி செய்யப்பட்டவை' : 'DELIVERED', value: 'DELIVERED', count: deliveredOrdersCount },
+          ].map((tTab) => (
             <button
-              key={t.value}
-              onClick={() => setActiveTab(t.value as any)}
+              key={tTab.value}
+              onClick={() => setActiveTab(tTab.value as any)}
               className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-colors cursor-pointer ${
-                activeTab === t.value
+                activeTab === tTab.value
                   ? 'bg-slate-900 text-white shadow-xs'
                   : 'bg-slate-50 text-gray-700 hover:bg-slate-100 border border-gray-200'
               }`}
             >
-              {t.label} ({t.count})
+              {tTab.label} ({tTab.count})
             </button>
           ))}
         </div>
 
         {/* Meal Session Filter */}
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-xs font-bold text-gray-500 mr-1">Filter Meal:</span>
+          <span className="text-xs font-bold text-gray-500 mr-1">{isTa ? 'உணவு வடிகட்டல்:' : 'Filter Meal:'}</span>
           {['ALL', 'BREAKFAST', 'LUNCH', 'DINNER', 'SNACKS'].map((meal) => (
             <button
               key={meal}
@@ -213,7 +223,7 @@ export const AdminOrders: React.FC = () => {
                   : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-100'
               }`}
             >
-              {meal}
+              {translateCategory(meal)}
             </button>
           ))}
         </div>
@@ -221,10 +231,12 @@ export const AdminOrders: React.FC = () => {
 
       {/* MEAL-WISE GROUPED ORDERS LIST */}
       {loading ? (
-        <div className="text-center py-12 text-gray-500 text-xs font-semibold">Loading orders...</div>
+        <div className="text-center py-12 text-gray-500 text-xs font-semibold">
+          {isTa ? 'ஆர்டர்கள் ஏற்றப்படுகின்றன...' : 'Loading orders...'}
+        </div>
       ) : filteredOrders.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-200 p-12 text-center text-gray-500 text-xs font-semibold">
-          No orders found matching the selected filters.
+          {isTa ? 'வடிகட்டலுக்கு ஏற்ப ஆர்டர்கள் எதுவும் இல்லை.' : 'No orders found matching the selected filters.'}
         </div>
       ) : (
         <div className="space-y-8">
@@ -254,11 +266,11 @@ export const AdminOrders: React.FC = () => {
                   <div className="flex items-center space-x-2">
                     <MealIcon className="w-5 h-5 text-amber-300" />
                     <h2 className="text-sm font-extrabold uppercase tracking-wide">
-                      {section.meal_type} ORDERS
+                      {translateCategory(section.meal_type)} {isTa ? 'ஆர்டர்கள்' : 'ORDERS'}
                     </h2>
                   </div>
                   <span className="text-xs font-bold bg-white/20 px-3 py-1 rounded-full border border-white/20">
-                    {section.orders.length} {section.orders.length === 1 ? 'Order' : 'Orders'}
+                    {section.orders.length} {isTa ? 'ஆர்டர்கள்' : section.orders.length === 1 ? 'Order' : 'Orders'}
                   </span>
                 </div>
 
@@ -276,10 +288,10 @@ export const AdminOrders: React.FC = () => {
                             <div className="flex flex-wrap items-center space-x-3 gap-y-1">
                               <span className="font-mono text-base font-bold text-blue-700">{order.order_id}</span>
                               <span className="text-xs font-bold text-gray-900 bg-white border border-gray-200 px-2.5 py-0.5 rounded shadow-2xs">
-                                Patient: {order.patient_name} ({order.patient_id})
+                                {isTa ? 'நோயாளி:' : 'Patient:'} {order.patient_name} ({order.patient_id})
                               </span>
                               <span className="text-xs font-extrabold text-slate-900 bg-slate-200 px-2.5 py-0.5 rounded">
-                                Room #{order.room_number || 'N/A'}
+                                {isTa ? 'அறை' : 'Room'} #{order.room_number || 'N/A'}
                               </span>
 
                               {/* Patient Remaining Balance Indicator */}
@@ -290,18 +302,20 @@ export const AdminOrders: React.FC = () => {
                                     : 'bg-emerald-100 text-emerald-950 border-emerald-300'
                                 }`}>
                                   <Wallet className="w-3 h-3 text-emerald-700" />
-                                  <span>Balance: ₹{balance}</span>
-                                  {isLowBalance && <span className="text-[10px] font-extrabold text-rose-600 ml-1">⚠️ LOW</span>}
+                                  <span>{isTa ? 'இருப்பு:' : 'Balance:'} ₹{balance}</span>
+                                  {isLowBalance && <span className="text-[10px] font-extrabold text-rose-600 ml-1">⚠️ {isTa ? 'குறைவு' : 'LOW'}</span>}
                                 </span>
                               )}
                             </div>
 
                             <div className="text-xs text-gray-500 font-medium flex flex-wrap items-center gap-1.5">
-                              <span>Date: {order.order_date} • Time: {order.order_time} • Meal Session: <strong className="text-slate-800">{order.meal_type}</strong></span>
+                              <span>
+                                {isTa ? 'தேதி:' : 'Date:'} {order.order_date} • {isTa ? 'நேரம்:' : 'Time:'} {order.order_time} • {isTa ? 'உணவு:' : 'Meal Session:'} <strong className="text-slate-800">{translateCategory(order.meal_type)}</strong>
+                              </span>
                               {order.serving_time && (
                                 <span className="bg-amber-50 border border-amber-300 text-amber-900 font-bold px-2 py-0.5 rounded text-[11px] inline-flex items-center gap-1">
                                   <Clock className="w-3 h-3 text-amber-700" />
-                                  Serving Time: {order.serving_time}
+                                  {isTa ? 'வழங்கும் நேரம்:' : 'Serving Time:'} {translateSlot(order.serving_time)}
                                 </span>
                               )}
                             </div>
@@ -315,21 +329,21 @@ export const AdminOrders: React.FC = () => {
                           <table className="w-full text-xs">
                             <thead>
                               <tr className="text-left text-gray-500 border-b border-gray-200 pb-1">
-                                <th className="pb-1 font-semibold">Food Item</th>
-                                <th className="pb-1 font-semibold text-center">Qty</th>
-                                <th className="pb-1 font-semibold text-right">Price</th>
-                                <th className="pb-1 font-semibold text-right">Subtotal</th>
+                                <th className="pb-1 font-semibold">{isTa ? 'உணவு' : 'Food Item'}</th>
+                                <th className="pb-1 font-semibold text-center">{isTa ? 'அளவு' : 'Qty'}</th>
+                                <th className="pb-1 font-semibold text-right">{isTa ? 'விலை' : 'Price'}</th>
+                                <th className="pb-1 font-semibold text-right">{isTa ? 'தொகை' : 'Subtotal'}</th>
                               </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200/60">
                               {order.items?.map((it) => (
                                 <tr key={it._id} className="text-gray-800 font-medium">
                                   <td className="py-1.5 font-bold">
-                                    {it.item_name_snapshot}
+                                    {translateFood(it.item_name_snapshot)}
                                     {it.serving_time && (
                                       <span className="text-[10px] bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-mono font-bold ml-1.5 inline-flex items-center gap-0.5">
                                         <Clock className="w-2.5 h-2.5 text-amber-700" />
-                                        {it.serving_time}
+                                        {translateSlot(it.serving_time)}
                                       </span>
                                     )}
                                   </td>
@@ -341,7 +355,9 @@ export const AdminOrders: React.FC = () => {
                             </tbody>
                             <tfoot>
                               <tr className="border-t border-gray-200 font-extrabold text-slate-900 text-xs">
-                                <td colSpan={3} className="pt-2 text-right">Total Meal Order Amount:</td>
+                                <td colSpan={3} className="pt-2 text-right">
+                                  {isTa ? 'மொத்த உணவு ஆர்டர் தொகை:' : 'Total Meal Order Amount:'}
+                                </td>
                                 <td className="pt-2 text-right font-black text-blue-800">₹{order.total_amount}</td>
                               </tr>
                             </tfoot>
@@ -352,7 +368,7 @@ export const AdminOrders: React.FC = () => {
                         {order.has_feedback && (
                           <div className="bg-amber-50/70 rounded-xl p-3 border border-amber-200/70 text-xs space-y-1">
                             <div className="flex items-center gap-1 text-amber-700 font-bold">
-                              <span className="text-gray-700">Patient Rating & Feedback:</span>
+                              <span className="text-gray-700">{isTa ? 'நோயாளி மதிப்பீடு & கருத்து:' : 'Patient Rating & Feedback:'}</span>
                               <div className="flex items-center gap-0.5 ml-1">
                                 {[1, 2, 3, 4, 5].map((star) => (
                                   <Star
@@ -380,13 +396,13 @@ export const AdminOrders: React.FC = () => {
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 pt-2 border-t border-gray-200/80">
                           <div className="text-xs space-y-1">
                             <div className="text-gray-700 font-semibold">
-                              Delivery Status:
+                              {isTa ? 'டெலிவரி நிலை:' : 'Delivery Status:'}
                             </div>
                             <div>
                               {isDelivered ? (
-                                <span className="text-emerald-700 font-bold">✓ DELIVERED</span>
+                                <span className="text-emerald-700 font-bold">{isTa ? '✓ டெலிவரி செய்யப்பட்டது' : '✓ DELIVERED'}</span>
                               ) : (
-                                <span className="text-blue-700 font-bold">Active / Pending Delivery</span>
+                                <span className="text-blue-700 font-bold">{isTa ? 'செயலில் / டெலிவரி நிலுவையில்' : 'Active / Pending Delivery'}</span>
                               )}
                             </div>
                           </div>
@@ -398,7 +414,7 @@ export const AdminOrders: React.FC = () => {
                                 className="bg-emerald-700 hover:bg-emerald-800 text-white font-bold text-xs px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-xs cursor-pointer"
                               >
                                 <Truck className="w-4 h-4" />
-                                <span>MARK ORDER AS DELIVERED</span>
+                                <span>{isTa ? 'டெலிவரி செய்யப்பட்டதாக குறி' : 'MARK ORDER AS DELIVERED'}</span>
                               </button>
                             </div>
                           )}

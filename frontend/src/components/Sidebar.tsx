@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 import {
   LayoutDashboard,
   Utensils,
@@ -13,7 +14,6 @@ import {
   Home,
   LogOut,
   X,
-  UtensilsCrossed,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -23,28 +23,29 @@ interface SidebarProps {
 
 export const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => {
   const { user, logout } = useAuth();
+  const { t, language } = useLanguage();
 
   if (!user) return null;
 
   const patientLinks = [
-    { name: 'Dashboard', path: '/patient/dashboard', icon: LayoutDashboard },
-    { name: 'Menu', path: '/patient/menu', icon: Utensils },
-    { name: 'My Orders', path: '/patient/orders', icon: ShoppingBag },
-    { name: 'My Food History', path: '/patient/food-history', icon: History },
-    { name: 'My Bills', path: '/patient/bills', icon: FileText },
-    { name: 'Payment Status', path: '/patient/payment-status', icon: CreditCard },
-    { name: 'Profile', path: '/patient/profile', icon: User },
+    { name: t('navDashboard'), path: '/patient/dashboard', icon: LayoutDashboard },
+    { name: t('navMenu'), path: '/patient/menu', icon: Utensils },
+    { name: t('navOrders'), path: '/patient/orders', icon: ShoppingBag },
+    { name: t('navFoodHistory'), path: '/patient/food-history', icon: History },
+    { name: t('navBills'), path: '/patient/bills', icon: FileText },
+    { name: t('navPaymentStatus'), path: '/patient/payment-status', icon: CreditCard },
+    { name: t('navProfile'), path: '/patient/profile', icon: User },
   ];
 
   const adminLinks = [
-    { name: 'Dashboard', path: '/admin/dashboard', icon: LayoutDashboard },
-    { name: 'Orders', path: '/admin/orders', icon: ShoppingBag },
-    { name: 'Menu Management', path: '/admin/menu', icon: Utensils },
-    { name: 'Patients', path: '/admin/patients', icon: Users },
-    { name: 'Food Records', path: '/admin/food-records', icon: History },
-    { name: 'Bills', path: '/admin/bills', icon: FileText },
-    { name: 'Payments', path: '/admin/payments', icon: CreditCard },
-    { name: 'Room-wise View', path: '/admin/room-view', icon: Home },
+    { name: t('navDashboard'), path: '/admin/dashboard', icon: LayoutDashboard },
+    { name: t('navOrders'), path: '/admin/orders', icon: ShoppingBag },
+    { name: t('navAdminMenu'), path: '/admin/menu', icon: Utensils },
+    { name: t('navPatients'), path: '/admin/patients', icon: Users },
+    { name: t('navFoodRecords'), path: '/admin/food-records', icon: History },
+    { name: t('navAdminBills'), path: '/admin/bills', icon: FileText },
+    { name: t('navAdminPayments'), path: '/admin/payments', icon: CreditCard },
+    { name: t('navRoomView'), path: '/admin/room-view', icon: Home },
   ];
 
   const links = user.role === 'ADMIN' ? adminLinks : patientLinks;
@@ -61,8 +62,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => 
               className="h-9 w-auto object-contain shrink-0"
             />
             <div>
-              <h2 className="text-xs font-black text-slate-900 leading-tight tracking-tight uppercase">PROCARE CANTEEN</h2>
-              <p className="text-[9px] text-procare-800 font-bold uppercase">Physiotherapy & Rehab</p>
+              <h2 className="text-xs font-black text-slate-900 leading-tight tracking-tight uppercase">
+                {t('appName')}
+              </h2>
+              <p className="text-[9px] text-procare-800 font-bold uppercase">{t('clinicName')}</p>
             </div>
           </div>
           {onClose && (
@@ -77,7 +80,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => 
         </div>
 
         <div className="px-3 py-2 text-[11px] font-extrabold text-procare-800 uppercase tracking-wider">
-          {user.role === 'ADMIN' ? 'Admin Management Portal' : 'Patient Food Portal'}
+          {user.role === 'ADMIN'
+            ? language === 'ta'
+              ? 'நிர்வாக மேலாண்மை போர்டல்'
+              : 'Admin Management Portal'
+            : language === 'ta'
+            ? 'நோயாளி உணவு போர்டல்'
+            : 'Patient Food Portal'}
         </div>
 
         <nav className="mt-1 space-y-1">
@@ -108,15 +117,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => 
         {/* User Card */}
         <div className="bg-procare-50 p-3 rounded-xl border border-procare-200/80 flex items-center space-x-3">
           <div className="w-8 h-8 rounded-full bg-celadon text-procare-950 font-black text-xs flex items-center justify-center shrink-0">
-            {user.role === 'ADMIN' ? 'A' : (user.name ? user.name.charAt(0).toUpperCase() : 'P')}
+            {user.role === 'ADMIN' ? 'A' : user.name ? user.name.charAt(0).toUpperCase() : 'P'}
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-xs font-extrabold text-procare-950 truncate">
-              {user.role === 'ADMIN' ? 'Admin Manager' : user.name || user.patient_id}
+              {user.role === 'ADMIN'
+                ? language === 'ta'
+                  ? 'நிர்வாகி'
+                  : 'Admin Manager'
+                : user.name || user.patient_id}
             </p>
             {user.role === 'PATIENT' && (
               <p className="text-[10px] text-procare-800 font-semibold truncate">
-                Room #{user.room_number || 'N/A'} • {user.patient_id}
+                {t('roomNo')} #{user.room_number || 'N/A'} • {user.patient_id}
               </p>
             )}
           </div>
@@ -130,7 +143,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isOpen = false, onClose }) => 
           className="flex items-center justify-center space-x-2 px-3.5 py-2.5 rounded-xl text-xs font-extrabold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200/70 w-full transition-colors cursor-pointer"
         >
           <LogOut className="w-4 h-4 shrink-0" />
-          <span>Logout</span>
+          <span>{t('logout')}</span>
         </button>
       </div>
     </div>

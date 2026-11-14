@@ -1,21 +1,25 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { useSocket } from '../context/SocketContext';
+import { useLanguage } from '../context/LanguageContext';
 import { MenuItem, Category } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
 import { ShoppingBag, Plus, Minus, Check, Utensils, AlertCircle, Lock, Wallet, AlertTriangle, Coffee, Sun, Moon, Cookie, Sparkles, Clock } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const TEA_TIME_SLOTS = [
-  { slot: '7:00 AM', label: '7:00 AM', period: 'Morning Service', color: 'text-amber-800 bg-amber-50 border-amber-200' },
-  { slot: '11:00 AM', label: '11:00 AM', period: 'Mid-Morning Service', color: 'text-sky-800 bg-sky-50 border-sky-200' },
-  { slot: '4:00 PM', label: '4:00 PM', period: 'Evening Service', color: 'text-orange-800 bg-orange-50 border-orange-200' },
-  { slot: '7:00 PM', label: '7:00 PM', period: 'Night Service', color: 'text-indigo-800 bg-indigo-50 border-indigo-200' },
+  { slot: '7:00 AM', label: '7:00 AM', periodKey: 'morningService', periodEn: 'Morning Service', color: 'text-amber-800 bg-amber-50 border-amber-200' },
+  { slot: '11:00 AM', label: '11:00 AM', periodKey: 'midMorningService', periodEn: 'Mid-Morning Service', color: 'text-sky-800 bg-sky-50 border-sky-200' },
+  { slot: '4:00 PM', label: '4:00 PM', periodKey: 'eveningTeaService', periodEn: 'Evening Tea Service', color: 'text-orange-800 bg-orange-50 border-orange-200' },
+  { slot: '7:00 PM', label: '7:00 PM', periodKey: 'nightMilkService', periodEn: 'Night Milk / Hot Beverage', color: 'text-indigo-800 bg-indigo-50 border-indigo-200' },
 ] as const;
 
 export const PatientMenu: React.FC = () => {
   const navigate = useNavigate();
   const { socket } = useSocket();
+  const { t, language, translateFood, translateCategory, translateSlot } = useLanguage();
+
+  const isTa = language === 'ta';
 
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [selectedMealSession, setSelectedMealSession] = useState<'COMMON MENU' | 'BREAKFAST' | 'LUNCH' | 'DINNER' | 'TEA / MILK' | 'SNACKS' | 'ALL'>('COMMON MENU');
@@ -40,13 +44,13 @@ export const PatientMenu: React.FC = () => {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const mealSessions: Array<{ label: string; value: string; icon: any; categoryFilter: Category | 'ALL' }> = [
-    { label: 'Common Menu', value: 'Common Menu', icon: Sparkles, categoryFilter: 'COMMON MENU' },
-    { label: 'Breakfast', value: 'Breakfast', icon: Coffee, categoryFilter: 'BREAKFAST' },
-    { label: 'Lunch', value: 'Lunch', icon: Sun, categoryFilter: 'LUNCH' },
-    { label: 'Dinner', value: 'Dinner', icon: Moon, categoryFilter: 'DINNER' },
-    { label: 'Tea / Milk', value: 'Tea / Milk', icon: Coffee, categoryFilter: 'TEA / MILK' },
-    { label: 'Snacks', value: 'Snacks', icon: Cookie, categoryFilter: 'SNACKS' },
-    { label: 'All Items', value: 'ALL', icon: Utensils, categoryFilter: 'ALL' },
+    { label: isTa ? 'பொது மெனு' : 'Common Menu', value: 'Common Menu', icon: Sparkles, categoryFilter: 'COMMON MENU' },
+    { label: isTa ? 'காலை உணவு' : 'Breakfast', value: 'Breakfast', icon: Coffee, categoryFilter: 'BREAKFAST' },
+    { label: isTa ? 'மதிய உணவு' : 'Lunch', value: 'Lunch', icon: Sun, categoryFilter: 'LUNCH' },
+    { label: isTa ? 'இரவு உணவு' : 'Dinner', value: 'Dinner', icon: Moon, categoryFilter: 'DINNER' },
+    { label: isTa ? 'தேநீர் / பால்' : 'Tea / Milk', value: 'Tea / Milk', icon: Coffee, categoryFilter: 'TEA / MILK' },
+    { label: isTa ? 'சிற்றுண்டி' : 'Snacks', value: 'Snacks', icon: Cookie, categoryFilter: 'SNACKS' },
+    { label: isTa ? 'அனைத்து உணவுகள்' : 'All Items', value: 'ALL', icon: Utensils, categoryFilter: 'ALL' },
   ];
 
   const fetchProfileAndMenu = async () => {
@@ -60,7 +64,7 @@ export const PatientMenu: React.FC = () => {
       setIsOrderingLocked(Boolean(statusRes.data?.is_ordering_locked));
       setAdvanceBalance(profileRes.data?.advance_balance || 0);
     } catch (err: any) {
-      setError('Failed to load menu items and profile data.');
+      setError(isTa ? 'மெனு உருப்படிகளை ஏற்றுவதில் தோல்வி.' : 'Failed to load menu items and profile data.');
     } finally {
       setLoading(false);
     }
@@ -198,18 +202,22 @@ export const PatientMenu: React.FC = () => {
     setSuccessMsg(null);
 
     if (isOrderingLocked) {
-      setError('Ordering is currently closed by the admin. Please try again later.');
+      setError(t('orderingLockedMsg'));
       return;
     }
 
     const grandTotal = calculateGrandTotal();
     if (grandTotal === 0) {
-      setError('Please select at least one item before placing an order.');
+      setError(t('emptyCartNotice'));
       return;
     }
 
     if (advanceBalance < grandTotal) {
-      setError(`Insufficient advance balance! Your available balance is ₹${advanceBalance}, but your order total is ₹${grandTotal}. Please ask Admin to recharge your balance.`);
+      setError(
+        isTa
+          ? `போதிய முன்பண இருப்பு இல்லை! உங்கள் இருப்பு ₹${advanceBalance}, ஆனால் ஆர்டர் தொகை ₹${grandTotal}. இருப்பை ரீசார்ஜ் செய்ய நிர்வாகியிடம் கேட்கவும்.`
+          : `Insufficient advance balance! Your available balance is ₹${advanceBalance}, but your order total is ₹${grandTotal}. Please ask Admin to recharge your balance.`
+      );
       return;
     }
 
@@ -266,7 +274,11 @@ export const PatientMenu: React.FC = () => {
         meals: mealsPayload,
       });
 
-      setSuccessMsg(`Orders placed successfully for ${mealsPayload.length} meal/serving slot(s)! Amount ₹${grandTotal} deducted from advance balance.`);
+      setSuccessMsg(
+        isTa
+          ? `ஆர்டர் வெற்றிகரமாக வைக்கப்பட்டது! மொத்தத் தொகை ₹${grandTotal} முன்பண இருப்பிலிருந்து கழிக்கப்பட்டது.`
+          : `Orders placed successfully for ${mealsPayload.length} meal/serving slot(s)! Amount ₹${grandTotal} deducted from advance balance.`
+      );
       setAdvanceBalance(response.data.remaining_balance);
       setCartByMeal({
         Breakfast: {},
@@ -281,7 +293,7 @@ export const PatientMenu: React.FC = () => {
         navigate('/patient/orders');
       }, 1500);
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Failed to place order.');
+      setError(err.response?.data?.message || (isTa ? 'ஆர்டர் வைப்பதில் பிழை ஏற்பட்டது.' : 'Failed to place order.'));
     } finally {
       setSubmitting(false);
     }
@@ -309,28 +321,40 @@ export const PatientMenu: React.FC = () => {
       <div className="bg-white p-5 rounded-2xl border border-procare-200 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <span className="text-[10px] font-black text-procare-800 uppercase tracking-wider">
-            PROCARE PHYSIOTHERAPY & REHABILITATION CENTRE
+            {t('appName')} • {t('clinicName')}
           </span>
           <h1 className="text-xl font-black text-slate-900 flex items-center gap-2 mt-0.5">
             <div className="p-1.5 rounded-lg bg-celadon text-slate-950">
               <Utensils className="w-5 h-5" />
             </div>
-            PROCARE CANTEEN MEAL MENU
+            {isTa ? 'ப்ரோகேர் கேன்டீன் உணவு மெனு' : 'PROCARE CANTEEN MEAL MENU'}
           </h1>
           <p className="text-xs text-slate-500 mt-0.5 font-medium">
-            Order Breakfast, Lunch, and Dinner separately or together in one transaction.
+            {isTa
+              ? 'காலை, மதிய மற்றும் இரவு உணவை தனித்தனியாகவோ அல்லது ஒன்றாகவோ ஆர்டர் செய்யலாம்.'
+              : 'Order Breakfast, Lunch, and Dinner separately or together in one transaction.'}
           </p>
         </div>
 
         {/* Available Advance Balance Display Card */}
-        <div className={`p-3.5 rounded-2xl border flex items-center gap-3 w-full md:w-auto shrink-0 ${
-          isLowBalance ? 'bg-rose-50 border-rose-300 text-rose-950 ring-2 ring-rose-400/50' : 'bg-procare-50 border-procare-300 text-procare-950'
-        }`}>
-          <div className={`p-2.5 rounded-xl font-bold ${isLowBalance ? 'bg-rose-600 text-white' : 'bg-celadon text-slate-950'}`}>
+        <div
+          className={`p-3.5 rounded-2xl border flex items-center gap-3 w-full md:w-auto shrink-0 ${
+            isLowBalance
+              ? 'bg-rose-50 border-rose-300 text-rose-950 ring-2 ring-rose-400/50'
+              : 'bg-procare-50 border-procare-300 text-procare-950'
+          }`}
+        >
+          <div
+            className={`p-2.5 rounded-xl font-bold ${
+              isLowBalance ? 'bg-rose-600 text-white' : 'bg-celadon text-slate-950'
+            }`}
+          >
             <Wallet className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-[10px] uppercase tracking-wider font-extrabold text-procare-800">Available Advance Balance</div>
+            <div className="text-[10px] uppercase tracking-wider font-extrabold text-procare-800">
+              {t('advanceBalance')}
+            </div>
             <div className="text-lg font-black font-mono text-procare-950">₹{advanceBalance}</div>
           </div>
         </div>
@@ -343,9 +367,13 @@ export const PatientMenu: React.FC = () => {
             <AlertTriangle className="w-5 h-5" />
           </div>
           <div className="space-y-0.5">
-            <h3 className="font-extrabold text-sm text-rose-900">⚠️ LOW ADVANCE BALANCE ALERT (&lt; ₹500)</h3>
+            <h3 className="font-extrabold text-sm text-rose-900">
+              ⚠️ {isTa ? 'குறைந்த முன்பண இருப்பு எச்சரிக்கை (< ₹500)' : 'LOW ADVANCE BALANCE ALERT (< ₹500)'}
+            </h3>
             <p className="text-xs text-rose-800 font-semibold">
-              Your remaining advance balance is <strong>₹{advanceBalance}</strong>, which is below ₹500. Please ask the ProCare canteen admin to recharge your account balance so you can continue ordering meals.
+              {isTa
+                ? `உங்கள் மீதமுள்ள முன்பண இருப்பு ₹${advanceBalance} ஆக உள்ளது, இது ₹500-க்குக் குறைவாக உள்ளது. உணவை தொடர்ந்து ஆர்டர் செய்ய தயவுசெய்து கேன்டீன் நிர்வாகியிடம் இருப்பை ரீசார்ஜ் செய்யுமாறு கேட்கவும்.`
+                : `Your remaining advance balance is ₹${advanceBalance}, which is below ₹500. Please ask the ProCare canteen admin to recharge your account balance so you can continue ordering meals.`}
             </p>
           </div>
         </div>
@@ -358,9 +386,11 @@ export const PatientMenu: React.FC = () => {
             <Lock className="w-6 h-6 shrink-0" />
           </div>
           <div>
-            <h3 className="font-black text-base text-rose-950">Ordering is currently closed</h3>
+            <h3 className="font-black text-base text-rose-950">
+              {isTa ? 'ஆர்டர் தற்போது மூடப்பட்டுள்ளது' : 'Ordering is currently closed'}
+            </h3>
             <p className="text-xs font-semibold text-rose-800 mt-0.5">
-              The admin has temporarily locked food ordering. Please wait until the admin unlocks ordering.
+              {t('orderingLockedMsg')}
             </p>
           </div>
         </div>
@@ -423,11 +453,13 @@ export const PatientMenu: React.FC = () => {
       {/* Menu Items Grid */}
       {loading ? (
         <div className="text-center py-12 text-slate-400 text-xs font-medium animate-pulse">
-          Loading canteen menu items...
+          {isTa ? 'மெனு உருப்படிகள் ஏற்றப்படுகின்றன...' : 'Loading canteen menu items...'}
         </div>
       ) : filteredItems.length === 0 ? (
         <div className="text-center py-12 text-slate-500 text-xs font-medium bg-white rounded-2xl border border-slate-200/80">
-          No items found in "{selectedMealSession}" section.
+          {isTa
+            ? `"${translateCategory(selectedMealSession)}" பிரிவில் உணவுகள் எதுவும் கிடைக்கவில்லை.`
+            : `No items found in "${selectedMealSession}" section.`}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -447,9 +479,9 @@ export const PatientMenu: React.FC = () => {
                   <div className="flex justify-between items-start mb-2 gap-2">
                     <div>
                       <span className="text-[10px] font-extrabold text-blue-600 uppercase tracking-wider bg-blue-50 px-2 py-0.5 rounded-md">
-                        {item.category}
+                        {translateCategory(item.category)}
                       </span>
-                      <h3 className="text-base font-bold text-slate-900 mt-1">{item.item_name}</h3>
+                      <h3 className="text-base font-bold text-slate-900 mt-1">{translateFood(item.item_name)}</h3>
                     </div>
                     <StatusBadge
                       status={isOrderingLocked ? 'UNAVAILABLE' : isAvailable ? 'AVAILABLE' : 'UNAVAILABLE'}
@@ -462,13 +494,15 @@ export const PatientMenu: React.FC = () => {
                   )}
 
                   <div className="flex justify-between items-center text-xs text-slate-600 mb-3">
-                    <span className="font-semibold">Portion: <strong className="text-slate-800 font-bold">{item.quantity}</strong></span>
+                    <span className="font-semibold">
+                      {t('portion')}: <strong className="text-slate-800 font-bold">{item.quantity}</strong>
+                    </span>
                     <span className="text-base font-black text-blue-700">₹{item.price}</span>
                   </div>
 
                   {!item.is_available_today && (
                     <div className="text-[11px] text-amber-800 bg-amber-50 p-2 rounded-xl border border-amber-200/80 mb-2 font-medium">
-                      Available on: {item.available_days.join(', ')}
+                      {isTa ? 'கிடைக்கும் நாட்கள்:' : 'Available on:'} {item.available_days.join(', ')}
                     </div>
                   )}
                 </div>
@@ -479,13 +513,13 @@ export const PatientMenu: React.FC = () => {
                     item.category === 'COMMON MENU' ? (
                       <div className="space-y-2 w-full">
                         <div className="text-[10px] font-extrabold text-slate-500 uppercase tracking-wider mb-1">
-                          Select Quantities Per Meal Session:
+                          {isTa ? 'உணவு அமர்வு வாரியாக அளவைத் தேர்ந்தெடுக்கவும்:' : 'Select Quantities Per Meal Session:'}
                         </div>
                         {[
-                          { mealName: 'Breakfast', icon: Coffee, color: 'text-amber-700 bg-amber-50 border-amber-200' },
-                          { mealName: 'Lunch', icon: Sun, color: 'text-orange-700 bg-orange-50 border-orange-200' },
-                          { mealName: 'Dinner', icon: Moon, color: 'text-indigo-700 bg-indigo-50 border-indigo-200' },
-                        ].map(({ mealName, icon: MealIcon, color }) => {
+                          { mealName: 'Breakfast', labelTa: 'காலை உணவு', icon: Coffee, color: 'text-amber-700 bg-amber-50 border-amber-200' },
+                          { mealName: 'Lunch', labelTa: 'மதிய உணவு', icon: Sun, color: 'text-orange-700 bg-orange-50 border-orange-200' },
+                          { mealName: 'Dinner', labelTa: 'இரவு உணவு', icon: Moon, color: 'text-indigo-700 bg-indigo-50 border-indigo-200' },
+                        ].map(({ mealName, labelTa, icon: MealIcon, color }) => {
                           const mealCart = cartByMeal[mealName] || {};
                           const q = mealCart[item.menu_id] || 0;
                           return (
@@ -494,7 +528,9 @@ export const PatientMenu: React.FC = () => {
                                 <div className={`p-1 rounded-md border ${color}`}>
                                   <MealIcon className="w-3.5 h-3.5" />
                                 </div>
-                                <span className="text-xs font-extrabold text-slate-800">{mealName} Qty</span>
+                                <span className="text-xs font-extrabold text-slate-800">
+                                  {isTa ? `${labelTa} அளவு` : `${mealName} Qty`}
+                                </span>
                               </div>
                               <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-white">
                                 <button
@@ -526,25 +562,25 @@ export const PatientMenu: React.FC = () => {
                         <div className="flex items-center justify-between">
                           <span className="text-[10px] font-black text-amber-900 uppercase tracking-wider flex items-center gap-1">
                             <Clock className="w-3.5 h-3.5 text-amber-600" />
-                            Choose Serving Time (Today):
+                            {t('chooseServingTime')}
                           </span>
                           {(() => {
                             const itemSlots = teaSlotsCart[item.menu_id] || {};
                             const totalItemQty = Object.values(itemSlots).reduce((a, b) => a + b, 0);
                             return totalItemQty > 0 ? (
                               <span className="text-[10px] font-black bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full font-mono">
-                                {totalItemQty} cups selected
+                                {totalItemQty} {isTa ? 'கப்புகள்' : 'cups selected'}
                               </span>
                             ) : (
                               <span className="text-[9px] font-bold text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded-full">
-                                Required
+                                {t('required')}
                               </span>
                             );
                           })()}
                         </div>
 
                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                          {TEA_TIME_SLOTS.map(({ slot, label, period }) => {
+                          {TEA_TIME_SLOTS.map(({ slot, label, periodKey, periodEn }) => {
                             const itemSlots = teaSlotsCart[item.menu_id] || {};
                             const q = itemSlots[slot] || 0;
                             return (
@@ -559,9 +595,11 @@ export const PatientMenu: React.FC = () => {
                                 <div className="flex flex-col">
                                   <span className="text-xs font-black text-slate-900 flex items-center gap-1">
                                     <Clock className="w-3 h-3 text-amber-700" />
-                                    {label}
+                                    {translateSlot(label)}
                                   </span>
-                                  <span className="text-[9px] text-slate-500 font-medium">{period}</span>
+                                  <span className="text-[9px] text-slate-500 font-medium">
+                                    {isTa ? t(periodKey) : periodEn}
+                                  </span>
                                 </div>
 
                                 <div className="flex items-center border border-slate-200 rounded-lg overflow-hidden bg-white shadow-2xs">
@@ -626,13 +664,19 @@ export const PatientMenu: React.FC = () => {
                               : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200/80'
                           }`}
                         >
-                          {qtyInCart > 0 ? `Added for ${currentMealName} ✓` : `Add for ${currentMealName}`}
+                          {qtyInCart > 0
+                            ? isTa
+                              ? `${translateCategory(currentMealName)} சேர்க்கப்பட்டது ✓`
+                              : `Added for ${currentMealName} ✓`
+                            : isTa
+                            ? `${translateCategory(currentMealName)} சேர்க்கவும்`
+                            : `Add for ${currentMealName}`}
                         </button>
                       </div>
                     )
                   ) : (
                     <span className="text-xs text-rose-500 font-extrabold italic">
-                      {isOrderingLocked ? 'Ordering Closed' : 'Unavailable Today'}
+                      {isOrderingLocked ? (isTa ? 'ஆர்டர் மூடப்பட்டுள்ளது' : 'Ordering Closed') : (isTa ? 'இன்று கிடைக்கவில்லை' : 'Unavailable Today')}
                     </span>
                   )}
                 </div>
@@ -651,12 +695,12 @@ export const PatientMenu: React.FC = () => {
             </div>
             <div>
               <div className="text-[11px] text-procare-200 font-semibold">
-                Items Selected: <strong className="text-white">{totalItemCount}</strong> | Balance: <strong className="text-celadon font-bold">₹{advanceBalance}</strong>
+                {isTa ? 'தேர்ந்தெடுக்கப்பட்ட உருப்படிகள்' : 'Items Selected'}: <strong className="text-white">{totalItemCount}</strong> | {t('advanceBalance')}: <strong className="text-celadon font-bold">₹{advanceBalance}</strong>
               </div>
               <div className="text-base sm:text-lg font-black text-white">
-                Order Total: ₹{grandTotal}{' '}
+                {t('orderTotal')}: ₹{grandTotal}{' '}
                 <span className="text-xs font-semibold text-procare-300">
-                  (Remaining Balance: ₹{advanceBalance - grandTotal})
+                  ({t('remaining')}: ₹{advanceBalance - grandTotal})
                 </span>
               </div>
 
@@ -668,7 +712,7 @@ export const PatientMenu: React.FC = () => {
                   if (cnt === 0) return null;
                   return (
                     <span key={mName} className="bg-procare-900 border border-procare-700 px-2 py-0.5 rounded-md font-semibold text-procare-100">
-                      {mName}: <strong>{cnt}</strong>
+                      {translateCategory(mName)}: <strong>{cnt}</strong>
                     </span>
                   );
                 })}
@@ -681,7 +725,7 @@ export const PatientMenu: React.FC = () => {
                   return (
                     <span key={slot} className="bg-amber-900/90 border border-amber-500/60 px-2 py-0.5 rounded-md font-semibold text-amber-200 flex items-center gap-1">
                       <Clock className="w-2.5 h-2.5 text-amber-300" />
-                      Tea/Coffee ({slot}): <strong>{slotCount}</strong>
+                      {isTa ? 'தேநீர்/காபி' : 'Tea/Coffee'} ({translateSlot(slot)}): <strong>{slotCount}</strong>
                     </span>
                   );
                 })}
@@ -695,11 +739,19 @@ export const PatientMenu: React.FC = () => {
             className="w-full sm:w-auto bg-celadon hover:bg-procare-400 active:bg-procare-500 text-slate-950 font-black text-xs sm:text-sm px-6 py-3 rounded-xl shadow-md transition-colors disabled:opacity-50 cursor-pointer shrink-0"
           >
             {submitting
-              ? 'Placing Order & Deducting Balance...'
+              ? isTa
+                ? 'ஆர்டர் செய்யப்படுகிறது...'
+                : 'Placing Order & Deducting Balance...'
               : isOrderingLocked
-              ? 'Ordering Closed'
+              ? isTa
+                ? 'ஆர்டர் மூடப்பட்டுள்ளது'
+                : 'Ordering Closed'
               : advanceBalance < grandTotal
-              ? 'Insufficient Balance'
+              ? isTa
+                ? 'போதிய இருப்பு இல்லை'
+                : 'Insufficient Balance'
+              : isTa
+              ? 'உணவை இப்போது ஆர்டர் செய்க'
               : 'PLACE MEAL ORDERS NOW'}
           </button>
         </div>

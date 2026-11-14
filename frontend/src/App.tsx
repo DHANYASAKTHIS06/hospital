@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
 import { SocketProvider } from './context/SocketContext';
+import { LanguageProvider } from './context/LanguageContext';
 import { Navbar } from './components/Navbar';
 import { Sidebar } from './components/Sidebar';
 import { BottomNav } from './components/BottomNav';
@@ -58,9 +59,10 @@ const MainLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
 export const App: React.FC = () => {
   return (
-    <AuthProvider>
-      <SocketProvider>
-        <BrowserRouter>
+    <LanguageProvider>
+      <AuthProvider>
+        <SocketProvider>
+          <BrowserRouter>
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<WelcomePage />} />
@@ -143,6 +145,7 @@ export const App: React.FC = () => {
         </BrowserRouter>
       </SocketProvider>
     </AuthProvider>
+  </LanguageProvider>
   );
 };
 
