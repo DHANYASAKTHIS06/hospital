@@ -591,6 +591,13 @@ export const getKitchenReport = async (req: Request, res: Response) => {
       unit: string;
       total_quantity: number;
       order_count: number;
+      patients: Array<{
+        patient_id: string;
+        patient_name: string;
+        room_number: string;
+        quantity: number;
+        order_id: string;
+      }>;
     }>();
 
     for (const item of activeOrderItems) {
@@ -609,17 +616,18 @@ export const getKitchenReport = async (req: Request, res: Response) => {
         else if (/nos/i.test(portionSize) || /no\b/i.test(portionSize)) unit = 'Nos';
       }
 
+      const patient = order ? patientMap.get(order.patient_id) : null;
+      const patientEntry = {
+        patient_id: order?.patient_id || 'N/A',
+        patient_name: patient?.name || 'Patient',
+        room_number: patient?.room_number || 'Room Not Assigned',
+        quantity: item.quantity,
+        order_id: item.order_id,
+      };
+
       if (cat === 'TEA / MILK') {
         const slot = normalizeSlot((item as any).serving_time || order?.serving_time || '7:00 AM');
         const key = `${slot}::${itemName.toLowerCase()}`;
-        const patient = order ? patientMap.get(order.patient_id) : null;
-        const patientEntry = {
-          patient_id: order?.patient_id || 'N/A',
-          patient_name: patient?.name || 'Patient',
-          room_number: patient?.room_number || 'N/A',
-          quantity: item.quantity,
-          order_id: item.order_id,
-        };
 
         const existing = teaSlotPrepMap.get(key);
         if (existing) {
@@ -645,6 +653,7 @@ export const getKitchenReport = async (req: Request, res: Response) => {
         if (existing) {
           existing.total_quantity += item.quantity;
           existing.order_count += 1;
+          existing.patients.push(patientEntry);
         } else {
           prepMap.set(key, {
             menu_id: item.menu_id || (menuDoc ? menuDoc.menu_id : 0),
@@ -654,6 +663,7 @@ export const getKitchenReport = async (req: Request, res: Response) => {
             unit,
             total_quantity: item.quantity,
             order_count: 1,
+            patients: [patientEntry],
           });
         }
       }
@@ -674,14 +684,25 @@ export const getKitchenReport = async (req: Request, res: Response) => {
 
     const totalTeaCoffeeQuantity = teaCoffeeSlots.reduce((sum, s) => sum + s.subtotal, 0);
 
-    // Flat items for Tea / Milk section sorted by slot order then item name
+    // Sort patients by room number (numeric-aware) for clean report display
+    const sortPatients = (arr: Array<{ room_number: string; [key: string]: any }>) =>
+      arr.sort((a, b) => a.room_number.localeCompare(b.room_number, undefined, { numeric: true, sensitivity: 'base' }));
+
+    // Flat items for Tea / Milk section sorted by slot order then item name (with sorted patients)
     const teaPreparationItems: any[] = [];
     standardTimeSlots.forEach((slot) => {
       const slotItems = Array.from(teaSlotPrepMap.values())
         .filter((it) => it.serving_time === slot)
-        .sort((a, b) => a.item_name.localeCompare(b.item_name));
+        .sort((a, b) => a.item_name.localeCompare(b.item_name))
+        .map((it) => ({ ...it, patients: sortPatients([...it.patients]) }));
       teaPreparationItems.push(...slotItems);
     });
+
+    // Sort patients within teaCoffeeSlots too
+    const teaCoffeeSlotsWithSortedPatients = teaCoffeeSlots.map((slot) => ({
+      ...slot,
+      items: slot.items.map((it: any) => ({ ...it, patients: sortPatients([...(it.patients || [])]) })),
+    }));
 
     const standardSections = [
       {
@@ -689,7 +710,7 @@ export const getKitchenReport = async (req: Request, res: Response) => {
         title: 'Tea / Milk & Coffee Preparation',
         icon: 'coffee',
         is_tea_coffee: true,
-        time_slots: teaCoffeeSlots,
+        time_slots: teaCoffeeSlotsWithSortedPatients,
         items: teaPreparationItems,
         subtotal: totalTeaCoffeeQuantity,
       },
@@ -700,7 +721,8 @@ export const getKitchenReport = async (req: Request, res: Response) => {
         is_tea_coffee: false,
         items: Array.from(prepMap.values())
           .filter((it) => it.category === 'BREAKFAST')
-          .sort((a, b) => a.item_name.localeCompare(b.item_name)),
+          .sort((a, b) => a.item_name.localeCompare(b.item_name))
+          .map((it) => ({ ...it, patients: sortPatients([...it.patients]) })),
         subtotal: Array.from(prepMap.values())
           .filter((it) => it.category === 'BREAKFAST')
           .reduce((sum, it) => sum + it.total_quantity, 0),
@@ -712,7 +734,8 @@ export const getKitchenReport = async (req: Request, res: Response) => {
         is_tea_coffee: false,
         items: Array.from(prepMap.values())
           .filter((it) => it.category === 'LUNCH')
-          .sort((a, b) => a.item_name.localeCompare(b.item_name)),
+          .sort((a, b) => a.item_name.localeCompare(b.item_name))
+          .map((it) => ({ ...it, patients: sortPatients([...it.patients]) })),
         subtotal: Array.from(prepMap.values())
           .filter((it) => it.category === 'LUNCH')
           .reduce((sum, it) => sum + it.total_quantity, 0),
@@ -724,7 +747,8 @@ export const getKitchenReport = async (req: Request, res: Response) => {
         is_tea_coffee: false,
         items: Array.from(prepMap.values())
           .filter((it) => it.category === 'DINNER')
-          .sort((a, b) => a.item_name.localeCompare(b.item_name)),
+          .sort((a, b) => a.item_name.localeCompare(b.item_name))
+          .map((it) => ({ ...it, patients: sortPatients([...it.patients]) })),
         subtotal: Array.from(prepMap.values())
           .filter((it) => it.category === 'DINNER')
           .reduce((sum, it) => sum + it.total_quantity, 0),
@@ -736,7 +760,8 @@ export const getKitchenReport = async (req: Request, res: Response) => {
         is_tea_coffee: false,
         items: Array.from(prepMap.values())
           .filter((it) => it.category === 'SNACKS')
-          .sort((a, b) => a.item_name.localeCompare(b.item_name)),
+          .sort((a, b) => a.item_name.localeCompare(b.item_name))
+          .map((it) => ({ ...it, patients: sortPatients([...it.patients]) })),
         subtotal: Array.from(prepMap.values())
           .filter((it) => it.category === 'SNACKS')
           .reduce((sum, it) => sum + it.total_quantity, 0),
@@ -753,7 +778,7 @@ export const getKitchenReport = async (req: Request, res: Response) => {
       generation_time: orderTime,
       active_orders_count: activeOrders.length,
       total_portions_to_cook: totalPortions,
-      tea_coffee_slots: teaCoffeeSlots,
+      tea_coffee_slots: teaCoffeeSlotsWithSortedPatients,
       sections: standardSections,
     });
   } catch (error: any) {

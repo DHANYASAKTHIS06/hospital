@@ -410,8 +410,8 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                     ? 'அறை வாரியான நோயாளி ஆர்டர் அறிக்கை'
                     : 'Room-Wise Patient Order Report'
                   : isTa
-                  ? 'சமையல் துறை – சமையலறை தயாரிப்பு அறிக்கை'
-                  : 'Cooking Department – Kitchen Preparation Report'}
+                    ? 'சமையல் துறை – சமையலறை தயாரிப்பு & அறை வாரியான விநியோக அறிக்கை'
+                    : 'Kitchen Preparation & Distribution Report'}
               </h2>
               <p className="text-xs text-procare-200">
                 {isTa
@@ -473,9 +473,31 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
               .no-print {
                 display: none !important;
               }
+              .page-break-inside-avoid {
+                page-break-inside: avoid !important;
+                break-inside: avoid !important;
+              }
+              .page-break-before {
+                page-break-before: always !important;
+                break-before: always !important;
+              }
+              table {
+                border-collapse: collapse !important;
+              }
+              thead {
+                display: table-header-group !important;
+              }
+              tfoot {
+                display: table-footer-group !important;
+              }
               @page {
                 size: A4 portrait;
                 margin: 8mm;
+                @bottom-right {
+                  content: "Page " counter(page) " of " counter(pages);
+                  font-size: 8pt;
+                  color: #666;
+                }
               }
             }
           `}</style>
@@ -542,8 +564,8 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                     ? '📋 அறை வாரியான நேரலை நோயாளி ஆர்டர் அறிக்கை'
                     : '📋 ROOM-WISE ACTIVE PATIENT ORDER REPORT'
                   : isTa
-                  ? '👨‍🍳 சமையலறை தயாரிப்பு மற்றும் சமையல் மொத்த அறிக்கை'
-                  : '👨‍🍳 KITCHEN COOKING & PREPARATION AGGREGATE REPORT'}
+                  ? '👨‍🍳 சமையலறை தயாரிப்பு & அறை வாரியான விநியோக அறிக்கை'
+                  : '👨‍🍳 KITCHEN PREPARATION & ROOM-WISE DISTRIBUTION REPORT'}
               </span>
               <span className="text-xs text-slate-700 font-extrabold font-mono">
                 {reportType === 'ROOM_WISE'
@@ -651,223 +673,441 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
             </div>
           )}
 
-          {/* REPORT 2: KITCHEN PREPARATION REPORT */}
+          {/* REPORT 2: KITCHEN PREPARATION & DISTRIBUTION REPORT */}
           {reportType === 'ITEMS_TO_PREPARE' && (
             <div className="space-y-6">
-              <div className="space-y-4">
-                {kitchenSections.map((sec, secIdx) => {
-                  const IconComp = sec.icon;
-                  return (
-                    <div
-                      key={sec.category}
-                      className="border border-slate-300 rounded-xl overflow-hidden page-break-inside-avoid shadow-xs bg-white"
-                    >
-                      {/* Section Header */}
-                      <div className="bg-slate-900 text-white px-4 py-2.5 flex justify-between items-center">
-                        <div className="flex items-center gap-2.5">
-                          <span className="p-1 bg-emerald-600 text-white rounded-md">
-                            <IconComp className="w-3.5 h-3.5" />
-                          </span>
-                          <div>
-                            <h3 className="text-xs font-black uppercase tracking-wider text-white">
-                              {secIdx + 1}. {sec.title}
-                            </h3>
-                            <p className="text-[10px] text-slate-300 font-medium">
-                              {sec.desc}
-                            </p>
+              {/* ============================================================
+                  PART A – TOTAL KITCHEN PREPARATION SUMMARY
+              ============================================================ */}
+              <div className="border-2 border-slate-800 rounded-xl overflow-hidden">
+                <div className="bg-slate-800 text-white px-4 py-2.5 flex items-center gap-2.5">
+                  <span className="text-sm font-black uppercase tracking-widest">
+                    PART A – TOTAL KITCHEN PREPARATION SUMMARY
+                  </span>
+                </div>
+                <div className="p-0 space-y-0">
+                  <div className="space-y-4 p-4">
+                    {kitchenSections.map((sec, secIdx) => {
+                      const IconComp = sec.icon;
+                      return (
+                        <div
+                          key={sec.category}
+                          className="border border-slate-300 rounded-xl overflow-hidden page-break-inside-avoid shadow-xs bg-white"
+                        >
+                          {/* Section Header */}
+                          <div className="bg-slate-900 text-white px-4 py-2.5 flex justify-between items-center">
+                            <div className="flex items-center gap-2.5">
+                              <span className="p-1 bg-emerald-600 text-white rounded-md">
+                                <IconComp className="w-3.5 h-3.5" />
+                              </span>
+                              <div>
+                                <h3 className="text-xs font-black uppercase tracking-wider text-white">
+                                  A{secIdx + 1}. {sec.title}
+                                </h3>
+                                <p className="text-[10px] text-slate-300 font-medium">
+                                  {sec.desc}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[10px] font-bold bg-slate-800 text-slate-200 px-2 py-0.5 rounded border border-slate-700">
+                                {sec.items.length} {isTa ? 'உணவுகள்' : sec.items.length === 1 ? 'Dish' : 'Dishes'}
+                              </span>
+                              <span className="text-xs font-black bg-emerald-600 text-white px-2.5 py-0.5 rounded font-mono">
+                                {isTa ? 'மொத்தம்:' : 'Total:'} {sec.subtotal} {isTa ? 'எண்ணிக்கை' : 'Nos'}
+                              </span>
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold bg-slate-800 text-slate-200 px-2 py-0.5 rounded border border-slate-700">
-                            {sec.items.length} {isTa ? 'உணவுகள்' : sec.items.length === 1 ? 'Dish' : 'Dishes'}
-                          </span>
-                          <span className="text-xs font-black bg-emerald-600 text-white px-2.5 py-0.5 rounded font-mono">
-                            {isTa ? 'மொத்தம்:' : 'Total:'} {sec.subtotal} {isTa ? 'எண்ணிக்கை' : 'Nos'}
-                          </span>
-                        </div>
-                      </div>
 
-                      {/* Items Table */}
-                      {sec.category === 'TEA / MILK' ? (
-                        <div className="divide-y-2 divide-slate-300">
-                          {teaCoffeeSlots.map((slotGroup: any) => {
-                            const slotItems = (slotGroup.items || []).filter((it: any) => it.total_quantity > 0);
-                            return (
-                              <div key={slotGroup.serving_time} className="p-0">
-                                <div className="bg-amber-100/90 px-4 py-1.5 flex justify-between items-center border-b border-amber-200">
-                                  <span className="text-xs font-black text-amber-950 flex items-center gap-1.5 uppercase tracking-wide">
-                                    <Clock className="w-3.5 h-3.5 text-amber-800" />
-                                    {isTa ? 'வழங்கும் நேரம்:' : 'Serving Time:'} {translateSlot(slotGroup.serving_time)}
-                                  </span>
-                                  <span className="text-[11px] font-black bg-amber-200/80 text-amber-950 px-2.5 py-0.5 rounded font-mono border border-amber-300">
-                                    {isTa ? 'பிரிவு மொத்தம்:' : 'Slot Subtotal:'} {slotGroup.subtotal} {isTa ? 'எண்ணிக்கை' : 'Nos'}
-                                  </span>
-                                </div>
+                          {/* Items Table */}
+                          {sec.category === 'TEA / MILK' ? (
+                            <div className="divide-y-2 divide-slate-300">
+                              {teaCoffeeSlots.map((slotGroup: any) => {
+                                const slotItems = (slotGroup.items || []).filter((it: any) => it.total_quantity > 0);
+                                return (
+                                  <div key={slotGroup.serving_time} className="p-0">
+                                    <div className="bg-amber-100/90 px-4 py-1.5 flex justify-between items-center border-b border-amber-200">
+                                      <span className="text-xs font-black text-amber-950 flex items-center gap-1.5 uppercase tracking-wide">
+                                        <Clock className="w-3.5 h-3.5 text-amber-800" />
+                                        {isTa ? 'வழங்கும் நேரம்:' : 'Serving Time:'} {translateSlot(slotGroup.serving_time)}
+                                      </span>
+                                      <span className="text-[11px] font-black bg-amber-200/80 text-amber-950 px-2.5 py-0.5 rounded font-mono border border-amber-300">
+                                        {isTa ? 'பிரிவு மொத்தம்:' : 'Slot Subtotal:'} {slotGroup.subtotal} {isTa ? 'எண்ணிக்கை' : 'Nos'}
+                                      </span>
+                                    </div>
 
-                                {slotItems.length === 0 ? (
-                                  <div className="py-2 px-4 text-center text-[11px] font-semibold text-slate-400 bg-slate-50 italic">
-                                    {isTa
-                                      ? `${translateSlot(slotGroup.serving_time)} நேரத்திற்கு தேநீர் / காபி ஆர்டர்கள் எதுவும் இல்லை (0 தேவை)`
-                                      : `No Tea / Coffee orders scheduled for ${slotGroup.serving_time} (0 required)`}
+                                    {slotItems.length === 0 ? (
+                                      <div className="py-2 px-4 text-center text-[11px] font-semibold text-slate-400 bg-slate-50 italic">
+                                        {isTa
+                                          ? `${translateSlot(slotGroup.serving_time)} நேரத்திற்கு தேநீர் / காபி ஆர்டர்கள் எதுவும் இல்லை (0 தேவை)`
+                                          : `No Tea / Coffee orders scheduled for ${slotGroup.serving_time} (0 required)`}
+                                      </div>
+                                    ) : (
+                                      <table className="w-full text-xs text-left border-collapse">
+                                        <thead>
+                                          <tr className="bg-slate-100 text-slate-800 font-bold border-b border-slate-300 text-[10px] uppercase">
+                                            <th className="p-2 w-28 border-r border-slate-200">{isTa ? 'வழங்கும் நேரம்' : 'Serving Time'}</th>
+                                            <th className="p-2 border-r border-slate-200">{isTa ? 'உணவு' : 'Food Item'}</th>
+                                            <th className="p-2 border-r border-slate-200 w-32">{isTa ? 'அளவு' : 'Portion Size'}</th>
+                                            <th className="p-2 text-center bg-emerald-100/70 text-emerald-950 font-black w-36 border-r border-slate-200">
+                                              {isTa ? 'தேவைப்படும் மொத்த அளவு' : 'Total Required'}
+                                            </th>
+                                            <th className="p-2 text-center w-28 bg-slate-100 text-slate-700 font-bold">
+                                              {isTa ? 'சமையலறை நிலை' : 'Kitchen Status'}
+                                            </th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-slate-200 font-medium text-slate-900">
+                                          {slotItems.map((it: any, itIdx: number) => (
+                                            <tr key={`${slotGroup.serving_time}-${it.item_name}`} className={itIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/70'}>
+                                              <td className="p-2 border-r border-slate-200 font-black text-amber-900 font-mono text-xs">
+                                                {translateSlot(slotGroup.serving_time)}
+                                              </td>
+                                              <td className="p-2 border-r border-slate-200 font-extrabold text-xs text-slate-900">
+                                                {translateFood(it.item_name)}
+                                              </td>
+                                              <td className="p-2 border-r border-slate-200 text-slate-600 font-medium text-[11px]">
+                                                {it.portion_size || '100 ml'}
+                                              </td>
+                                              <td className="p-2 text-center font-black text-sm font-mono bg-emerald-50 text-emerald-950 border-r border-slate-200">
+                                                {it.total_quantity} {isTa ? 'எண்ணிக்கை' : 'Nos'}
+                                              </td>
+                                              <td className="p-2 text-center">
+                                                <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 border border-slate-300 rounded px-2 py-0.5 bg-white">
+                                                  <span className="inline-block w-3 h-3 border border-slate-400 rounded-xs"></span>
+                                                  <span>{isTa ? 'தயார்' : 'Ready'}</span>
+                                                </span>
+                                              </td>
+                                            </tr>
+                                          ))}
+                                        </tbody>
+                                      </table>
+                                    )}
                                   </div>
-                                ) : (
-                                  <table className="w-full text-xs text-left border-collapse">
+                                );
+                              })}
+
+                              {/* Section 1 Total */}
+                              <div className="bg-slate-100 p-2.5 px-4 flex justify-between items-center text-xs font-black text-slate-900 border-t-2 border-slate-300">
+                                <span className="uppercase tracking-wider">
+                                  {isTa
+                                    ? 'தேநீர் / பால் & காபி ஒட்டுமொத்த தேவைப்படும் அளவு:'
+                                    : 'Tea / Milk & Coffee Overall Subtotal Required:'}
+                                </span>
+                                <span className="text-sm font-black font-mono bg-emerald-100 text-emerald-950 px-3 py-1 rounded-lg border border-emerald-300">
+                                  {sec.subtotal} {isTa ? 'எண்ணிக்கை' : 'Nos'}
+                                </span>
+                              </div>
+                            </div>
+                          ) : sec.items.length === 0 ? (
+                            <div className="py-3 px-4 text-center text-xs font-semibold text-slate-400 bg-slate-50">
+                              {isTa
+                                ? `${sec.title} அமர்வுக்கு ஆர்டர் எதுவும் இல்லை (0 தேவை)`
+                                : `No items ordered for ${sec.title} session (0 portions required)`}
+                            </div>
+                          ) : (
+                            <table className="w-full text-xs text-left border-collapse">
+                              <thead>
+                                <tr className="bg-slate-100 text-slate-800 font-bold border-b border-slate-300 text-[11px] uppercase">
+                                  <th className="p-2 w-10 text-center border-r border-slate-200">#</th>
+                                  <th className="p-2 border-r border-slate-200">{isTa ? 'உணவுப் பெயர்' : 'Food Item Name'}</th>
+                                  <th className="p-2 border-r border-slate-200 w-36">{isTa ? 'அளவு' : 'Portion / Unit Size'}</th>
+                                  <th className="p-2 text-center bg-emerald-100/70 text-emerald-950 font-black w-36 border-r border-slate-200">
+                                    {isTa ? 'தேவைப்படும் மொத்த அளவு' : 'Total Required'}
+                                  </th>
+                                  <th className="p-2 text-center w-28 bg-slate-100 text-slate-700 font-bold">
+                                    {isTa ? 'சமையலறை நிலை' : 'Kitchen Status'}
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-200 font-medium text-slate-900">
+                                {sec.items.map((it, itIdx) => (
+                                  <tr key={it.item_name} className={itIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/70'}>
+                                    <td className="p-2 text-center border-r border-slate-200 font-bold text-slate-500 font-mono">
+                                      {itIdx + 1}
+                                    </td>
+                                    <td className="p-2 border-r border-slate-200 font-extrabold text-xs text-slate-900">
+                                      <span>{translateFood(it.item_name)}</span>
+                                    </td>
+                                    <td className="p-2 border-r border-slate-200 text-slate-600 font-medium text-[11px]">
+                                      {it.portion_size}
+                                    </td>
+                                    <td className="p-2 text-center font-black text-sm font-mono bg-emerald-50 text-emerald-950 border-r border-slate-200">
+                                      {it.total_quantity} {isTa ? 'எண்ணிக்கை' : 'Nos'}
+                                    </td>
+                                    <td className="p-2 text-center">
+                                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 border border-slate-300 rounded px-2 py-0.5 bg-white">
+                                        <span className="inline-block w-3 h-3 border border-slate-400 rounded-xs"></span>
+                                        <span>{isTa ? 'தயார்' : 'Ready'}</span>
+                                      </span>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                              <tfoot>
+                                <tr className="bg-slate-100 text-slate-900 font-bold text-xs border-t-2 border-slate-300">
+                                  <td colSpan={3} className="p-2 text-right uppercase tracking-wider border-r border-slate-200">
+                                    {sec.title} {isTa ? 'தேவைப்படும் மொத்த அளவு:' : 'Subtotal Required:'}
+                                  </td>
+                                  <td className="p-2 text-center font-black text-xs font-mono bg-emerald-100 text-emerald-950 border-r border-slate-200">
+                                    {sec.subtotal} {isTa ? 'எண்ணிக்கை' : 'Nos'}
+                                  </td>
+                                  <td className="p-2 text-center text-[10px] text-slate-500 font-semibold">
+                                    {sec.items.length} {isTa ? 'உணவுகள்' : 'items'}
+                                  </td>
+                                </tr>
+                              </tfoot>
+                            </table>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Overall Grand Total & Sign-off Block */}
+                <div className="mx-4 mb-4 border-2 border-slate-900 rounded-xl p-4 bg-slate-50 page-break-inside-avoid">
+                  <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 border-b border-slate-300">
+                    <div>
+                      <h4 className="text-xs font-black uppercase text-slate-900 tracking-wider">
+                        {isTa ? 'ஒட்டுமொத்த சமையல் & தயாரிப்பு சுருக்கம்' : 'Overall Cooking & Preparation Summary'}
+                      </h4>
+                      <p className="text-[11px] text-slate-600 font-medium">
+                        {isTa
+                          ? 'செல்லுபடியாகும் நேரலை ஆர்டர்களில் இருந்து கணக்கிடப்பட்டது. ரத்து செய்யப்பட்ட மற்றும் டெலிவரி செய்யப்பட்ட ஆர்டர்கள் தவிர்க்கப்பட்டுள்ளன.'
+                          : 'Calculated from valid active patient orders. Excludes cancelled, pending, cleared, and delivered orders.'}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-xs font-extrabold uppercase text-slate-600 mr-2">
+                        {isTa ? 'மொத்த அளவுகள்:' : 'Grand Total Portions:'}
+                      </span>
+                      <span className="text-base font-black bg-emerald-700 text-white px-3 py-1 rounded-lg font-mono">
+                        {overallTotalPortions} {isTa ? 'எண்ணிக்கை' : 'Nos'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Session Breakdown Grid */}
+                  <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 my-3 text-xs">
+                    {kitchenSections.map((s) => (
+                      <div key={s.category} className="bg-white p-2 rounded-lg border border-slate-200 text-center">
+                        <span className="block text-[10px] font-bold text-slate-500 uppercase">{s.title}</span>
+                        <span className="block text-sm font-black text-slate-900 font-mono mt-0.5">{s.subtotal} {isTa ? 'எண்ணிக்கை' : 'Nos'}</span>
+                        <span className="block text-[10px] text-slate-400 font-medium">{s.items.length} {isTa ? 'உணவுகள்' : 'items'}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* ============================================================
+                  PART B – ROOM-WISE FOOD DISTRIBUTION DETAILS
+              ============================================================ */}
+              <div className="border-2 border-blue-800 rounded-xl overflow-hidden page-break-before">
+                <div className="bg-blue-800 text-white px-4 py-3 flex items-center justify-between">
+                  <div className="flex items-center gap-2.5">
+                    <Building2 className="w-5 h-5 text-blue-200" />
+                    <div>
+                      <span className="text-sm font-black uppercase tracking-widest block">
+                        PART B – ROOM-WISE FOOD DISTRIBUTION DETAILS
+                      </span>
+                      <span className="text-[11px] text-blue-200 font-medium">
+                        {isTa
+                          ? 'ஒவ்வொரு உணவிற்கும் – அறை எண், நோயாளி பெயர் மற்றும் அளவு'
+                          : 'For each food item – Room Number, Patient Name, and Quantity to Deliver'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="p-4 space-y-5">
+                  {/* B.1 – Tea / Coffee / Milk by Serving Time Slots */}
+                  {teaCoffeeSlots.map((slotGroup: any) => {
+                    const slotItems = (slotGroup.items || []).filter((it: any) => it.total_quantity > 0 && (it.patients || []).length > 0);
+                    if (slotItems.length === 0) return null;
+
+                    return (
+                      <div key={`dist-tea-${slotGroup.serving_time}`} className="space-y-3">
+                        {/* Serving-time sub-heading */}
+                        <div className="flex items-center gap-2 bg-amber-100 border border-amber-300 px-3 py-1.5 rounded-lg">
+                          <Clock className="w-3.5 h-3.5 text-amber-800" />
+                          <span className="text-xs font-black text-amber-950 uppercase tracking-wide">
+                            🍵 Tea / Coffee / Milk – {translateSlot(slotGroup.serving_time)}
+                          </span>
+                        </div>
+
+                        {slotItems.map((it: any) => {
+                          const patients: any[] = it.patients || [];
+                          const total = patients.reduce((s: number, p: any) => s + (p.quantity || 0), 0);
+                          return (
+                            <div key={`${slotGroup.serving_time}-${it.item_name}-dist`} className="border border-slate-200 rounded-xl overflow-hidden page-break-inside-avoid">
+                              <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex justify-between items-center">
+                                <span className="text-xs font-black text-amber-950">
+                                  {translateFood(it.item_name)} — {translateSlot(slotGroup.serving_time)}
+                                </span>
+                                <span className="text-[11px] font-black bg-amber-200 text-amber-950 px-2 py-0.5 rounded font-mono border border-amber-300">
+                                  {isTa ? 'மொத்தம்:' : 'Total:'} {total} {isTa ? 'எண்ணிக்கை' : 'Nos'}
+                                </span>
+                              </div>
+                              <table className="w-full text-xs border-collapse">
+                                <thead>
+                                  <tr className="bg-slate-100 text-slate-700 font-bold text-[10px] uppercase border-b border-slate-200">
+                                    <th className="p-2 border-r border-slate-200 w-28">{isTa ? 'அறை எண்' : 'Room No.'}</th>
+                                    <th className="p-2 border-r border-slate-200">{isTa ? 'நோயாளி பெயர்' : 'Patient Name'}</th>
+                                    <th className="p-2 border-r border-slate-200 w-24 text-center">{isTa ? 'நோயாளி ID' : 'Patient ID'}</th>
+                                    <th className="p-2 text-center w-24 bg-blue-50 text-blue-900 font-black">{isTa ? 'அளவு' : 'Quantity'}</th>
+                                  </tr>
+                                </thead>
+                                <tbody className="divide-y divide-slate-100">
+                                  {patients.map((p: any, pIdx: number) => (
+                                    <tr key={`${p.patient_id}-${pIdx}`} className={pIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}>
+                                      <td className="p-2 border-r border-slate-200 font-black text-blue-800">
+                                        Room {p.room_number || 'Not Assigned'}
+                                      </td>
+                                      <td className="p-2 border-r border-slate-200 font-semibold text-slate-900">
+                                        {p.patient_name}
+                                      </td>
+                                      <td className="p-2 border-r border-slate-200 text-slate-500 font-mono text-[10px] text-center">
+                                        {p.patient_id}
+                                      </td>
+                                      <td className="p-2 text-center font-black text-sm text-blue-900 bg-blue-50/50">
+                                        {p.quantity}
+                                      </td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                                <tfoot>
+                                  <tr className="bg-slate-900 text-white text-xs font-black border-t-2 border-slate-700">
+                                    <td colSpan={3} className="p-2 text-right border-r border-slate-700 uppercase tracking-wider">
+                                      {isTa ? 'மொத்தம்' : 'Total'}
+                                    </td>
+                                    <td className="p-2 text-center font-black text-sm font-mono bg-emerald-700 text-white">
+                                      {total}
+                                    </td>
+                                  </tr>
+                                </tfoot>
+                              </table>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    );
+                  })}
+
+                  {/* B.2 – Breakfast, Lunch, Dinner, Snacks Distribution */}
+                  {kitchenSections
+                    .filter((sec) => sec.category !== 'TEA / MILK' && sec.items.length > 0)
+                    .map((sec) => {
+                      const IconComp = sec.icon;
+                      const sectionBg: Record<string, string> = {
+                        'BREAKFAST': 'bg-orange-900',
+                        'LUNCH': 'bg-teal-900',
+                        'DINNER': 'bg-indigo-900',
+                        'SNACKS': 'bg-emerald-900',
+                      };
+                      const itemBg: Record<string, string> = {
+                        'BREAKFAST': 'bg-orange-50 border-orange-200 text-orange-950',
+                        'LUNCH': 'bg-teal-50 border-teal-200 text-teal-950',
+                        'DINNER': 'bg-indigo-50 border-indigo-200 text-indigo-950',
+                        'SNACKS': 'bg-emerald-50 border-emerald-200 text-emerald-950',
+                      };
+                      const totalBadge: Record<string, string> = {
+                        'BREAKFAST': 'bg-orange-200 text-orange-950 border-orange-300',
+                        'LUNCH': 'bg-teal-200 text-teal-950 border-teal-300',
+                        'DINNER': 'bg-indigo-200 text-indigo-950 border-indigo-300',
+                        'SNACKS': 'bg-emerald-200 text-emerald-950 border-emerald-300',
+                      };
+
+                      return (
+                        <div key={`dist-${sec.category}`} className="space-y-3">
+                          {/* Meal category heading */}
+                          <div className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-white ${sectionBg[sec.category] || 'bg-slate-800'}`}>
+                            <IconComp className="w-4 h-4 opacity-80" />
+                            <span className="text-xs font-black uppercase tracking-wide">
+                              {sec.title.replace(' Preparation', '')} — {isTa ? 'அறை வாரியான விநியோகம்' : 'Room-wise Distribution'}
+                            </span>
+                          </div>
+
+                          {sec.items
+                            .filter((it: any) => (it as any).patients && (it as any).patients.length > 0)
+                            .map((it: any) => {
+                              const patients: any[] = (it as any).patients || [];
+                              const total = patients.reduce((s: number, p: any) => s + (p.quantity || 0), 0);
+
+                              return (
+                                <div key={`${sec.category}-${it.item_name}-dist`} className="border border-slate-200 rounded-xl overflow-hidden page-break-inside-avoid">
+                                  <div className={`border-b px-4 py-2 flex justify-between items-center ${itemBg[sec.category] || 'bg-slate-50 border-slate-200 text-slate-900'}`}>
+                                    <span className="text-xs font-black">
+                                      {sec.title.replace(' Preparation', '')} – {translateFood(it.item_name)}
+                                    </span>
+                                    <span className={`text-[11px] font-black px-2 py-0.5 rounded font-mono border ${totalBadge[sec.category] || 'bg-slate-200 text-slate-900 border-slate-300'}`}>
+                                      {isTa ? 'மொத்தம்:' : 'Total:'} {total} {isTa ? 'எண்ணிக்கை' : 'Nos'}
+                                    </span>
+                                  </div>
+                                  <table className="w-full text-xs border-collapse">
                                     <thead>
-                                      <tr className="bg-slate-100 text-slate-800 font-bold border-b border-slate-300 text-[10px] uppercase">
-                                        <th className="p-2 w-28 border-r border-slate-200">{isTa ? 'வழங்கும் நேரம்' : 'Serving Time'}</th>
-                                        <th className="p-2 border-r border-slate-200">{isTa ? 'உணவு' : 'Food Item'}</th>
-                                        <th className="p-2 border-r border-slate-200 w-32">{isTa ? 'அளவு' : 'Portion Size'}</th>
-                                        <th className="p-2 text-center bg-emerald-100/70 text-emerald-950 font-black w-36 border-r border-slate-200">
-                                          {isTa ? 'தேவைப்படும் மொத்த அளவு' : 'Total Required'}
-                                        </th>
-                                        <th className="p-2 text-center w-28 bg-slate-100 text-slate-700 font-bold">
-                                          {isTa ? 'சமையலறை நிலை' : 'Kitchen Status'}
-                                        </th>
+                                      <tr className="bg-slate-100 text-slate-700 font-bold text-[10px] uppercase border-b border-slate-200">
+                                        <th className="p-2 border-r border-slate-200 w-28">{isTa ? 'அறை எண்' : 'Room No.'}</th>
+                                        <th className="p-2 border-r border-slate-200">{isTa ? 'நோயாளி பெயர்' : 'Patient Name'}</th>
+                                        <th className="p-2 border-r border-slate-200 w-24 text-center">{isTa ? 'நோயாளி ID' : 'Patient ID'}</th>
+                                        <th className="p-2 text-center w-24 bg-blue-50 text-blue-900 font-black">{isTa ? 'அளவு' : 'Quantity'}</th>
                                       </tr>
                                     </thead>
-                                    <tbody className="divide-y divide-slate-200 font-medium text-slate-900">
-                                      {slotItems.map((it: any, itIdx: number) => (
-                                        <tr key={`${slotGroup.serving_time}-${it.item_name}`} className={itIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/70'}>
-                                          <td className="p-2 border-r border-slate-200 font-black text-amber-900 font-mono text-xs">
-                                            {translateSlot(slotGroup.serving_time)}
+                                    <tbody className="divide-y divide-slate-100">
+                                      {patients.map((p: any, pIdx: number) => (
+                                        <tr key={`${p.patient_id}-${pIdx}`} className={pIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/60'}>
+                                          <td className="p-2 border-r border-slate-200 font-black text-blue-800">
+                                            Room {p.room_number || 'Not Assigned'}
                                           </td>
-                                          <td className="p-2 border-r border-slate-200 font-extrabold text-xs text-slate-900">
-                                            {translateFood(it.item_name)}
+                                          <td className="p-2 border-r border-slate-200 font-semibold text-slate-900">
+                                            {p.patient_name}
                                           </td>
-                                          <td className="p-2 border-r border-slate-200 text-slate-600 font-medium text-[11px]">
-                                            {it.portion_size || '100 ml'}
+                                          <td className="p-2 border-r border-slate-200 text-slate-500 font-mono text-[10px] text-center">
+                                            {p.patient_id}
                                           </td>
-                                          <td className="p-2 text-center font-black text-sm font-mono bg-emerald-50 text-emerald-950 border-r border-slate-200">
-                                            {it.total_quantity} {isTa ? 'எண்ணிக்கை' : 'Nos'}
-                                          </td>
-                                          <td className="p-2 text-center">
-                                            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 border border-slate-300 rounded px-2 py-0.5 bg-white">
-                                              <span className="inline-block w-3 h-3 border border-slate-400 rounded-xs"></span>
-                                              <span>{isTa ? 'தயார்' : 'Ready'}</span>
-                                            </span>
+                                          <td className="p-2 text-center font-black text-sm text-blue-900 bg-blue-50/50">
+                                            {p.quantity}
                                           </td>
                                         </tr>
                                       ))}
                                     </tbody>
+                                    <tfoot>
+                                      <tr className="bg-slate-900 text-white text-xs font-black border-t-2 border-slate-700">
+                                        <td colSpan={3} className="p-2 text-right border-r border-slate-700 uppercase tracking-wider">
+                                          {isTa ? 'மொத்தம்' : 'Total'}
+                                        </td>
+                                        <td className="p-2 text-center font-black text-sm font-mono bg-emerald-700 text-white">
+                                          {total}
+                                        </td>
+                                      </tr>
+                                    </tfoot>
                                   </table>
-                                )}
-                              </div>
-                            );
-                          })}
+                                </div>
+                              );
+                            })}
+                        </div>
+                      );
+                    })}
 
-                          {/* Section 1 Total */}
-                          <div className="bg-slate-100 p-2.5 px-4 flex justify-between items-center text-xs font-black text-slate-900 border-t-2 border-slate-300">
-                            <span className="uppercase tracking-wider">
-                              {isTa
-                                ? 'தேநீர் / பால் & காபி ஒட்டுமொத்த தேவைப்படும் அளவு:'
-                                : 'Tea / Milk & Coffee Overall Subtotal Required:'}
-                            </span>
-                            <span className="text-sm font-black font-mono bg-emerald-100 text-emerald-950 px-3 py-1 rounded-lg border border-emerald-300">
-                              {sec.subtotal} {isTa ? 'எண்ணிக்கை' : 'Nos'}
-                            </span>
-                          </div>
-                        </div>
-                      ) : sec.items.length === 0 ? (
-                        <div className="py-3 px-4 text-center text-xs font-semibold text-slate-400 bg-slate-50">
-                          {isTa
-                            ? `${sec.title} அமர்வுக்கு ஆர்டர் எதுவும் இல்லை (0 தேவை)`
-                            : `No items ordered for ${sec.title} session (0 portions required)`}
-                        </div>
-                      ) : (
-                        <table className="w-full text-xs text-left border-collapse">
-                          <thead>
-                            <tr className="bg-slate-100 text-slate-800 font-bold border-b border-slate-300 text-[11px] uppercase">
-                              <th className="p-2 w-10 text-center border-r border-slate-200">#</th>
-                              <th className="p-2 border-r border-slate-200">{isTa ? 'உணவுப் பெயர்' : 'Food Item Name'}</th>
-                              <th className="p-2 border-r border-slate-200 w-36">{isTa ? 'அளவு' : 'Portion / Unit Size'}</th>
-                              <th className="p-2 text-center bg-emerald-100/70 text-emerald-950 font-black w-36 border-r border-slate-200">
-                                {isTa ? 'தேவைப்படும் மொத்த அளவு' : 'Total Required'}
-                              </th>
-                              <th className="p-2 text-center w-28 bg-slate-100 text-slate-700 font-bold">
-                                {isTa ? 'சமையலறை நிலை' : 'Kitchen Status'}
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody className="divide-y divide-slate-200 font-medium text-slate-900">
-                            {sec.items.map((it, itIdx) => (
-                              <tr key={it.item_name} className={itIdx % 2 === 0 ? 'bg-white' : 'bg-slate-50/70'}>
-                                <td className="p-2 text-center border-r border-slate-200 font-bold text-slate-500 font-mono">
-                                  {itIdx + 1}
-                                </td>
-                                <td className="p-2 border-r border-slate-200 font-extrabold text-xs text-slate-900">
-                                  <span>{translateFood(it.item_name)}</span>
-                                </td>
-                                <td className="p-2 border-r border-slate-200 text-slate-600 font-medium text-[11px]">
-                                  {it.portion_size}
-                                </td>
-                                <td className="p-2 text-center font-black text-sm font-mono bg-emerald-50 text-emerald-950 border-r border-slate-200">
-                                  {it.total_quantity} {isTa ? 'எண்ணிக்கை' : 'Nos'}
-                                </td>
-                                <td className="p-2 text-center">
-                                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 border border-slate-300 rounded px-2 py-0.5 bg-white">
-                                    <span className="inline-block w-3 h-3 border border-slate-400 rounded-xs"></span>
-                                    <span>{isTa ? 'தயார்' : 'Ready'}</span>
-                                  </span>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                          <tfoot>
-                            <tr className="bg-slate-100 text-slate-900 font-bold text-xs border-t-2 border-slate-300">
-                              <td colSpan={3} className="p-2 text-right uppercase tracking-wider border-r border-slate-200">
-                                {sec.title} {isTa ? 'தேவைப்படும் மொத்த அளவு:' : 'Subtotal Required:'}
-                              </td>
-                              <td className="p-2 text-center font-black text-xs font-mono bg-emerald-100 text-emerald-950 border-r border-slate-200">
-                                {sec.subtotal} {isTa ? 'எண்ணிக்கை' : 'Nos'}
-                              </td>
-                              <td className="p-2 text-center text-[10px] text-slate-500 font-semibold">
-                                {sec.items.length} {isTa ? 'உணவுகள்' : 'items'}
-                              </td>
-                            </tr>
-                          </tfoot>
-                        </table>
-                      )}
+                  {/* If no distribution data at all */}
+                  {kitchenSections.every((sec) =>
+                    sec.category === 'TEA / MILK'
+                      ? teaCoffeeSlots.every((s: any) => (s.items || []).every((it: any) => !(it.patients?.length)))
+                      : sec.items.every((it: any) => !(it as any).patients?.length)
+                  ) && (
+                    <div className="py-8 text-center text-slate-400 text-sm font-semibold border-2 border-dashed border-slate-200 rounded-xl">
+                      {isTa
+                        ? 'அறை வாரியான விநியோக தரவு கிடைக்கவில்லை. அறிக்கையை புதுப்பிக்கவும்.'
+                        : 'No room-wise distribution data available. Please refresh the report.'}
                     </div>
-                  );
-                })}
+                  )}
+                </div>
               </div>
 
-              {/* Overall Grand Total & Sign-off Block */}
-              <div className="mt-6 border-2 border-slate-900 rounded-xl p-4 bg-slate-50 page-break-inside-avoid">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 border-b border-slate-300">
-                  <div>
-                    <h4 className="text-xs font-black uppercase text-slate-900 tracking-wider">
-                      {isTa ? 'ஒட்டுமொத்த சமையல் & தயாரிப்பு சுருக்கம்' : 'Overall Cooking & Preparation Summary'}
-                    </h4>
-                    <p className="text-[11px] text-slate-600 font-medium">
-                      {isTa
-                        ? 'செல்லுபடியாகும் நேரலை ஆர்டர்களில் இருந்து கணக்கிடப்பட்டது. ரத்து செய்யப்பட்ட மற்றும் டெலிவரி செய்யப்பட்ட ஆர்டர்கள் தவிர்க்கப்பட்டுள்ளன.'
-                        : 'Calculated from valid active patient orders. Excludes cancelled, pending, cleared, and delivered orders.'}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-xs font-extrabold uppercase text-slate-600 mr-2">
-                      {isTa ? 'மொத்த அளவுகள்:' : 'Grand Total Portions:'}
-                    </span>
-                    <span className="text-base font-black bg-emerald-700 text-white px-3 py-1 rounded-lg font-mono">
-                      {overallTotalPortions} {isTa ? 'எண்ணிக்கை' : 'Nos'}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Session Breakdown Grid */}
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 my-3 text-xs">
-                  {kitchenSections.map((s) => (
-                    <div key={s.category} className="bg-white p-2 rounded-lg border border-slate-200 text-center">
-                      <span className="block text-[10px] font-bold text-slate-500 uppercase">{s.title}</span>
-                      <span className="block text-sm font-black text-slate-900 font-mono mt-0.5">{s.subtotal} {isTa ? 'எண்ணிக்கை' : 'Nos'}</span>
-                      <span className="block text-[10px] text-slate-400 font-medium">{s.items.length} {isTa ? 'உணவுகள்' : 'items'}</span>
-                    </div>
-                  ))}
-                </div>
-
-                {/* Signatures */}
-                <div className="pt-6 mt-2 border-t border-slate-300 text-xs text-slate-700 flex justify-between items-end">
+              {/* Signatures Block */}
+              <div className="border-2 border-slate-300 rounded-xl p-4 bg-slate-50 page-break-inside-avoid">
+                <div className="pt-4 border-t border-slate-300 text-xs text-slate-700 flex justify-between items-end">
                   <div>
                     <p className="font-extrabold text-slate-900">
                       {isTa ? 'அறிக்கை உருவாக்கப்பட்ட நேரம்:' : 'Report Generated:'} {dateFormatted} {isTa ? 'அன்று' : 'at'} {timeFormatted}
@@ -875,8 +1115,13 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                     <p className="text-[11px] text-slate-500">
                       {t('appName')} • {t('clinicName')}
                     </p>
+                    <p className="text-[11px] text-slate-500 mt-0.5">
+                      {isTa
+                        ? 'செல்லுபடியாகும் நேரலை ஆர்டர்களில் இருந்து கணக்கிடப்பட்டது. ரத்து, நிலுவை மற்றும் டெலிவரி செய்யப்பட்ட ஆர்டர்கள் தவிர்க்கப்பட்டுள்ளன.'
+                        : 'Calculated from valid active orders. Cancelled, pending, cleared, and delivered orders excluded.'}
+                    </p>
                   </div>
-                  <div className="flex gap-8 text-center">
+                  <div className="flex gap-8 text-center shrink-0">
                     <div>
                       <div className="w-40 border-b border-slate-400 mb-1"></div>
                       <p className="font-bold text-slate-700 text-[11px]">
