@@ -127,12 +127,121 @@ export const getAdminDashboardStats = async (req: Request, res: Response) => {
       return '7:00 AM';
     };
 
-    const activeOrderMap = new Map<string, any>();
+    // Map to collect patient details per (mealKey, menu_id)
+  const patientsByKey = new Map<string, any[]>();
     for (const o of activeOrders) {
       activeOrderMap.set(o.order_id, o);
     }
 
     for (const item of activeOrderItems) {
+      const rawMeal = orderMealMap.get(item.order_id) || 'Breakfast';
+      const { mealKey } = normalizeMeal(rawMeal);
+      const parentOrder = activeOrderMap.get(item.order_id);
+
+      // TEA / MILK aggregation (unchanged)
+      if (mealKey === 'TEA / MILK') {
+        const slot = normalizeSlotHelper((item as any).serving_time || parentOrder?.serving_time || '7:00 AM');
+        if (item.menu_id !== undefined && item.menu_id !== null) {
+          const key = `${slot}::${item.menu_id}`;
+          qtyBySlotAndMenuId.set(key, (qtyBySlotAndMenuId.get(key) || 0) + item.quantity);
+        }
+        if (item.item_name_snapshot) {
+          const key = `${slot}::${item.item_name_snapshot.trim().toLowerCase()}`;
+          qtyBySlotAndName.set(key, (qtyBySlotAndName.get(key) || 0) + item.quantity);
+        }
+      }
+
+      // General meal aggregation and patient tracking
+      if (item.menu_id !== undefined && item.menu_id !== null) {
+        const key = `${mealKey}::${item.menu_id}`;
+        qtyByMealAndMenuId.set(key, (qtyByMealAndMenuId.get(key) || 0) + item.quantity);
+        const patient = patientMap.get(parentOrder?.patient_id);
+        if (patient) {
+          const info = {
+            patient_name: patient.name,
+            patient_id: patient.patient_id,
+            room_number: patient.room_number,
+            quantity: item.quantity,
+          };
+          const arr = patientsByKey.get(key) || [];
+          arr.push(info);
+          patientsByKey.set(key, arr);
+        }
+      }
+      if (item.item_name_snapshot) {
+        const key = `${mealKey}::${item.item_name_snapshot.trim().toLowerCase()}`;
+        qtyByMealAndName.set(key, (qtyByMealAndName.get(key) || 0) + item.quantity);
+        const patient = patientMap.get(parentOrder?.patient_id);
+        if (patient) {
+          const info = {
+            patient_name: patient.name,
+            patient_id: patient.patient_id,
+            room_number: patient.room_number,
+            quantity: item.quantity,
+          };
+          const arr = patientsByKey.get(key) || [];
+          arr.push(info);
+          patientsByKey.set(key, arr);
+        }
+      }
+    }
+/*
+        const { mealKey } = normalizeMeal(rawMeal);
+        const parentOrder = activeOrderMap.get(item.order_id);
+
+
+          
+          global.__patientsByKey = new Map<string, any[]>();
+        }
+        // patientsByKey map is available from outer scope
+        // Existing quantity aggregation logic
+        if (mealKey === 'TEA / MILK') {
+          const slot = normalizeSlotHelper((item as any).serving_time || parentOrder?.serving_time || '7:00 AM');
+          if (item.menu_id !== undefined && item.menu_id !== null) {
+            const key = `${slot}::${item.menu_id}`;
+            qtyBySlotAndMenuId.set(key, (qtyBySlotAndMenuId.get(key) || 0) + item.quantity);
+          }
+          if (item.item_name_snapshot) {
+            const key = `${slot}::${item.item_name_snapshot.trim().toLowerCase()}`;
+            qtyBySlotAndName.set(key, (qtyBySlotAndName.get(key) || 0) + item.quantity);
+          }
+        }
+
+        if (item.menu_id !== undefined && item.menu_id !== null) {
+          const key = `${mealKey}::${item.menu_id}`;
+          qtyByMealAndMenuId.set(key, (qtyByMealAndMenuId.get(key) || 0) + item.quantity);
+          // Record patient info for this key
+          const patient = patientMap.get(parentOrder?.patient_id);
+          if (patient) {
+            const info = {
+              patient_name: patient.name,
+              patient_id: patient.patient_id,
+              room_number: patient.room_number,
+              quantity: item.quantity,
+            };
+            const arr = patientsByKey.get(key) || [];
+            arr.push(info);
+            patientsByKey.set(key, arr);
+          }
+        }
+        if (item.item_name_snapshot) {
+          const key = `${mealKey}::${item.item_name_snapshot.trim().toLowerCase()}`;
+          qtyByMealAndName.set(key, (qtyByMealAndName.get(key) || 0) + item.quantity);
+          // Record patient info for name‑based key as fallback
+          const patient = patientMap.get(parentOrder?.patient_id);
+          if (patient) {
+            const info = {
+              patient_name: patient.name,
+              patient_id: patient.patient_id,
+              room_number: patient.room_number,
+              quantity: item.quantity,
+            };
+            const arr = patientsByKey.get(key) || [];
+            arr.push(info);
+            patientsByKey.set(key, arr);
+          }
+        }
+      }
       const rawMeal = orderMealMap.get(item.order_id) || 'Breakfast';
       const { mealKey } = normalizeMeal(rawMeal);
       const parentOrder = activeOrderMap.get(item.order_id);
@@ -174,7 +283,18 @@ export const getAdminDashboardStats = async (req: Request, res: Response) => {
           const byName = qtyByMealAndName.get(`${mealKey}::${item.item_name.trim().toLowerCase()}`) || 0;
           const totalQty = Math.max(byId, byName);
 
+          // Attach patient detail arrays if available
+          const patientsKey = `${mealKey}::${item.menu_id}`;
+          const patients = patientsByKey.get(patientsKey) || [];
           foodItemsToPrepare.push({
+            menu_id: item.menu_id,
+            item_name: item.item_name,
+            meal_type: targetMeal,
+            category: origCategory,
+            portion_size: item.quantity,
+            total_preparation_quantity: totalQty,
+            patients,
+          });
             menu_id: item.menu_id,
             item_name: item.item_name,
             meal_type: meal,
@@ -190,7 +310,18 @@ export const getAdminDashboardStats = async (req: Request, res: Response) => {
           const byName = qtyBySlotAndName.get(`${slot}::${item.item_name.trim().toLowerCase()}`) || 0;
           const totalQty = Math.max(byId, byName);
 
+          // Attach patient detail arrays if available
+          const patientsKey = `${mealKey}::${item.menu_id}`;
+          const patients = patientsByKey.get(patientsKey) || [];
           foodItemsToPrepare.push({
+            menu_id: item.menu_id,
+            item_name: item.item_name,
+            meal_type: targetMeal,
+            category: origCategory,
+            portion_size: item.quantity,
+            total_preparation_quantity: totalQty,
+            patients,
+          });
             menu_id: item.menu_id,
             item_name: item.item_name,
             meal_type: `Tea / Milk (${slot})`,
@@ -213,7 +344,18 @@ export const getAdminDashboardStats = async (req: Request, res: Response) => {
         const byName = qtyByMealAndName.get(`${mealKey}::${item.item_name.trim().toLowerCase()}`) || 0;
         const totalQty = Math.max(byId, byName);
 
-        foodItemsToPrepare.push({
+        // Attach patient detail arrays if available
+          const patientsKey = `${mealKey}::${item.menu_id}`;
+          const patients = patientsByKey.get(patientsKey) || [];
+          foodItemsToPrepare.push({
+            menu_id: item.menu_id,
+            item_name: item.item_name,
+            meal_type: targetMeal,
+            category: origCategory,
+            portion_size: item.quantity,
+            total_preparation_quantity: totalQty,
+            patients,
+          });
           menu_id: item.menu_id,
           item_name: item.item_name,
           meal_type: targetMeal,
@@ -247,7 +389,16 @@ export const getAdminDashboardStats = async (req: Request, res: Response) => {
       };
     });
 
-    return res.status(200).json({
+    // Attach patient detail arrays to each food item for room‑wise distribution
+      for (const fi of foodItemsToPrepare) {
+        const catKey = (fi.category || '').toUpperCase();
+        const key = `${catKey}::${fi.menu_id}`;
+        const patients = patientsByKey.get(key) || [];
+        // Attach only if there are patients to avoid empty arrays cluttering the response
+        if (patients.length > 0) {
+          (fi as any).patients = patients;
+        }
+      }
       is_ordering_locked,
       totalPatients,
       pendingOrders: 0,
@@ -340,7 +491,16 @@ export const deletePatient = async (req: Request, res: Response) => {
 
     await Patient.deleteOne({ _id: patient._id });
 
-    return res.status(200).json({
+    // Attach patient detail arrays to each food item for room‑wise distribution
+      for (const fi of foodItemsToPrepare) {
+        const catKey = (fi.category || '').toUpperCase();
+        const key = `${catKey}::${fi.menu_id}`;
+        const patients = patientsByKey.get(key) || [];
+        // Attach only if there are patients to avoid empty arrays cluttering the response
+        if (patients.length > 0) {
+          (fi as any).patients = patients;
+        }
+      }
       message: `Patient account "${patient.name}" (${patient.patient_id}) deleted successfully.`,
       patient_id: patient.patient_id,
     });
@@ -412,7 +572,16 @@ export const getRoomFoodRecords = async (req: Request, res: Response) => {
     });
 
     if (patientsInRoom.length === 0) {
-      return res.status(200).json({
+      // Attach patient detail arrays to each food item for room‑wise distribution
+      for (const fi of foodItemsToPrepare) {
+        const catKey = (fi.category || '').toUpperCase();
+        const key = `${catKey}::${fi.menu_id}`;
+        const patients = patientsByKey.get(key) || [];
+        // Attach only if there are patients to avoid empty arrays cluttering the response
+        if (patients.length > 0) {
+          (fi as any).patients = patients;
+        }
+      }
         date: String(date),
         room_number: String(room_number),
         patients: [],
@@ -457,7 +626,16 @@ export const getRoomFoodRecords = async (req: Request, res: Response) => {
       })
     );
 
-    return res.status(200).json({
+    // Attach patient detail arrays to each food item for room‑wise distribution
+      for (const fi of foodItemsToPrepare) {
+        const catKey = (fi.category || '').toUpperCase();
+        const key = `${catKey}::${fi.menu_id}`;
+        const patients = patientsByKey.get(key) || [];
+        // Attach only if there are patients to avoid empty arrays cluttering the response
+        if (patients.length > 0) {
+          (fi as any).patients = patients;
+        }
+      }
       date: String(date),
       room_number: String(room_number),
       patients: resultPatients,
@@ -601,6 +779,114 @@ export const getKitchenReport = async (req: Request, res: Response) => {
     }>();
 
     for (const item of activeOrderItems) {
+      const rawMeal = orderMealMap.get(item.order_id) || 'Breakfast';
+      const { mealKey } = normalizeMeal(rawMeal);
+      const parentOrder = activeOrderMap.get(item.order_id);
+
+      // TEA / MILK aggregation (unchanged)
+      if (mealKey === 'TEA / MILK') {
+        const slot = normalizeSlotHelper((item as any).serving_time || parentOrder?.serving_time || '7:00 AM');
+        if (item.menu_id !== undefined && item.menu_id !== null) {
+          const key = `${slot}::${item.menu_id}`;
+          qtyBySlotAndMenuId.set(key, (qtyBySlotAndMenuId.get(key) || 0) + item.quantity);
+        }
+        if (item.item_name_snapshot) {
+          const key = `${slot}::${item.item_name_snapshot.trim().toLowerCase()}`;
+          qtyBySlotAndName.set(key, (qtyBySlotAndName.get(key) || 0) + item.quantity);
+        }
+      }
+
+      // General meal aggregation and patient tracking
+      if (item.menu_id !== undefined && item.menu_id !== null) {
+        const key = `${mealKey}::${item.menu_id}`;
+        qtyByMealAndMenuId.set(key, (qtyByMealAndMenuId.get(key) || 0) + item.quantity);
+        const patient = patientMap.get(parentOrder?.patient_id);
+        if (patient) {
+          const info = {
+            patient_name: patient.name,
+            patient_id: patient.patient_id,
+            room_number: patient.room_number,
+            quantity: item.quantity,
+          };
+          const arr = patientsByKey.get(key) || [];
+          arr.push(info);
+          patientsByKey.set(key, arr);
+        }
+      }
+      if (item.item_name_snapshot) {
+        const key = `${mealKey}::${item.item_name_snapshot.trim().toLowerCase()}`;
+        qtyByMealAndName.set(key, (qtyByMealAndName.get(key) || 0) + item.quantity);
+        const patient = patientMap.get(parentOrder?.patient_id);
+        if (patient) {
+          const info = {
+            patient_name: patient.name,
+            patient_id: patient.patient_id,
+            room_number: patient.room_number,
+            quantity: item.quantity,
+          };
+          const arr = patientsByKey.get(key) || [];
+          arr.push(info);
+          patientsByKey.set(key, arr);
+        }
+      }
+    }
+/*
+        const { mealKey } = normalizeMeal(rawMeal);
+        const parentOrder = activeOrderMap.get(item.order_id);
+
+
+          
+          global.__patientsByKey = new Map<string, any[]>();
+        }
+        // patientsByKey map is available from outer scope
+        // Existing quantity aggregation logic
+        if (mealKey === 'TEA / MILK') {
+          const slot = normalizeSlotHelper((item as any).serving_time || parentOrder?.serving_time || '7:00 AM');
+          if (item.menu_id !== undefined && item.menu_id !== null) {
+            const key = `${slot}::${item.menu_id}`;
+            qtyBySlotAndMenuId.set(key, (qtyBySlotAndMenuId.get(key) || 0) + item.quantity);
+          }
+          if (item.item_name_snapshot) {
+            const key = `${slot}::${item.item_name_snapshot.trim().toLowerCase()}`;
+            qtyBySlotAndName.set(key, (qtyBySlotAndName.get(key) || 0) + item.quantity);
+          }
+        }
+
+        if (item.menu_id !== undefined && item.menu_id !== null) {
+          const key = `${mealKey}::${item.menu_id}`;
+          qtyByMealAndMenuId.set(key, (qtyByMealAndMenuId.get(key) || 0) + item.quantity);
+          // Record patient info for this key
+          const patient = patientMap.get(parentOrder?.patient_id);
+          if (patient) {
+            const info = {
+              patient_name: patient.name,
+              patient_id: patient.patient_id,
+              room_number: patient.room_number,
+              quantity: item.quantity,
+            };
+            const arr = patientsByKey.get(key) || [];
+            arr.push(info);
+            patientsByKey.set(key, arr);
+          }
+        }
+        if (item.item_name_snapshot) {
+          const key = `${mealKey}::${item.item_name_snapshot.trim().toLowerCase()}`;
+          qtyByMealAndName.set(key, (qtyByMealAndName.get(key) || 0) + item.quantity);
+          // Record patient info for name‑based key as fallback
+          const patient = patientMap.get(parentOrder?.patient_id);
+          if (patient) {
+            const info = {
+              patient_name: patient.name,
+              patient_id: patient.patient_id,
+              room_number: patient.room_number,
+              quantity: item.quantity,
+            };
+            const arr = patientsByKey.get(key) || [];
+            arr.push(info);
+            patientsByKey.set(key, arr);
+          }
+        }
+      }
       const order = orderMap.get(item.order_id);
       const orderMeal = orderMealMap.get(item.order_id) || 'Breakfast';
       const menuDoc = (item.menu_id ? menuMap.get(item.menu_id) : null) || menuNameMap.get((item.item_name_snapshot || '').trim().toLowerCase());
@@ -770,7 +1056,16 @@ export const getKitchenReport = async (req: Request, res: Response) => {
 
     const totalPortions = standardSections.reduce((sum, sec) => sum + sec.subtotal, 0);
 
-    return res.status(200).json({
+    // Attach patient detail arrays to each food item for room‑wise distribution
+      for (const fi of foodItemsToPrepare) {
+        const catKey = (fi.category || '').toUpperCase();
+        const key = `${catKey}::${fi.menu_id}`;
+        const patients = patientsByKey.get(key) || [];
+        // Attach only if there are patients to avoid empty arrays cluttering the response
+        if (patients.length > 0) {
+          (fi as any).patients = patients;
+        }
+      }
       report_date: targetDeliveryDate,
       preparation_date: targetDeliveryDate,
       preparation_day: targetDeliveryDay,
@@ -984,7 +1279,16 @@ export const rechargePatientBalance = async (req: Request, res: Response) => {
       console.warn('Socket emission error during balance adjustment:', socketErr);
     }
 
-    return res.status(200).json({
+    // Attach patient detail arrays to each food item for room‑wise distribution
+      for (const fi of foodItemsToPrepare) {
+        const catKey = (fi.category || '').toUpperCase();
+        const key = `${catKey}::${fi.menu_id}`;
+        const patients = patientsByKey.get(key) || [];
+        // Attach only if there are patients to avoid empty arrays cluttering the response
+        if (patients.length > 0) {
+          (fi as any).patients = patients;
+        }
+      }
       message,
       patient_id: patient.patient_id,
       advance_balance: newBalance,
@@ -1058,7 +1362,16 @@ export const updatePatient = async (req: Request, res: Response) => {
       console.warn('Socket emission error during patient update:', socketErr);
     }
 
-    return res.status(200).json({
+    // Attach patient detail arrays to each food item for room‑wise distribution
+      for (const fi of foodItemsToPrepare) {
+        const catKey = (fi.category || '').toUpperCase();
+        const key = `${catKey}::${fi.menu_id}`;
+        const patients = patientsByKey.get(key) || [];
+        // Attach only if there are patients to avoid empty arrays cluttering the response
+        if (patients.length > 0) {
+          (fi as any).patients = patients;
+        }
+      }
       message: 'Patient record updated successfully.',
       patient,
     });
