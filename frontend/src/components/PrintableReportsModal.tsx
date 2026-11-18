@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { api } from '../services/api';
 import { useLanguage } from '../context/LanguageContext';
 import { FoodOrder, FoodItemToPrepare } from '../types';
@@ -35,6 +35,13 @@ interface KitchenItem {
   unit: string;
   total_quantity: number;
   order_count?: number;
+  patients?: Array<{
+    patient_id: string;
+    patient_name: string;
+    room_number: string;
+    quantity: number;
+    order_id?: string;
+  }>;
 }
 
 interface KitchenSection {
@@ -81,15 +88,15 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
     }
   }, [isOpen, reportType]);
 
-  // Auto-trigger browser print dialog when Kitchen Report is opened
+  // Auto-trigger browser print dialog when Kitchen Report is opened - only after data loads
   useEffect(() => {
-    if (isOpen && reportType === 'ITEMS_TO_PREPARE' && autoPrint) {
+    if (isOpen && reportType === 'ITEMS_TO_PREPARE' && autoPrint && !loadingReport && kitchenReportData) {
       const timer = setTimeout(() => {
         window.print();
-      }, 500);
+      }, 300);
       return () => clearTimeout(timer);
     }
-  }, [isOpen, reportType, autoPrint]);
+  }, [isOpen, reportType, autoPrint, loadingReport, kitchenReportData]);
 
   if (!isOpen) return null;
 
@@ -127,13 +134,13 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
   // ----------------------------------------------------
   const roomMap = new Map<string, Array<{ order: FoodOrder; patient_name: string; patient_id: string }>>();
   validActiveOrders.forEach((order) => {
-    const room = order.room_number || (isTa ? 'அறை ஒதுக்கப்படவில்லை' : 'Unassigned');
+    const room = order.room_number || (isTa ? 'à®…à®±à¯ˆ à®’à®¤à¯à®•à¯à®•à®ªà¯à®ªà®Ÿà®µà®¿à®²à¯à®²à¯ˆ' : 'Unassigned');
     if (!roomMap.has(room)) {
       roomMap.set(room, []);
     }
     roomMap.get(room)!.push({
       order,
-      patient_name: order.patient_name || (isTa ? 'நோயாளி' : 'Patient'),
+      patient_name: order.patient_name || (isTa ? 'à®¨à¯‹à®¯à®¾à®³à®¿' : 'Patient'),
       patient_id: order.patient_id,
     });
   });
@@ -158,41 +165,41 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
   }> = [
     {
       key: 'TEA / MILK',
-      title: isTa ? 'தேநீர் / பால் மற்றும் காபி தயாரிப்பு' : 'Tea / Milk and Coffee Preparation',
+      title: isTa ? 'à®¤à¯‡à®¨à¯€à®°à¯ / à®ªà®¾à®²à¯ à®®à®±à¯à®±à¯à®®à¯ à®•à®¾à®ªà®¿ à®¤à®¯à®¾à®°à®¿à®ªà¯à®ªà¯' : 'Tea / Milk and Coffee Preparation',
       desc: isTa
-        ? 'சூடான பானங்கள் & பால் சேவை – காலை 7:00, முற்பகல் 11:00, மாலை 4:00 மற்றும் இரவு 7:00 என பிரிக்கப்பட்டுள்ளது'
-        : 'Hot Beverages & Milk Service – Separated by 7:00 AM, 11:00 AM, 4:00 PM and 7:00 PM',
+        ? 'à®šà¯‚à®Ÿà®¾à®© à®ªà®¾à®©à®™à¯à®•à®³à¯ & à®ªà®¾à®²à¯ à®šà¯‡à®µà¯ˆ â€“ à®•à®¾à®²à¯ˆ 7:00, à®®à¯à®±à¯à®ªà®•à®²à¯ 11:00, à®®à®¾à®²à¯ˆ 4:00 à®®à®±à¯à®±à¯à®®à¯ à®‡à®°à®µà¯ 7:00 à®Žà®© à®ªà®¿à®°à®¿à®•à¯à®•à®ªà¯à®ªà®Ÿà¯à®Ÿà¯à®³à¯à®³à®¤à¯'
+        : 'Hot Beverages & Milk Service â€“ Separated by 7:00 AM, 11:00 AM, 4:00 PM and 7:00 PM',
       icon: Coffee,
     },
     {
       key: 'BREAKFAST',
-      title: isTa ? 'காலை உணவு தயாரிப்பு' : 'Breakfast Preparation',
+      title: isTa ? 'à®•à®¾à®²à¯ˆ à®‰à®£à®µà¯ à®¤à®¯à®¾à®°à®¿à®ªà¯à®ªà¯' : 'Breakfast Preparation',
       desc: isTa
-        ? 'காலை உணவு தயாரிப்பு (காலை உணவிற்கான பொது மெனு உருப்படிகள் உட்பட)'
+        ? 'à®•à®¾à®²à¯ˆ à®‰à®£à®µà¯ à®¤à®¯à®¾à®°à®¿à®ªà¯à®ªà¯ (à®•à®¾à®²à¯ˆ à®‰à®£à®µà®¿à®±à¯à®•à®¾à®© à®ªà¯Šà®¤à¯ à®®à¯†à®©à¯ à®‰à®°à¯à®ªà¯à®ªà®Ÿà®¿à®•à®³à¯ à®‰à®Ÿà¯à®ªà®Ÿ)'
         : 'Morning Meal Preparation (Includes Common Menu items ordered for Breakfast)',
       icon: Sun,
     },
     {
       key: 'LUNCH',
-      title: isTa ? 'மதிய உணவு தயாரிப்பு' : 'Lunch Preparation',
+      title: isTa ? 'à®®à®¤à®¿à®¯ à®‰à®£à®µà¯ à®¤à®¯à®¾à®°à®¿à®ªà¯à®ªà¯' : 'Lunch Preparation',
       desc: isTa
-        ? 'மதிய உணவு தயாரிப்பு (மதிய உணவிற்கான பொது மெனு உருப்படிகள் உட்பட)'
+        ? 'à®®à®¤à®¿à®¯ à®‰à®£à®µà¯ à®¤à®¯à®¾à®°à®¿à®ªà¯à®ªà¯ (à®®à®¤à®¿à®¯ à®‰à®£à®µà®¿à®±à¯à®•à®¾à®© à®ªà¯Šà®¤à¯ à®®à¯†à®©à¯ à®‰à®°à¯à®ªà¯à®ªà®Ÿà®¿à®•à®³à¯ à®‰à®Ÿà¯à®ªà®Ÿ)'
         : 'Afternoon Meal Preparation (Includes Common Menu items ordered for Lunch)',
       icon: Utensils,
     },
     {
       key: 'DINNER',
-      title: isTa ? 'இரவு உணவு தயாரிப்பு' : 'Dinner Preparation',
+      title: isTa ? 'à®‡à®°à®µà¯ à®‰à®£à®µà¯ à®¤à®¯à®¾à®°à®¿à®ªà¯à®ªà¯' : 'Dinner Preparation',
       desc: isTa
-        ? 'இரவு உணவு தயாரிப்பு (இரவு உணவிற்கான பொது மெனு உருப்படிகள் உட்பட)'
+        ? 'à®‡à®°à®µà¯ à®‰à®£à®µà¯ à®¤à®¯à®¾à®°à®¿à®ªà¯à®ªà¯ (à®‡à®°à®µà¯ à®‰à®£à®µà®¿à®±à¯à®•à®¾à®© à®ªà¯Šà®¤à¯ à®®à¯†à®©à¯ à®‰à®°à¯à®ªà¯à®ªà®Ÿà®¿à®•à®³à¯ à®‰à®Ÿà¯à®ªà®Ÿ)'
         : 'Night Meal Preparation (Includes Common Menu items ordered for Dinner)',
       icon: Moon,
     },
     {
       key: 'SNACKS',
-      title: isTa ? 'சிற்றுண்டி தயாரிப்பு' : 'Snacks Preparation',
+      title: isTa ? 'à®šà®¿à®±à¯à®±à¯à®£à¯à®Ÿà®¿ à®¤à®¯à®¾à®°à®¿à®ªà¯à®ªà¯' : 'Snacks Preparation',
       desc: isTa
-        ? 'மாலை சிற்றுண்டிகள் மற்றும் இலகுவான உணவுகள்'
+        ? 'à®®à®¾à®²à¯ˆ à®šà®¿à®±à¯à®±à¯à®£à¯à®Ÿà®¿à®•à®³à¯ à®®à®±à¯à®±à¯à®®à¯ à®‡à®²à®•à¯à®µà®¾à®© à®‰à®£à®µà¯à®•à®³à¯'
         : 'Evening Snacks & Light Refreshments',
       icon: Cookie,
     },
@@ -348,7 +355,7 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
       };
     }
 
-    const backendSec = kitchenReportData?.sections?.find((s: any) => s.category === meta.key);
+    const backendSec = kitchenReportData?.sections?.find((s: any) => (s.category ?? s.key) === meta.key);
 
     let items: KitchenItem[] = [];
     let subtotal = 0;
@@ -364,6 +371,7 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
           unit: it.unit || 'Nos',
           total_quantity: it.total_quantity,
           order_count: it.order_count,
+          patients: Array.isArray(it.patients) ? it.patients : [],
         }));
       subtotal = backendSec.subtotal || items.reduce((sum, it) => sum + it.total_quantity, 0);
     } else {
@@ -407,16 +415,16 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
               <h2 className="text-base font-bold text-white">
                 {reportType === 'ROOM_WISE'
                   ? isTa
-                    ? 'அறை வாரியான நோயாளி ஆர்டர் அறிக்கை'
+                    ? 'à®…à®±à¯ˆ à®µà®¾à®°à®¿à®¯à®¾à®© à®¨à¯‹à®¯à®¾à®³à®¿ à®†à®°à¯à®Ÿà®°à¯ à®…à®±à®¿à®•à¯à®•à¯ˆ'
                     : 'Room-Wise Patient Order Report'
                   : isTa
-                    ? 'சமையல் துறை – சமையலறை தயாரிப்பு & அறை வாரியான விநியோக அறிக்கை'
+                    ? 'à®šà®®à¯ˆà®¯à®²à¯ à®¤à¯à®±à¯ˆ â€“ à®šà®®à¯ˆà®¯à®²à®±à¯ˆ à®¤à®¯à®¾à®°à®¿à®ªà¯à®ªà¯ & à®…à®±à¯ˆ à®µà®¾à®°à®¿à®¯à®¾à®© à®µà®¿à®¨à®¿à®¯à¯‹à®• à®…à®±à®¿à®•à¯à®•à¯ˆ'
                     : 'Kitchen Preparation & Distribution Report'}
               </h2>
               <p className="text-xs text-procare-200">
                 {isTa
-                  ? `A4 அறிக்கை • உருவாக்கப்பட்ட நேரம்: ${dateFormatted} அன்று ${timeFormatted}`
-                  : `Print-ready A4 Sheet • Generated on ${dateFormatted} at ${timeFormatted}`}
+                  ? `A4 à®…à®±à®¿à®•à¯à®•à¯ˆ â€¢ à®‰à®°à¯à®µà®¾à®•à¯à®•à®ªà¯à®ªà®Ÿà¯à®Ÿ à®¨à¯‡à®°à®®à¯: ${dateFormatted} à®…à®©à¯à®±à¯ ${timeFormatted}`
+                  : `Print-ready A4 Sheet â€¢ Generated on ${dateFormatted} at ${timeFormatted}`}
               </p>
             </div>
           </div>
@@ -430,7 +438,7 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                 title="Refresh Kitchen Report Data"
               >
                 <RefreshCw className={`w-3.5 h-3.5 ${loadingReport ? 'animate-spin' : ''}`} />
-                <span className="hidden sm:inline">{isTa ? 'புதுப்பி' : 'Refresh'}</span>
+                <span className="hidden sm:inline">{isTa ? 'à®ªà¯à®¤à¯à®ªà¯à®ªà®¿' : 'Refresh'}</span>
               </button>
             )}
 
@@ -439,7 +447,7 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
               className="bg-celadon hover:bg-procare-400 text-slate-950 font-black text-xs px-4 py-2 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer"
             >
               <Printer className="w-4 h-4" />
-              <span>{isTa ? 'அறிக்கையை அச்சிடுக (A4)' : 'PRINT REPORT (A4)'}</span>
+              <span>{isTa ? 'à®…à®±à®¿à®•à¯à®•à¯ˆà®¯à¯ˆ à®…à®šà¯à®šà®¿à®Ÿà¯à®• (A4)' : 'PRINT REPORT (A4)'}</span>
             </button>
             <button
               onClick={onClose}
@@ -451,9 +459,21 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
         </div>
 
         {/* PRINTABLE A4 AREA */}
-        <div className="p-6 md:p-8 overflow-y-auto bg-white flex-1" id="printable-report-area">
+        <div className="p-6 md:p-8 overflow-y-auto bg-white flex-1 print-scroll-container" id="printable-report-area">
           <style>{`
             @media print {
+              html, body {
+                height: auto !important;
+                overflow: visible !important;
+                margin: 0 !important;
+                padding: 0 !important;
+              }
+              body > * {
+                display: none !important;
+              }
+              body > * #printable-report-area {
+                display: block !important;
+              }
               body * {
                 visibility: hidden !important;
               }
@@ -465,13 +485,29 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                 position: absolute !important;
                 left: 0 !important;
                 top: 0 !important;
-                width: 100% !important;
+                width: 100vw !important;
+                height: auto !important;
+                min-height: unset !important;
+                max-height: unset !important;
                 margin: 0 !important;
                 padding: 6mm 8mm !important;
                 background: white !important;
+                overflow: visible !important;
+                box-sizing: border-box !important;
+              }
+              /* Prevent the scrollable modal container from clipping print output */
+              #printable-report-area > * {
+                overflow: visible !important;
+              }
+              .print-scroll-container {
+                overflow: visible !important;
+                max-height: none !important;
+                height: auto !important;
+                position: static !important;
               }
               .no-print {
                 display: none !important;
+                visibility: hidden !important;
               }
               .page-break-inside-avoid {
                 page-break-inside: avoid !important;
@@ -479,10 +515,11 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
               }
               .page-break-before {
                 page-break-before: always !important;
-                break-before: always !important;
+                break-before: page !important;
               }
               table {
                 border-collapse: collapse !important;
+                width: 100% !important;
               }
               thead {
                 display: table-header-group !important;
@@ -492,12 +529,7 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
               }
               @page {
                 size: A4 portrait;
-                margin: 8mm;
-                @bottom-right {
-                  content: "Page " counter(page) " of " counter(pages);
-                  font-size: 8pt;
-                  color: #666;
-                }
+                margin: 10mm 8mm;
               }
             }
           `}</style>
@@ -513,12 +545,12 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                 />
                 <div>
                   <h1 className="text-base sm:text-lg font-black text-slate-900 tracking-tight uppercase">
-                    {t('appName')} • {t('clinicName')}
+                    {t('appName')} â€¢ {t('clinicName')}
                   </h1>
                   <p className="text-xs text-procare-800 font-extrabold tracking-wide uppercase">
                     {isTa
-                      ? 'கேன்டீன் மேலாண்மை அமைப்பு • உணவு மற்றும் சமையலறை சேவைத் துறை'
-                      : 'Canteen Management System • Department of Dietary & Kitchen Services'}
+                      ? 'à®•à¯‡à®©à¯à®Ÿà¯€à®©à¯ à®®à¯‡à®²à®¾à®£à¯à®®à¯ˆ à®…à®®à¯ˆà®ªà¯à®ªà¯ â€¢ à®‰à®£à®µà¯ à®®à®±à¯à®±à¯à®®à¯ à®šà®®à¯ˆà®¯à®²à®±à¯ˆ à®šà¯‡à®µà¯ˆà®¤à¯ à®¤à¯à®±à¯ˆ'
+                      : 'Canteen Management System â€¢ Department of Dietary & Kitchen Services'}
                   </p>
                 </div>
               </div>
@@ -528,7 +560,7 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                     <div className="inline-flex items-center justify-end gap-1 font-black text-emerald-950 bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-lg">
                       <Calendar className="w-3.5 h-3.5 text-emerald-700" />
                       <span>
-                        {isTa ? 'உணவு தயாரிப்பு தேதி:' : 'Food Preparation Date:'}{' '}
+                        {isTa ? 'à®‰à®£à®µà¯ à®¤à®¯à®¾à®°à®¿à®ªà¯à®ªà¯ à®¤à¯‡à®¤à®¿:' : 'Food Preparation Date:'}{' '}
                         <strong>
                           {kitchenReportData?.preparation_date || kolkataDates.deliveryDate}{' '}
                           ({isTa
@@ -538,7 +570,7 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                       </span>
                     </div>
                     <div className="text-[11px] text-slate-500 font-medium">
-                      {isTa ? 'அறிக்கை உருவான நேரம்:' : 'Generated on:'}{' '}
+                      {isTa ? 'à®…à®±à®¿à®•à¯à®•à¯ˆ à®‰à®°à¯à®µà®¾à®© à®¨à¯‡à®°à®®à¯:' : 'Generated on:'}{' '}
                       {kitchenReportData?.generation_date || kolkataDates.orderPlacedDate} at {kitchenReportData?.generation_time || timeFormatted}
                     </div>
                   </div>
@@ -561,19 +593,19 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
               <span className="text-xs font-black text-procare-950 uppercase bg-procare-100 px-3 py-1 rounded-md border border-procare-300">
                 {reportType === 'ROOM_WISE'
                   ? isTa
-                    ? '📋 அறை வாரியான நேரலை நோயாளி ஆர்டர் அறிக்கை'
-                    : '📋 ROOM-WISE ACTIVE PATIENT ORDER REPORT'
+                    ? 'ðŸ“‹ à®…à®±à¯ˆ à®µà®¾à®°à®¿à®¯à®¾à®© à®¨à¯‡à®°à®²à¯ˆ à®¨à¯‹à®¯à®¾à®³à®¿ à®†à®°à¯à®Ÿà®°à¯ à®…à®±à®¿à®•à¯à®•à¯ˆ'
+                    : 'ðŸ“‹ ROOM-WISE ACTIVE PATIENT ORDER REPORT'
                   : isTa
-                  ? '👨‍🍳 சமையலறை தயாரிப்பு & அறை வாரியான விநியோக அறிக்கை'
-                  : '👨‍🍳 KITCHEN PREPARATION & ROOM-WISE DISTRIBUTION REPORT'}
+                  ? 'ðŸ‘¨â€ðŸ³ à®šà®®à¯ˆà®¯à®²à®±à¯ˆ à®¤à®¯à®¾à®°à®¿à®ªà¯à®ªà¯ & à®…à®±à¯ˆ à®µà®¾à®°à®¿à®¯à®¾à®© à®µà®¿à®¨à®¿à®¯à¯‹à®• à®…à®±à®¿à®•à¯à®•à¯ˆ'
+                  : 'ðŸ‘¨â€ðŸ³ KITCHEN PREPARATION & ROOM-WISE DISTRIBUTION REPORT'}
               </span>
               <span className="text-xs text-slate-700 font-extrabold font-mono">
                 {reportType === 'ROOM_WISE'
                   ? isTa
-                    ? `செயலில் உள்ள அறைகள்: ${sortedRooms.length} | ஆர்டர்கள்: ${validActiveOrders.length}`
+                    ? `à®šà¯†à®¯à®²à®¿à®²à¯ à®‰à®³à¯à®³ à®…à®±à¯ˆà®•à®³à¯: ${sortedRooms.length} | à®†à®°à¯à®Ÿà®°à¯à®•à®³à¯: ${validActiveOrders.length}`
                     : `Active Rooms: ${sortedRooms.length} | Orders: ${validActiveOrders.length}`
                   : isTa
-                  ? `சமைக்க வேண்டிய மொத்த அளவு: ${overallTotalPortions} | உணவுகள்: ${overallDistinctDishes}`
+                  ? `à®šà®®à¯ˆà®•à¯à®• à®µà¯‡à®£à¯à®Ÿà®¿à®¯ à®®à¯Šà®¤à¯à®¤ à®…à®³à®µà¯: ${overallTotalPortions} | à®‰à®£à®µà¯à®•à®³à¯: ${overallDistinctDishes}`
                   : `Total Portions to Cook: ${overallTotalPortions} Nos | Total Dishes: ${overallDistinctDishes}`}
               </span>
             </div>
@@ -584,7 +616,7 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
             <div>
               {sortedRooms.length === 0 ? (
                 <div className="text-center py-12 text-slate-500 text-sm font-semibold border-2 border-dashed border-slate-200 rounded-xl">
-                  {isTa ? 'டெலிவரிக்காக காத்திருக்கும் செயலில் உள்ள ஆர்டர்கள் எதுவும் இல்லை.' : 'No active orders currently awaiting delivery.'}
+                  {isTa ? 'à®Ÿà¯†à®²à®¿à®µà®°à®¿à®•à¯à®•à®¾à®• à®•à®¾à®¤à¯à®¤à®¿à®°à¯à®•à¯à®•à¯à®®à¯ à®šà¯†à®¯à®²à®¿à®²à¯ à®‰à®³à¯à®³ à®†à®°à¯à®Ÿà®°à¯à®•à®³à¯ à®Žà®¤à¯à®µà¯à®®à¯ à®‡à®²à¯à®²à¯ˆ.' : 'No active orders currently awaiting delivery.'}
                 </div>
               ) : (
                 <div className="space-y-6">
@@ -598,10 +630,10 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                         <div className="bg-slate-900 text-white px-4 py-2 flex justify-between items-center">
                           <div className="flex items-center space-x-2">
                             <span className="bg-blue-600 text-white text-xs font-black px-2.5 py-0.5 rounded-md">
-                              {isTa ? 'அறை' : 'ROOM'} #{roomNum}
+                              {isTa ? 'à®…à®±à¯ˆ' : 'ROOM'} #{roomNum}
                             </span>
                             <span className="text-xs font-semibold text-slate-300">
-                              ({roomEntries.length} {isTa ? 'நோயாளி ஆர்டர்கள்' : roomEntries.length === 1 ? 'Patient Order' : 'Patient Orders'})
+                              ({roomEntries.length} {isTa ? 'à®¨à¯‹à®¯à®¾à®³à®¿ à®†à®°à¯à®Ÿà®°à¯à®•à®³à¯' : roomEntries.length === 1 ? 'Patient Order' : 'Patient Orders'})
                             </span>
                           </div>
                         </div>
@@ -615,13 +647,13 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                                     {patient_name}
                                   </span>
                                   <span className="text-slate-500 font-semibold ml-2">
-                                    ({isTa ? 'அடையாள எண்' : 'ID'}: {patient_id})
+                                    ({isTa ? 'à®…à®Ÿà¯ˆà®¯à®¾à®³ à®Žà®£à¯' : 'ID'}: {patient_id})
                                   </span>
                                 </div>
                                 <div className="text-right">
                                   <span className="font-mono font-bold text-blue-700">{order.order_id}</span>
                                   <div className="text-[11px] text-slate-500 font-medium">
-                                    {order.order_date} • {order.order_time} ({order.meal_type})
+                                    {order.order_date} â€¢ {order.order_time} ({order.meal_type})
                                   </div>
                                 </div>
                               </div>
@@ -629,10 +661,10 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                               <table className="w-full text-xs border border-slate-200 rounded-lg overflow-hidden">
                                 <thead>
                                   <tr className="bg-slate-100 text-slate-700 font-bold border-b border-slate-200 text-left text-[11px]">
-                                    <th className="p-1.5 border-r border-slate-200">{isTa ? 'உணவு' : 'Food Item'}</th>
-                                    <th className="p-1.5 text-center border-r border-slate-200 w-16">{isTa ? 'அளவு' : 'Qty'}</th>
-                                    <th className="p-1.5 text-right border-r border-slate-200 w-20">{isTa ? 'விலை' : 'Unit Price'}</th>
-                                    <th className="p-1.5 text-right w-24">{isTa ? 'தொகை' : 'Subtotal'}</th>
+                                    <th className="p-1.5 border-r border-slate-200">{isTa ? 'à®‰à®£à®µà¯' : 'Food Item'}</th>
+                                    <th className="p-1.5 text-center border-r border-slate-200 w-16">{isTa ? 'à®…à®³à®µà¯' : 'Qty'}</th>
+                                    <th className="p-1.5 text-right border-r border-slate-200 w-20">{isTa ? 'à®µà®¿à®²à¯ˆ' : 'Unit Price'}</th>
+                                    <th className="p-1.5 text-right w-24">{isTa ? 'à®¤à¯Šà®•à¯ˆ' : 'Subtotal'}</th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-200 font-medium text-slate-800">
@@ -645,19 +677,19 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                                         {item.quantity}
                                       </td>
                                       <td className="p-1.5 text-right border-r border-slate-200 text-slate-600">
-                                        ₹{item.unit_price}
+                                        â‚¹{item.unit_price}
                                       </td>
-                                      <td className="p-1.5 text-right font-bold">₹{item.subtotal}</td>
+                                      <td className="p-1.5 text-right font-bold">â‚¹{item.subtotal}</td>
                                     </tr>
                                   ))}
                                 </tbody>
                                 <tfoot>
                                   <tr className="bg-slate-50 text-slate-900 font-bold text-xs border-t border-slate-200">
                                     <td colSpan={3} className="p-1.5 text-right border-r border-slate-200">
-                                      {isTa ? 'ஆர்டர் மொத்தம்:' : 'Order Total:'}
+                                      {isTa ? 'à®†à®°à¯à®Ÿà®°à¯ à®®à¯Šà®¤à¯à®¤à®®à¯:' : 'Order Total:'}
                                     </td>
                                     <td className="p-1.5 text-right font-black text-blue-800">
-                                      ₹{order.total_amount}
+                                      â‚¹{order.total_amount}
                                     </td>
                                   </tr>
                                 </tfoot>
@@ -677,12 +709,12 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
           {reportType === 'ITEMS_TO_PREPARE' && (
             <div className="space-y-6">
               {/* ============================================================
-                  PART A – TOTAL KITCHEN PREPARATION SUMMARY
+                  PART A â€“ TOTAL KITCHEN PREPARATION SUMMARY
               ============================================================ */}
               <div className="border-2 border-slate-800 rounded-xl overflow-hidden">
                 <div className="bg-slate-800 text-white px-4 py-2.5 flex items-center gap-2.5">
                   <span className="text-sm font-black uppercase tracking-widest">
-                    PART A – TOTAL KITCHEN PREPARATION SUMMARY
+                    PART A â€“ TOTAL KITCHEN PREPARATION SUMMARY
                   </span>
                 </div>
                 <div className="p-0 space-y-0">
@@ -711,10 +743,10 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                             </div>
                             <div className="flex items-center gap-2">
                               <span className="text-[10px] font-bold bg-slate-800 text-slate-200 px-2 py-0.5 rounded border border-slate-700">
-                                {sec.items.length} {isTa ? 'உணவுகள்' : sec.items.length === 1 ? 'Dish' : 'Dishes'}
+                                {sec.items.length} {isTa ? 'à®‰à®£à®µà¯à®•à®³à¯' : sec.items.length === 1 ? 'Dish' : 'Dishes'}
                               </span>
                               <span className="text-xs font-black bg-emerald-600 text-white px-2.5 py-0.5 rounded font-mono">
-                                {isTa ? 'மொத்தம்:' : 'Total:'} {sec.subtotal} {isTa ? 'எண்ணிக்கை' : 'Nos'}
+                                {isTa ? 'à®®à¯Šà®¤à¯à®¤à®®à¯:' : 'Total:'} {sec.subtotal} {isTa ? 'à®Žà®£à¯à®£à®¿à®•à¯à®•à¯ˆ' : 'Nos'}
                               </span>
                             </div>
                           </div>
@@ -725,35 +757,35 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                               {teaCoffeeSlots.map((slotGroup: any) => {
                                 const slotItems = (slotGroup.items || []).filter((it: any) => it.total_quantity > 0);
                                 return (
-                                  <div key={slotGroup.serving_time} className="p-0">
+                                  <div key={slotGroup.serving_time} className="p-0 page-break-inside-avoid">
                                     <div className="bg-amber-100/90 px-4 py-1.5 flex justify-between items-center border-b border-amber-200">
                                       <span className="text-xs font-black text-amber-950 flex items-center gap-1.5 uppercase tracking-wide">
                                         <Clock className="w-3.5 h-3.5 text-amber-800" />
-                                        {isTa ? 'வழங்கும் நேரம்:' : 'Serving Time:'} {translateSlot(slotGroup.serving_time)}
+                                        {isTa ? 'à®µà®´à®™à¯à®•à¯à®®à¯ à®¨à¯‡à®°à®®à¯:' : 'Serving Time:'} {translateSlot(slotGroup.serving_time)}
                                       </span>
                                       <span className="text-[11px] font-black bg-amber-200/80 text-amber-950 px-2.5 py-0.5 rounded font-mono border border-amber-300">
-                                        {isTa ? 'பிரிவு மொத்தம்:' : 'Slot Subtotal:'} {slotGroup.subtotal} {isTa ? 'எண்ணிக்கை' : 'Nos'}
+                                        {isTa ? 'à®ªà®¿à®°à®¿à®µà¯ à®®à¯Šà®¤à¯à®¤à®®à¯:' : 'Slot Subtotal:'} {slotGroup.subtotal} {isTa ? 'à®Žà®£à¯à®£à®¿à®•à¯à®•à¯ˆ' : 'Nos'}
                                       </span>
                                     </div>
 
                                     {slotItems.length === 0 ? (
                                       <div className="py-2 px-4 text-center text-[11px] font-semibold text-slate-400 bg-slate-50 italic">
                                         {isTa
-                                          ? `${translateSlot(slotGroup.serving_time)} நேரத்திற்கு தேநீர் / காபி ஆர்டர்கள் எதுவும் இல்லை (0 தேவை)`
+                                          ? `${translateSlot(slotGroup.serving_time)} à®¨à¯‡à®°à®¤à¯à®¤à®¿à®±à¯à®•à¯ à®¤à¯‡à®¨à¯€à®°à¯ / à®•à®¾à®ªà®¿ à®†à®°à¯à®Ÿà®°à¯à®•à®³à¯ à®Žà®¤à¯à®µà¯à®®à¯ à®‡à®²à¯à®²à¯ˆ (0 à®¤à¯‡à®µà¯ˆ)`
                                           : `No Tea / Coffee orders scheduled for ${slotGroup.serving_time} (0 required)`}
                                       </div>
                                     ) : (
                                       <table className="w-full text-xs text-left border-collapse">
                                         <thead>
                                           <tr className="bg-slate-100 text-slate-800 font-bold border-b border-slate-300 text-[10px] uppercase">
-                                            <th className="p-2 w-28 border-r border-slate-200">{isTa ? 'வழங்கும் நேரம்' : 'Serving Time'}</th>
-                                            <th className="p-2 border-r border-slate-200">{isTa ? 'உணவு' : 'Food Item'}</th>
-                                            <th className="p-2 border-r border-slate-200 w-32">{isTa ? 'அளவு' : 'Portion Size'}</th>
+                                            <th className="p-2 w-28 border-r border-slate-200">{isTa ? 'à®µà®´à®™à¯à®•à¯à®®à¯ à®¨à¯‡à®°à®®à¯' : 'Serving Time'}</th>
+                                            <th className="p-2 border-r border-slate-200">{isTa ? 'à®‰à®£à®µà¯' : 'Food Item'}</th>
+                                            <th className="p-2 border-r border-slate-200 w-32">{isTa ? 'à®…à®³à®µà¯' : 'Portion Size'}</th>
                                             <th className="p-2 text-center bg-emerald-100/70 text-emerald-950 font-black w-36 border-r border-slate-200">
-                                              {isTa ? 'தேவைப்படும் மொத்த அளவு' : 'Total Required'}
+                                              {isTa ? 'à®¤à¯‡à®µà¯ˆà®ªà¯à®ªà®Ÿà¯à®®à¯ à®®à¯Šà®¤à¯à®¤ à®…à®³à®µà¯' : 'Total Required'}
                                             </th>
                                             <th className="p-2 text-center w-28 bg-slate-100 text-slate-700 font-bold">
-                                              {isTa ? 'சமையலறை நிலை' : 'Kitchen Status'}
+                                              {isTa ? 'à®šà®®à¯ˆà®¯à®²à®±à¯ˆ à®¨à®¿à®²à¯ˆ' : 'Kitchen Status'}
                                             </th>
                                           </tr>
                                         </thead>
@@ -770,12 +802,12 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                                                 {it.portion_size || '100 ml'}
                                               </td>
                                               <td className="p-2 text-center font-black text-sm font-mono bg-emerald-50 text-emerald-950 border-r border-slate-200">
-                                                {it.total_quantity} {isTa ? 'எண்ணிக்கை' : 'Nos'}
+                                                {it.total_quantity} {isTa ? 'à®Žà®£à¯à®£à®¿à®•à¯à®•à¯ˆ' : 'Nos'}
                                               </td>
                                               <td className="p-2 text-center">
                                                 <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 border border-slate-300 rounded px-2 py-0.5 bg-white">
                                                   <span className="inline-block w-3 h-3 border border-slate-400 rounded-xs"></span>
-                                                  <span>{isTa ? 'தயார்' : 'Ready'}</span>
+                                                  <span>{isTa ? 'à®¤à®¯à®¾à®°à¯' : 'Ready'}</span>
                                                 </span>
                                               </td>
                                             </tr>
@@ -791,18 +823,18 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                               <div className="bg-slate-100 p-2.5 px-4 flex justify-between items-center text-xs font-black text-slate-900 border-t-2 border-slate-300">
                                 <span className="uppercase tracking-wider">
                                   {isTa
-                                    ? 'தேநீர் / பால் & காபி ஒட்டுமொத்த தேவைப்படும் அளவு:'
+                                    ? 'à®¤à¯‡à®¨à¯€à®°à¯ / à®ªà®¾à®²à¯ & à®•à®¾à®ªà®¿ à®’à®Ÿà¯à®Ÿà¯à®®à¯Šà®¤à¯à®¤ à®¤à¯‡à®µà¯ˆà®ªà¯à®ªà®Ÿà¯à®®à¯ à®…à®³à®µà¯:'
                                     : 'Tea / Milk & Coffee Overall Subtotal Required:'}
                                 </span>
                                 <span className="text-sm font-black font-mono bg-emerald-100 text-emerald-950 px-3 py-1 rounded-lg border border-emerald-300">
-                                  {sec.subtotal} {isTa ? 'எண்ணிக்கை' : 'Nos'}
+                                  {sec.subtotal} {isTa ? 'à®Žà®£à¯à®£à®¿à®•à¯à®•à¯ˆ' : 'Nos'}
                                 </span>
                               </div>
                             </div>
                           ) : sec.items.length === 0 ? (
                             <div className="py-3 px-4 text-center text-xs font-semibold text-slate-400 bg-slate-50">
                               {isTa
-                                ? `${sec.title} அமர்வுக்கு ஆர்டர் எதுவும் இல்லை (0 தேவை)`
+                                ? `${sec.title} à®…à®®à®°à¯à®µà¯à®•à¯à®•à¯ à®†à®°à¯à®Ÿà®°à¯ à®Žà®¤à¯à®µà¯à®®à¯ à®‡à®²à¯à®²à¯ˆ (0 à®¤à¯‡à®µà¯ˆ)`
                                 : `No items ordered for ${sec.title} session (0 portions required)`}
                             </div>
                           ) : (
@@ -810,13 +842,13 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                               <thead>
                                 <tr className="bg-slate-100 text-slate-800 font-bold border-b border-slate-300 text-[11px] uppercase">
                                   <th className="p-2 w-10 text-center border-r border-slate-200">#</th>
-                                  <th className="p-2 border-r border-slate-200">{isTa ? 'உணவுப் பெயர்' : 'Food Item Name'}</th>
-                                  <th className="p-2 border-r border-slate-200 w-36">{isTa ? 'அளவு' : 'Portion / Unit Size'}</th>
+                                  <th className="p-2 border-r border-slate-200">{isTa ? 'à®‰à®£à®µà¯à®ªà¯ à®ªà¯†à®¯à®°à¯' : 'Food Item Name'}</th>
+                                  <th className="p-2 border-r border-slate-200 w-36">{isTa ? 'à®…à®³à®µà¯' : 'Portion / Unit Size'}</th>
                                   <th className="p-2 text-center bg-emerald-100/70 text-emerald-950 font-black w-36 border-r border-slate-200">
-                                    {isTa ? 'தேவைப்படும் மொத்த அளவு' : 'Total Required'}
+                                    {isTa ? 'à®¤à¯‡à®µà¯ˆà®ªà¯à®ªà®Ÿà¯à®®à¯ à®®à¯Šà®¤à¯à®¤ à®…à®³à®µà¯' : 'Total Required'}
                                   </th>
                                   <th className="p-2 text-center w-28 bg-slate-100 text-slate-700 font-bold">
-                                    {isTa ? 'சமையலறை நிலை' : 'Kitchen Status'}
+                                    {isTa ? 'à®šà®®à¯ˆà®¯à®²à®±à¯ˆ à®¨à®¿à®²à¯ˆ' : 'Kitchen Status'}
                                   </th>
                                 </tr>
                               </thead>
@@ -833,12 +865,12 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                                       {it.portion_size}
                                     </td>
                                     <td className="p-2 text-center font-black text-sm font-mono bg-emerald-50 text-emerald-950 border-r border-slate-200">
-                                      {it.total_quantity} {isTa ? 'எண்ணிக்கை' : 'Nos'}
+                                      {it.total_quantity} {isTa ? 'à®Žà®£à¯à®£à®¿à®•à¯à®•à¯ˆ' : 'Nos'}
                                     </td>
                                     <td className="p-2 text-center">
                                       <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-500 border border-slate-300 rounded px-2 py-0.5 bg-white">
                                         <span className="inline-block w-3 h-3 border border-slate-400 rounded-xs"></span>
-                                        <span>{isTa ? 'தயார்' : 'Ready'}</span>
+                                        <span>{isTa ? 'à®¤à®¯à®¾à®°à¯' : 'Ready'}</span>
                                       </span>
                                     </td>
                                   </tr>
@@ -847,13 +879,13 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                               <tfoot>
                                 <tr className="bg-slate-100 text-slate-900 font-bold text-xs border-t-2 border-slate-300">
                                   <td colSpan={3} className="p-2 text-right uppercase tracking-wider border-r border-slate-200">
-                                    {sec.title} {isTa ? 'தேவைப்படும் மொத்த அளவு:' : 'Subtotal Required:'}
+                                    {sec.title} {isTa ? 'à®¤à¯‡à®µà¯ˆà®ªà¯à®ªà®Ÿà¯à®®à¯ à®®à¯Šà®¤à¯à®¤ à®…à®³à®µà¯:' : 'Subtotal Required:'}
                                   </td>
                                   <td className="p-2 text-center font-black text-xs font-mono bg-emerald-100 text-emerald-950 border-r border-slate-200">
-                                    {sec.subtotal} {isTa ? 'எண்ணிக்கை' : 'Nos'}
+                                    {sec.subtotal} {isTa ? 'à®Žà®£à¯à®£à®¿à®•à¯à®•à¯ˆ' : 'Nos'}
                                   </td>
                                   <td className="p-2 text-center text-[10px] text-slate-500 font-semibold">
-                                    {sec.items.length} {isTa ? 'உணவுகள்' : 'items'}
+                                    {sec.items.length} {isTa ? 'à®‰à®£à®µà¯à®•à®³à¯' : 'items'}
                                   </td>
                                 </tr>
                               </tfoot>
@@ -870,20 +902,20 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                   <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 pb-3 border-b border-slate-300">
                     <div>
                       <h4 className="text-xs font-black uppercase text-slate-900 tracking-wider">
-                        {isTa ? 'ஒட்டுமொத்த சமையல் & தயாரிப்பு சுருக்கம்' : 'Overall Cooking & Preparation Summary'}
+                        {isTa ? 'à®’à®Ÿà¯à®Ÿà¯à®®à¯Šà®¤à¯à®¤ à®šà®®à¯ˆà®¯à®²à¯ & à®¤à®¯à®¾à®°à®¿à®ªà¯à®ªà¯ à®šà¯à®°à¯à®•à¯à®•à®®à¯' : 'Overall Cooking & Preparation Summary'}
                       </h4>
                       <p className="text-[11px] text-slate-600 font-medium">
                         {isTa
-                          ? 'செல்லுபடியாகும் நேரலை ஆர்டர்களில் இருந்து கணக்கிடப்பட்டது. ரத்து செய்யப்பட்ட மற்றும் டெலிவரி செய்யப்பட்ட ஆர்டர்கள் தவிர்க்கப்பட்டுள்ளன.'
+                          ? 'à®šà¯†à®²à¯à®²à¯à®ªà®Ÿà®¿à®¯à®¾à®•à¯à®®à¯ à®¨à¯‡à®°à®²à¯ˆ à®†à®°à¯à®Ÿà®°à¯à®•à®³à®¿à®²à¯ à®‡à®°à¯à®¨à¯à®¤à¯ à®•à®£à®•à¯à®•à®¿à®Ÿà®ªà¯à®ªà®Ÿà¯à®Ÿà®¤à¯. à®°à®¤à¯à®¤à¯ à®šà¯†à®¯à¯à®¯à®ªà¯à®ªà®Ÿà¯à®Ÿ à®®à®±à¯à®±à¯à®®à¯ à®Ÿà¯†à®²à®¿à®µà®°à®¿ à®šà¯†à®¯à¯à®¯à®ªà¯à®ªà®Ÿà¯à®Ÿ à®†à®°à¯à®Ÿà®°à¯à®•à®³à¯ à®¤à®µà®¿à®°à¯à®•à¯à®•à®ªà¯à®ªà®Ÿà¯à®Ÿà¯à®³à¯à®³à®©.'
                           : 'Calculated from valid active patient orders. Excludes cancelled, pending, cleared, and delivered orders.'}
                       </p>
                     </div>
                     <div className="text-right">
                       <span className="text-xs font-extrabold uppercase text-slate-600 mr-2">
-                        {isTa ? 'மொத்த அளவுகள்:' : 'Grand Total Portions:'}
+                        {isTa ? 'à®®à¯Šà®¤à¯à®¤ à®…à®³à®µà¯à®•à®³à¯:' : 'Grand Total Portions:'}
                       </span>
                       <span className="text-base font-black bg-emerald-700 text-white px-3 py-1 rounded-lg font-mono">
-                        {overallTotalPortions} {isTa ? 'எண்ணிக்கை' : 'Nos'}
+                        {overallTotalPortions} {isTa ? 'à®Žà®£à¯à®£à®¿à®•à¯à®•à¯ˆ' : 'Nos'}
                       </span>
                     </div>
                   </div>
@@ -893,8 +925,8 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                     {kitchenSections.map((s) => (
                       <div key={s.category} className="bg-white p-2 rounded-lg border border-slate-200 text-center">
                         <span className="block text-[10px] font-bold text-slate-500 uppercase">{s.title}</span>
-                        <span className="block text-sm font-black text-slate-900 font-mono mt-0.5">{s.subtotal} {isTa ? 'எண்ணிக்கை' : 'Nos'}</span>
-                        <span className="block text-[10px] text-slate-400 font-medium">{s.items.length} {isTa ? 'உணவுகள்' : 'items'}</span>
+                        <span className="block text-sm font-black text-slate-900 font-mono mt-0.5">{s.subtotal} {isTa ? 'à®Žà®£à¯à®£à®¿à®•à¯à®•à¯ˆ' : 'Nos'}</span>
+                        <span className="block text-[10px] text-slate-400 font-medium">{s.items.length} {isTa ? 'à®‰à®£à®µà¯à®•à®³à¯' : 'items'}</span>
                       </div>
                     ))}
                   </div>
@@ -902,7 +934,7 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
               </div>
 
               {/* ============================================================
-                  PART B – ROOM-WISE FOOD DISTRIBUTION DETAILS
+                  PART B â€“ ROOM-WISE FOOD DISTRIBUTION DETAILS
               ============================================================ */}
               <div className="border-2 border-blue-800 rounded-xl overflow-hidden page-break-before">
                 <div className="bg-blue-800 text-white px-4 py-3 flex items-center justify-between">
@@ -910,19 +942,19 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                     <Building2 className="w-5 h-5 text-blue-200" />
                     <div>
                       <span className="text-sm font-black uppercase tracking-widest block">
-                        PART B – ROOM-WISE FOOD DISTRIBUTION DETAILS
+                        PART B â€“ ROOM-WISE FOOD DISTRIBUTION DETAILS
                       </span>
                       <span className="text-[11px] text-blue-200 font-medium">
                         {isTa
-                          ? 'ஒவ்வொரு உணவிற்கும் – அறை எண், நோயாளி பெயர் மற்றும் அளவு'
-                          : 'For each food item – Room Number, Patient Name, and Quantity to Deliver'}
+                          ? 'à®’à®µà¯à®µà¯Šà®°à¯ à®‰à®£à®µà®¿à®±à¯à®•à¯à®®à¯ â€“ à®…à®±à¯ˆ à®Žà®£à¯, à®¨à¯‹à®¯à®¾à®³à®¿ à®ªà¯†à®¯à®°à¯ à®®à®±à¯à®±à¯à®®à¯ à®…à®³à®µà¯'
+                          : 'For each food item â€“ Room Number, Patient Name, and Quantity to Deliver'}
                       </span>
                     </div>
                   </div>
                 </div>
 
                 <div className="p-4 space-y-5">
-                  {/* B.1 – Tea / Coffee / Milk by Serving Time Slots */}
+                  {/* B.1 â€“ Tea / Coffee / Milk by Serving Time Slots */}
                   {teaCoffeeSlots.map((slotGroup: any) => {
                     const slotItems = (slotGroup.items || []).filter((it: any) => it.total_quantity > 0 && (it.patients || []).length > 0);
                     if (slotItems.length === 0) return null;
@@ -933,7 +965,7 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                         <div className="flex items-center gap-2 bg-amber-100 border border-amber-300 px-3 py-1.5 rounded-lg">
                           <Clock className="w-3.5 h-3.5 text-amber-800" />
                           <span className="text-xs font-black text-amber-950 uppercase tracking-wide">
-                            🍵 Tea / Coffee / Milk – {translateSlot(slotGroup.serving_time)}
+                            ðŸµ Tea / Coffee / Milk â€“ {translateSlot(slotGroup.serving_time)}
                           </span>
                         </div>
 
@@ -944,19 +976,19 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                             <div key={`${slotGroup.serving_time}-${it.item_name}-dist`} className="border border-slate-200 rounded-xl overflow-hidden page-break-inside-avoid">
                               <div className="bg-amber-50 border-b border-amber-200 px-4 py-2 flex justify-between items-center">
                                 <span className="text-xs font-black text-amber-950">
-                                  {translateFood(it.item_name)} — {translateSlot(slotGroup.serving_time)}
+                                  {translateFood(it.item_name)} â€” {translateSlot(slotGroup.serving_time)}
                                 </span>
                                 <span className="text-[11px] font-black bg-amber-200 text-amber-950 px-2 py-0.5 rounded font-mono border border-amber-300">
-                                  {isTa ? 'மொத்தம்:' : 'Total:'} {total} {isTa ? 'எண்ணிக்கை' : 'Nos'}
+                                  {isTa ? 'à®®à¯Šà®¤à¯à®¤à®®à¯:' : 'Total:'} {total} {isTa ? 'à®Žà®£à¯à®£à®¿à®•à¯à®•à¯ˆ' : 'Nos'}
                                 </span>
                               </div>
                               <table className="w-full text-xs border-collapse">
                                 <thead>
                                   <tr className="bg-slate-100 text-slate-700 font-bold text-[10px] uppercase border-b border-slate-200">
-                                    <th className="p-2 border-r border-slate-200 w-28">{isTa ? 'அறை எண்' : 'Room No.'}</th>
-                                    <th className="p-2 border-r border-slate-200">{isTa ? 'நோயாளி பெயர்' : 'Patient Name'}</th>
-                                    <th className="p-2 border-r border-slate-200 w-24 text-center">{isTa ? 'நோயாளி ID' : 'Patient ID'}</th>
-                                    <th className="p-2 text-center w-24 bg-blue-50 text-blue-900 font-black">{isTa ? 'அளவு' : 'Quantity'}</th>
+                                    <th className="p-2 border-r border-slate-200 w-28">{isTa ? 'à®…à®±à¯ˆ à®Žà®£à¯' : 'Room No.'}</th>
+                                    <th className="p-2 border-r border-slate-200">{isTa ? 'à®¨à¯‹à®¯à®¾à®³à®¿ à®ªà¯†à®¯à®°à¯' : 'Patient Name'}</th>
+                                    <th className="p-2 border-r border-slate-200 w-24 text-center">{isTa ? 'à®¨à¯‹à®¯à®¾à®³à®¿ ID' : 'Patient ID'}</th>
+                                    <th className="p-2 text-center w-24 bg-blue-50 text-blue-900 font-black">{isTa ? 'à®…à®³à®µà¯' : 'Quantity'}</th>
                                   </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
@@ -980,7 +1012,7 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                                 <tfoot>
                                   <tr className="bg-slate-900 text-white text-xs font-black border-t-2 border-slate-700">
                                     <td colSpan={3} className="p-2 text-right border-r border-slate-700 uppercase tracking-wider">
-                                      {isTa ? 'மொத்தம்' : 'Total'}
+                                      {isTa ? 'à®®à¯Šà®¤à¯à®¤à®®à¯' : 'Total'}
                                     </td>
                                     <td className="p-2 text-center font-black text-sm font-mono bg-emerald-700 text-white">
                                       {total}
@@ -995,7 +1027,7 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                     );
                   })}
 
-                  {/* B.2 – Breakfast, Lunch, Dinner, Snacks Distribution */}
+                  {/* B.2 â€“ Breakfast, Lunch, Dinner, Snacks Distribution */}
                   {kitchenSections
                     .filter((sec) => sec.category !== 'TEA / MILK' && sec.items.length > 0)
                     .map((sec) => {
@@ -1025,7 +1057,7 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                           <div className={`flex items-center gap-2.5 px-3 py-2 rounded-lg text-white ${sectionBg[sec.category] || 'bg-slate-800'}`}>
                             <IconComp className="w-4 h-4 opacity-80" />
                             <span className="text-xs font-black uppercase tracking-wide">
-                              {sec.title.replace(' Preparation', '')} — {isTa ? 'அறை வாரியான விநியோகம்' : 'Room-wise Distribution'}
+                              {sec.title.replace(' Preparation', '')} â€” {isTa ? 'à®…à®±à¯ˆ à®µà®¾à®°à®¿à®¯à®¾à®© à®µà®¿à®¨à®¿à®¯à¯‹à®•à®®à¯' : 'Room-wise Distribution'}
                             </span>
                           </div>
 
@@ -1039,19 +1071,19 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                                 <div key={`${sec.category}-${it.item_name}-dist`} className="border border-slate-200 rounded-xl overflow-hidden page-break-inside-avoid">
                                   <div className={`border-b px-4 py-2 flex justify-between items-center ${itemBg[sec.category] || 'bg-slate-50 border-slate-200 text-slate-900'}`}>
                                     <span className="text-xs font-black">
-                                      {sec.title.replace(' Preparation', '')} – {translateFood(it.item_name)}
+                                      {sec.title.replace(' Preparation', '')} â€“ {translateFood(it.item_name)}
                                     </span>
                                     <span className={`text-[11px] font-black px-2 py-0.5 rounded font-mono border ${totalBadge[sec.category] || 'bg-slate-200 text-slate-900 border-slate-300'}`}>
-                                      {isTa ? 'மொத்தம்:' : 'Total:'} {total} {isTa ? 'எண்ணிக்கை' : 'Nos'}
+                                      {isTa ? 'à®®à¯Šà®¤à¯à®¤à®®à¯:' : 'Total:'} {total} {isTa ? 'à®Žà®£à¯à®£à®¿à®•à¯à®•à¯ˆ' : 'Nos'}
                                     </span>
                                   </div>
                                   <table className="w-full text-xs border-collapse">
                                     <thead>
                                       <tr className="bg-slate-100 text-slate-700 font-bold text-[10px] uppercase border-b border-slate-200">
-                                        <th className="p-2 border-r border-slate-200 w-28">{isTa ? 'அறை எண்' : 'Room No.'}</th>
-                                        <th className="p-2 border-r border-slate-200">{isTa ? 'நோயாளி பெயர்' : 'Patient Name'}</th>
-                                        <th className="p-2 border-r border-slate-200 w-24 text-center">{isTa ? 'நோயாளி ID' : 'Patient ID'}</th>
-                                        <th className="p-2 text-center w-24 bg-blue-50 text-blue-900 font-black">{isTa ? 'அளவு' : 'Quantity'}</th>
+                                        <th className="p-2 border-r border-slate-200 w-28">{isTa ? 'à®…à®±à¯ˆ à®Žà®£à¯' : 'Room No.'}</th>
+                                        <th className="p-2 border-r border-slate-200">{isTa ? 'à®¨à¯‹à®¯à®¾à®³à®¿ à®ªà¯†à®¯à®°à¯' : 'Patient Name'}</th>
+                                        <th className="p-2 border-r border-slate-200 w-24 text-center">{isTa ? 'à®¨à¯‹à®¯à®¾à®³à®¿ ID' : 'Patient ID'}</th>
+                                        <th className="p-2 text-center w-24 bg-blue-50 text-blue-900 font-black">{isTa ? 'à®…à®³à®µà¯' : 'Quantity'}</th>
                                       </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-100">
@@ -1075,7 +1107,7 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                                     <tfoot>
                                       <tr className="bg-slate-900 text-white text-xs font-black border-t-2 border-slate-700">
                                         <td colSpan={3} className="p-2 text-right border-r border-slate-700 uppercase tracking-wider">
-                                          {isTa ? 'மொத்தம்' : 'Total'}
+                                          {isTa ? 'à®®à¯Šà®¤à¯à®¤à®®à¯' : 'Total'}
                                         </td>
                                         <td className="p-2 text-center font-black text-sm font-mono bg-emerald-700 text-white">
                                           {total}
@@ -1098,7 +1130,7 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                   ) && (
                     <div className="py-8 text-center text-slate-400 text-sm font-semibold border-2 border-dashed border-slate-200 rounded-xl">
                       {isTa
-                        ? 'அறை வாரியான விநியோக தரவு கிடைக்கவில்லை. அறிக்கையை புதுப்பிக்கவும்.'
+                        ? 'à®…à®±à¯ˆ à®µà®¾à®°à®¿à®¯à®¾à®© à®µà®¿à®¨à®¿à®¯à¯‹à®• à®¤à®°à®µà¯ à®•à®¿à®Ÿà¯ˆà®•à¯à®•à®µà®¿à®²à¯à®²à¯ˆ. à®…à®±à®¿à®•à¯à®•à¯ˆà®¯à¯ˆ à®ªà¯à®¤à¯à®ªà¯à®ªà®¿à®•à¯à®•à®µà¯à®®à¯.'
                         : 'No room-wise distribution data available. Please refresh the report.'}
                     </div>
                   )}
@@ -1110,14 +1142,14 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                 <div className="pt-4 border-t border-slate-300 text-xs text-slate-700 flex justify-between items-end">
                   <div>
                     <p className="font-extrabold text-slate-900">
-                      {isTa ? 'அறிக்கை உருவாக்கப்பட்ட நேரம்:' : 'Report Generated:'} {dateFormatted} {isTa ? 'அன்று' : 'at'} {timeFormatted}
+                      {isTa ? 'à®…à®±à®¿à®•à¯à®•à¯ˆ à®‰à®°à¯à®µà®¾à®•à¯à®•à®ªà¯à®ªà®Ÿà¯à®Ÿ à®¨à¯‡à®°à®®à¯:' : 'Report Generated:'} {dateFormatted} {isTa ? 'à®…à®©à¯à®±à¯' : 'at'} {timeFormatted}
                     </p>
                     <p className="text-[11px] text-slate-500">
-                      {t('appName')} • {t('clinicName')}
+                      {t('appName')} â€¢ {t('clinicName')}
                     </p>
                     <p className="text-[11px] text-slate-500 mt-0.5">
                       {isTa
-                        ? 'செல்லுபடியாகும் நேரலை ஆர்டர்களில் இருந்து கணக்கிடப்பட்டது. ரத்து, நிலுவை மற்றும் டெலிவரி செய்யப்பட்ட ஆர்டர்கள் தவிர்க்கப்பட்டுள்ளன.'
+                        ? 'à®šà¯†à®²à¯à®²à¯à®ªà®Ÿà®¿à®¯à®¾à®•à¯à®®à¯ à®¨à¯‡à®°à®²à¯ˆ à®†à®°à¯à®Ÿà®°à¯à®•à®³à®¿à®²à¯ à®‡à®°à¯à®¨à¯à®¤à¯ à®•à®£à®•à¯à®•à®¿à®Ÿà®ªà¯à®ªà®Ÿà¯à®Ÿà®¤à¯. à®°à®¤à¯à®¤à¯, à®¨à®¿à®²à¯à®µà¯ˆ à®®à®±à¯à®±à¯à®®à¯ à®Ÿà¯†à®²à®¿à®µà®°à®¿ à®šà¯†à®¯à¯à®¯à®ªà¯à®ªà®Ÿà¯à®Ÿ à®†à®°à¯à®Ÿà®°à¯à®•à®³à¯ à®¤à®µà®¿à®°à¯à®•à¯à®•à®ªà¯à®ªà®Ÿà¯à®Ÿà¯à®³à¯à®³à®©.'
                         : 'Calculated from valid active orders. Cancelled, pending, cleared, and delivered orders excluded.'}
                     </p>
                   </div>
@@ -1125,13 +1157,13 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                     <div>
                       <div className="w-40 border-b border-slate-400 mb-1"></div>
                       <p className="font-bold text-slate-700 text-[11px]">
-                        {isTa ? 'உணவுக்கட்டுப்பாடு / கேன்டீன் நிர்வாகி' : 'Dietary / Canteen Admin'}
+                        {isTa ? 'à®‰à®£à®µà¯à®•à¯à®•à®Ÿà¯à®Ÿà¯à®ªà¯à®ªà®¾à®Ÿà¯ / à®•à¯‡à®©à¯à®Ÿà¯€à®©à¯ à®¨à®¿à®°à¯à®µà®¾à®•à®¿' : 'Dietary / Canteen Admin'}
                       </p>
                     </div>
                     <div>
                       <div className="w-40 border-b border-slate-400 mb-1"></div>
                       <p className="font-bold text-slate-700 text-[11px]">
-                        {isTa ? 'சமையலறை மேற்பார்வையாளர் / செஃப்' : 'Kitchen Supervisor / Chef'}
+                        {isTa ? 'à®šà®®à¯ˆà®¯à®²à®±à¯ˆ à®®à¯‡à®±à¯à®ªà®¾à®°à¯à®µà¯ˆà®¯à®¾à®³à®°à¯ / à®šà¯†à®ƒà®ªà¯' : 'Kitchen Supervisor / Chef'}
                       </p>
                     </div>
                   </div>
@@ -1145,16 +1177,16 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
             <div className="mt-8 pt-4 border-t border-slate-300 text-xs text-slate-600 flex justify-between items-end page-break-inside-avoid">
               <div>
                 <p className="font-bold text-slate-800">
-                  {isTa ? 'உருவாக்கியவர்: கேன்டீன் நிர்வாக அமைப்பு' : 'Generated By: Canteen Admin System'}
+                  {isTa ? 'à®‰à®°à¯à®µà®¾à®•à¯à®•à®¿à®¯à®µà®°à¯: à®•à¯‡à®©à¯à®Ÿà¯€à®©à¯ à®¨à®¿à®°à¯à®µà®¾à®• à®…à®®à¯ˆà®ªà¯à®ªà¯' : 'Generated By: Canteen Admin System'}
                 </p>
                 <p className="text-[11px] text-slate-500">
-                  {t('appName')} • {t('clinicName')}
+                  {t('appName')} â€¢ {t('clinicName')}
                 </p>
               </div>
               <div className="text-center">
                 <div className="w-44 border-b border-slate-400 mb-1"></div>
                 <p className="font-bold text-slate-700">
-                  {isTa ? 'டெலிவரி மேற்பார்வையாளர் கையொப்பம்' : 'Delivery Supervisor Signature'}
+                  {isTa ? 'à®Ÿà¯†à®²à®¿à®µà®°à®¿ à®®à¯‡à®±à¯à®ªà®¾à®°à¯à®µà¯ˆà®¯à®¾à®³à®°à¯ à®•à¯ˆà®¯à¯Šà®ªà¯à®ªà®®à¯' : 'Delivery Supervisor Signature'}
                 </p>
               </div>
             </div>
@@ -1164,3 +1196,5 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
     </div>
   );
 };
+
+
