@@ -158,7 +158,9 @@ const getAdminDashboardStats = async (req, res) => {
                 return '7:00 PM';
             return '7:00 AM';
         };
+        // Map to collect patient details per (mealKey, menu_id)
         const activeOrderMap = new Map();
+        const patientsByKey = new Map();
         for (const o of activeOrders) {
             activeOrderMap.set(o.order_id, o);
         }
@@ -166,6 +168,7 @@ const getAdminDashboardStats = async (req, res) => {
             const rawMeal = orderMealMap.get(item.order_id) || 'Breakfast';
             const { mealKey } = normalizeMeal(rawMeal);
             const parentOrder = activeOrderMap.get(item.order_id);
+            // TEA / MILK aggregation (unchanged)
             if (mealKey === 'TEA / MILK') {
                 const slot = normalizeSlotHelper(item.serving_time || parentOrder?.serving_time || '7:00 AM');
                 if (item.menu_id !== undefined && item.menu_id !== null) {
@@ -177,78 +180,100 @@ const getAdminDashboardStats = async (req, res) => {
                     qtyBySlotAndName.set(key, (qtyBySlotAndName.get(key) || 0) + item.quantity);
                 }
             }
+            // General meal aggregation and patient tracking
             if (item.menu_id !== undefined && item.menu_id !== null) {
                 const key = `${mealKey}::${item.menu_id}`;
                 qtyByMealAndMenuId.set(key, (qtyByMealAndMenuId.get(key) || 0) + item.quantity);
+                const patient = patientMap.get(parentOrder?.patient_id);
+                if (patient) {
+                    const info = {
+                        patient_name: patient.name,
+                        patient_id: patient.patient_id,
+                        room_number: patient.room_number,
+                        quantity: item.quantity,
+                    };
+                    const arr = patientsByKey.get(key) || [];
+                    arr.push(info);
+                    patientsByKey.set(key, arr);
+                }
             }
             if (item.item_name_snapshot) {
                 const key = `${mealKey}::${item.item_name_snapshot.trim().toLowerCase()}`;
                 qtyByMealAndName.set(key, (qtyByMealAndName.get(key) || 0) + item.quantity);
+                const patient = patientMap.get(parentOrder?.patient_id);
+                if (patient) {
+                    const info = {
+                        patient_name: patient.name,
+                        patient_id: patient.patient_id,
+                        room_number: patient.room_number,
+                        quantity: item.quantity,
+                    };
+                    const arr = patientsByKey.get(key) || [];
+                    arr.push(info);
+                    patientsByKey.set(key, arr);
+                }
             }
         }
         const foodItemsToPrepare = [];
         const teaSlots = ['7:00 AM', '11:00 AM', '4:00 PM', '7:00 PM'];
         for (const item of allMenuItems) {
             const origCategory = (item.category || '').trim().toUpperCase();
+            const pushEntry = (mealType, extra) => {
+                const mealKey = mealType.toUpperCase();
+                const byId = qtyByMealAndMenuId.get(`${mealKey}::${item.menu_id}`) || 0;
+                const byName = qtyByMealAndName.get(`${mealKey}::${item.item_name.trim().toLowerCase()}`) || 0;
+                const totalQty = Math.max(byId, byName);
+                const patientsKey = `${mealKey}::${item.menu_id}`;
+                const patients = patientsByKey.get(patientsKey) || [];
+                const entry = {
+                    menu_id: item.menu_id,
+                    item_name: item.item_name,
+                    meal_type: mealType,
+                    category: origCategory,
+                    portion_size: item.quantity,
+                    total_preparation_quantity: totalQty,
+                    ...(patients.length > 0 && { patients }),
+                    ...extra,
+                };
+                if (totalQty > 0)
+                    foodItemsToPrepare.push(entry);
+            };
             if (origCategory === 'COMMON MENU') {
-                // Common Menu items are split into Breakfast, Lunch, and Dinner
-                const commonMealSessions = ['Breakfast', 'Lunch', 'Dinner'];
-                for (const meal of commonMealSessions) {
-                    const mealKey = meal.toUpperCase();
-                    const byId = qtyByMealAndMenuId.get(`${mealKey}::${item.menu_id}`) || 0;
-                    const byName = qtyByMealAndName.get(`${mealKey}::${item.item_name.trim().toLowerCase()}`) || 0;
-                    const totalQty = Math.max(byId, byName);
-                    foodItemsToPrepare.push({
-                        menu_id: item.menu_id,
-                        item_name: item.item_name,
-                        meal_type: meal,
-                        category: mealKey, // 'BREAKFAST', 'LUNCH', 'DINNER'
-                        portion_size: item.quantity,
-                        total_preparation_quantity: totalQty,
-                    });
-                }
+                ['Breakfast', 'Lunch', 'Dinner'].forEach((mt) => pushEntry(mt));
+                continue;
             }
-            else if (origCategory === 'TEA / MILK') {
-                // Tea / Milk and Coffee items are split into 4 serving time slots: 7:00 AM, 11:00 AM, 4:00 PM, 7:00 PM
+            if (origCategory === 'TEA / MILK') {
                 for (const slot of teaSlots) {
                     const byId = qtyBySlotAndMenuId.get(`${slot}::${item.menu_id}`) || 0;
                     const byName = qtyBySlotAndName.get(`${slot}::${item.item_name.trim().toLowerCase()}`) || 0;
                     const totalQty = Math.max(byId, byName);
-                    foodItemsToPrepare.push({
+                    const patientsKey = `${slot}::${item.menu_id}`;
+                    const patients = patientsByKey.get(patientsKey) || [];
+                    const entry = {
                         menu_id: item.menu_id,
                         item_name: item.item_name,
                         meal_type: `Tea / Milk (${slot})`,
                         serving_time: slot,
-                        category: 'TEA / MILK',
+                        category: origCategory,
                         portion_size: item.quantity,
                         total_preparation_quantity: totalQty,
-                    });
+                        ...(patients.length > 0 && { patients }),
+                    };
+                    if (totalQty > 0)
+                        foodItemsToPrepare.push(entry);
                 }
+                continue;
             }
-            else {
-                // Items with specific category (e.g. BREAKFAST, LUNCH, DINNER, SNACKS)
-                let targetMeal = 'Breakfast';
-                if (origCategory === 'LUNCH')
-                    targetMeal = 'Lunch';
-                else if (origCategory === 'DINNER')
-                    targetMeal = 'Dinner';
-                else if (origCategory === 'SNACKS')
-                    targetMeal = 'Snacks';
-                else if (origCategory === 'BREAKFAST')
-                    targetMeal = 'Breakfast';
-                const mealKey = targetMeal.toUpperCase();
-                const byId = qtyByMealAndMenuId.get(`${mealKey}::${item.menu_id}`) || 0;
-                const byName = qtyByMealAndName.get(`${mealKey}::${item.item_name.trim().toLowerCase()}`) || 0;
-                const totalQty = Math.max(byId, byName);
-                foodItemsToPrepare.push({
-                    menu_id: item.menu_id,
-                    item_name: item.item_name,
-                    meal_type: targetMeal,
-                    category: origCategory,
-                    portion_size: item.quantity,
-                    total_preparation_quantity: totalQty,
-                });
-            }
+            let targetMeal = 'Breakfast';
+            if (origCategory === 'LUNCH')
+                targetMeal = 'Lunch';
+            else if (origCategory === 'DINNER')
+                targetMeal = 'Dinner';
+            else if (origCategory === 'SNACKS')
+                targetMeal = 'Snacks';
+            else if (origCategory === 'BREAKFAST')
+                targetMeal = 'Breakfast';
+            pushEntry(targetMeal);
         }
         const teaCoffeeSlots = teaSlots.map((slot) => {
             const items = allMenuItems
@@ -346,7 +371,6 @@ const deletePatient = async (req, res) => {
         if (!patient) {
             return res.status(404).json({ message: 'Patient record not found.' });
         }
-        // Cascade delete all associated orders, order items, and bills for clean patient lifecycle
         const patientOrders = await FoodOrder_1.FoodOrder.find({
             $or: [{ patient_id: patient.patient_id }, { patient_id: formattedId }],
         });
