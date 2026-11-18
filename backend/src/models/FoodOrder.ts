@@ -11,6 +11,9 @@ export interface IFoodOrder extends Document {
   order_id: string;
   patient_id: string;
   order_date: string;
+  order_placed_date?: string;
+  delivery_date?: string;
+  delivery_day?: string;
   order_time: string;
   meal_type: string;
   serving_time?: string;
@@ -37,6 +40,9 @@ const FoodOrderSchema: Schema = new Schema(
     order_id: { type: String, required: true, unique: true, index: true },
     patient_id: { type: String, required: true, index: true },
     order_date: { type: String, required: true },
+    order_placed_date: { type: String, default: '' },
+    delivery_date: { type: String, default: '', index: true },
+    delivery_day: { type: String, default: '' },
     order_time: { type: String, required: true },
     meal_type: { type: String, required: true },
     serving_time: { type: String, default: '' },

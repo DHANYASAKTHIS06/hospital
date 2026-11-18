@@ -5,14 +5,33 @@ import { useLanguage } from '../context/LanguageContext';
 import { FoodOrder, FoodItemToPrepare } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
 import { PrintableReportsModal } from '../components/PrintableReportsModal';
-import { ShoppingBag, Truck, Star, MessageSquare, Printer, Building2, Coffee, Sun, Moon, Cookie, AlertTriangle, Wallet, Clock } from 'lucide-react';
+import {
+  ShoppingBag,
+  Truck,
+  Star,
+  MessageSquare,
+  Printer,
+  Building2,
+  Coffee,
+  Sun,
+  Moon,
+  Cookie,
+  AlertTriangle,
+  Wallet,
+  Clock,
+  Calendar,
+} from 'lucide-react';
+import { getKolkataDatesFrontend, DAYS_OF_WEEK_TA } from '../utils/dateUtils';
 
 export const AdminOrders: React.FC = () => {
   const [orders, setOrders] = useState<FoodOrder[]>([]);
   const [foodItemsToPrepare, setFoodItemsToPrepare] = useState<FoodItemToPrepare[]>([]);
   const [selectedMealFilter, setSelectedMealFilter] = useState<string>('ALL');
   const [activeTab, setActiveTab] = useState<'ALL' | 'ACTIVE' | 'DELIVERED'>('ALL');
+  const [deliveryDateFilter, setDeliveryDateFilter] = useState<string>('ALL');
   const [loading, setLoading] = useState(true);
+
+  const kolkataDates = getKolkataDatesFrontend();
 
   // Print Modal State
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -94,7 +113,14 @@ export const AdminOrders: React.FC = () => {
         : mealTypeNormalized === filterNormalized ||
           mealTypeNormalized.replace(/\s+/g, '') === filterNormalized.replace(/\s+/g, '');
 
-    return matchesStatus && matchesMeal;
+    const matchesDelivery =
+      deliveryDateFilter === 'ALL'
+        ? true
+        : deliveryDateFilter === 'TOMORROW'
+        ? (o.delivery_date === kolkataDates.deliveryDate || (!o.delivery_date && o.order_date === kolkataDates.deliveryDate))
+        : (o.delivery_date === kolkataDates.orderPlacedDate || (!o.delivery_date && o.order_date === kolkataDates.orderPlacedDate));
+
+    return matchesStatus && matchesMeal && matchesDelivery;
   });
 
   // Group filtered orders by Meal Session (Breakfast, Lunch, Dinner, Snacks, Other)
@@ -227,6 +253,41 @@ export const AdminOrders: React.FC = () => {
             </button>
           ))}
         </div>
+
+        {/* Next-Day Advance Delivery Filter Tabs */}
+        <div className="flex flex-wrap items-center gap-2 w-full pt-3 border-t border-gray-100">
+          <span className="text-xs font-black text-emerald-900 flex items-center gap-1">
+            <Calendar className="w-3.5 h-3.5 text-emerald-700" />
+            {isTa ? 'விநியோக தேதி வடிகட்டல்:' : 'Delivery Date Filter:'}
+          </span>
+          {[
+            { label: isTa ? 'அனைத்து தேதிகளும்' : 'ALL DATES', value: 'ALL' },
+            {
+              label: isTa
+                ? `நாளை விநியோகம் (${kolkataDates.deliveryDate})`
+                : `Tomorrow's Delivery (${kolkataDates.deliveryDate})`,
+              value: 'TOMORROW',
+            },
+            {
+              label: isTa
+                ? `இன்று விநியோகம் (${kolkataDates.orderPlacedDate})`
+                : `Today's Delivery (${kolkataDates.orderPlacedDate})`,
+              value: 'TODAY',
+            },
+          ].map((dTab) => (
+            <button
+              key={dTab.value}
+              onClick={() => setDeliveryDateFilter(dTab.value)}
+              className={`px-3 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                deliveryDateFilter === dTab.value
+                  ? 'bg-emerald-700 text-white shadow-xs font-black'
+                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
+            >
+              {dTab.label}
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* MEAL-WISE GROUPED ORDERS LIST */}
@@ -308,10 +369,36 @@ export const AdminOrders: React.FC = () => {
                               )}
                             </div>
 
-                            <div className="text-xs text-gray-500 font-medium flex flex-wrap items-center gap-1.5">
-                              <span>
-                                {isTa ? 'தேதி:' : 'Date:'} {order.order_date} • {isTa ? 'நேரம்:' : 'Time:'} {order.order_time} • {isTa ? 'உணவு:' : 'Meal Session:'} <strong className="text-slate-800">{translateCategory(order.meal_type)}</strong>
+                            <div className="flex flex-wrap items-center gap-2 pt-1 text-xs">
+                              {/* Prominent Intended Delivery Date Badge */}
+                              <span className="bg-emerald-100 text-emerald-950 border border-emerald-300 font-extrabold px-2.5 py-0.5 rounded-lg inline-flex items-center gap-1 shadow-2xs">
+                                <Calendar className="w-3.5 h-3.5 text-emerald-700" />
+                                <span>
+                                  {isTa ? 'விநியோக தேதி:' : 'Delivery Date:'}{' '}
+                                  <strong className="font-mono text-emerald-900 font-black">
+                                    {order.delivery_date || order.order_date}
+                                  </strong>
+                                  {order.delivery_day && (
+                                    <span className="text-[10px] ml-1 font-bold opacity-90">
+                                      ({isTa ? (DAYS_OF_WEEK_TA[order.delivery_day] || order.delivery_day) : order.delivery_day})
+                                    </span>
+                                  )}
+                                </span>
                               </span>
+
+                              {/* Order Placed Timestamp */}
+                              <span className="text-gray-500 font-medium">
+                                {isTa ? 'ஆர்டர் செய்த தேதி:' : 'Order Placed:'}{' '}
+                                {order.order_placed_date || order.order_date} • {order.order_time}
+                              </span>
+
+                              {/* Meal Session */}
+                              <span className="text-gray-700 font-bold">
+                                • {isTa ? 'உணவு:' : 'Meal:'}{' '}
+                                <strong className="text-slate-900">{translateCategory(order.meal_type)}</strong>
+                              </span>
+
+                              {/* Serving Time */}
                               {order.serving_time && (
                                 <span className="bg-amber-50 border border-amber-300 text-amber-900 font-bold px-2 py-0.5 rounded text-[11px] inline-flex items-center gap-1">
                                   <Clock className="w-3 h-3 text-amber-700" />

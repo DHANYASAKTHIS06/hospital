@@ -3,18 +3,24 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteMenuItem = exports.updateMenuItem = exports.addMenuItem = exports.getMenuItems = void 0;
 const MenuItem_1 = require("../models/MenuItem");
 const Counter_1 = require("../models/Counter");
+const dateUtils_1 = require("../utils/dateUtils");
 const getMenuItems = async (req, res) => {
     try {
         const items = await MenuItem_1.MenuItem.find().sort({ menu_id: 1 });
-        // Day calculation
-        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        const currentDay = days[new Date().getDay()];
+        // Calculate current day and next-day (tomorrow) in Asia/Kolkata
+        const { currentDay, tomorrowDay, orderPlacedDate, deliveryDate, formattedTomorrow } = (0, dateUtils_1.getKolkataDates)();
         const itemsWithDayAvailability = items.map((item) => {
-            const isAvailableOnDay = item.available_days.includes(currentDay);
+            const isAvailableToday = Boolean(item.availability && item.available_days.includes(currentDay));
+            const isAvailableTomorrow = Boolean(item.availability && item.available_days.includes(tomorrowDay));
             return {
                 ...item.toObject(),
-                is_available_today: item.availability && isAvailableOnDay,
+                is_available_today: isAvailableToday,
+                is_available_tomorrow: isAvailableTomorrow,
                 current_day: currentDay,
+                tomorrow_day: tomorrowDay,
+                order_placed_date: orderPlacedDate,
+                delivery_date: deliveryDate,
+                formatted_tomorrow: formattedTomorrow,
             };
         });
         return res.status(200).json(itemsWithDayAvailability);

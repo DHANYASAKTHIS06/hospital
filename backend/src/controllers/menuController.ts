@@ -1,21 +1,28 @@
 import { Request, Response } from 'express';
 import { MenuItem } from '../models/MenuItem';
 import { getNextSequenceValue } from '../models/Counter';
+import { getKolkataDates } from '../utils/dateUtils';
 
 export const getMenuItems = async (req: Request, res: Response) => {
   try {
     const items = await MenuItem.find().sort({ menu_id: 1 });
     
-    // Day calculation
-    const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const currentDay = days[new Date().getDay()];
+    // Calculate current day and next-day (tomorrow) in Asia/Kolkata
+    const { currentDay, tomorrowDay, orderPlacedDate, deliveryDate, formattedTomorrow } = getKolkataDates();
 
     const itemsWithDayAvailability = items.map((item) => {
-      const isAvailableOnDay = item.available_days.includes(currentDay);
+      const isAvailableToday = Boolean(item.availability && item.available_days.includes(currentDay));
+      const isAvailableTomorrow = Boolean(item.availability && item.available_days.includes(tomorrowDay));
+
       return {
         ...item.toObject(),
-        is_available_today: item.availability && isAvailableOnDay,
+        is_available_today: isAvailableToday,
+        is_available_tomorrow: isAvailableTomorrow,
         current_day: currentDay,
+        tomorrow_day: tomorrowDay,
+        order_placed_date: orderPlacedDate,
+        delivery_date: deliveryDate,
+        formatted_tomorrow: formattedTomorrow,
       };
     });
 

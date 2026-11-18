@@ -36,7 +36,12 @@ export interface MenuItem {
   availability: boolean;
   available_days: string[];
   is_available_today?: boolean;
+  is_available_tomorrow?: boolean;
   current_day?: string;
+  tomorrow_day?: string;
+  order_placed_date?: string;
+  delivery_date?: string;
+  formatted_tomorrow?: string;
   requires_serving_time?: boolean;
   serving_time_slots?: string[];
 }
@@ -68,6 +73,9 @@ export interface FoodOrder {
   room_number?: string;
   patient_advance_balance?: number;
   order_date: string;
+  order_placed_date?: string;
+  delivery_date?: string;
+  delivery_day?: string;
   order_time: string;
   meal_type: string;
   serving_time?: string;

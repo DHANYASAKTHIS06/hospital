@@ -8,6 +8,7 @@ const Patient_1 = require("../models/Patient");
 const Counter_1 = require("../models/Counter");
 const socketService_1 = require("../services/socketService");
 const systemController_1 = require("./systemController");
+const dateUtils_1 = require("../utils/dateUtils");
 const createOrder = async (req, res) => {
     try {
         const isLocked = await (0, systemController_1.getOrderingLockedStatus)();
@@ -35,8 +36,8 @@ const createOrder = async (req, res) => {
         if (!patient) {
             return res.status(404).json({ message: 'Patient record not found.' });
         }
-        const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-        const currentDay = days[new Date().getDay()];
+        // Calculate next-day (tomorrow) in Asia/Kolkata for strict advance food ordering
+        const { tomorrowDay, orderPlacedDate, deliveryDate, orderTime, } = (0, dateUtils_1.getKolkataDates)();
         // First pass: Validate menu items and calculate grand total across all requested meals
         let grandTotalAmount = 0;
         const validatedMealPayloads = [];
@@ -49,9 +50,10 @@ const createOrder = async (req, res) => {
                 if (!menuDoc) {
                     return res.status(400).json({ message: `Menu item #${item.menu_id} not found.` });
                 }
-                if (!menuDoc.availability || !menuDoc.available_days.includes(currentDay)) {
+                // Check availability against tomorrow's weekday
+                if (!menuDoc.availability || !menuDoc.available_days.includes(tomorrowDay)) {
                     return res.status(400).json({
-                        message: `${menuDoc.item_name} is currently unavailable for order today.`,
+                        message: `${menuDoc.item_name} is not available for order for tomorrow (${tomorrowDay}).`,
                     });
                 }
                 const qty = Number(item.quantity);
@@ -91,9 +93,6 @@ const createOrder = async (req, res) => {
         await patient.save();
         // Second pass: Create FoodOrder & OrderItem records for each meal session
         const year = new Date().getFullYear();
-        const now = new Date();
-        const order_date = now.toLocaleDateString('en-GB');
-        const order_time = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
         const createdFullOrders = [];
         for (const mealData of validatedMealPayloads) {
             const seq = await (0, Counter_1.getNextSequenceValue)(`order_id_${year}`);
@@ -102,8 +101,11 @@ const createOrder = async (req, res) => {
             const newOrder = await FoodOrder_1.FoodOrder.create({
                 order_id,
                 patient_id,
-                order_date,
-                order_time,
+                order_date: orderPlacedDate,
+                order_placed_date: orderPlacedDate,
+                delivery_date: deliveryDate,
+                delivery_day: tomorrowDay,
+                order_time: orderTime,
                 meal_type: mealData.meal_type,
                 serving_time: mealData.serving_time || '',
                 total_amount: mealData.total_amount,
@@ -181,6 +183,19 @@ const getAllOrdersAdmin = async (req, res) => {
         const query = {};
         if (!includeCleared) {
             query.is_cleared_from_active_view = { $ne: true };
+        }
+        const { delivery_date, date } = req.query;
+        if (delivery_date) {
+            query.$or = [
+                { delivery_date: String(delivery_date) },
+                { delivery_date: { $in: [null, ''] }, order_date: String(delivery_date) },
+            ];
+        }
+        else if (date) {
+            query.$or = [
+                { delivery_date: String(date) },
+                { order_date: String(date) },
+            ];
         }
         const orders = await FoodOrder_1.FoodOrder.find(query).sort({ createdAt: -1 });
         const patients = await Patient_1.Patient.find();

@@ -244,7 +244,10 @@ export const PatientDashboard: React.FC = () => {
                       <div>
                         <span className="font-mono text-xs font-bold text-blue-700">{order.order_id}</span>
                         <div className="text-[11px] text-slate-500 font-medium">
-                          {order.order_date} • {order.order_time}
+                          <span className="font-bold text-emerald-800">
+                            {isTa ? 'டெலிவரி:' : 'Delivery:'} {order.delivery_date || order.order_date}
+                          </span>{' '}
+                          • {order.order_time}
                         </div>
                       </div>
                       <StatusBadge status={order.order_status} />

@@ -548,8 +548,11 @@ export const AdminDashboard: React.FC = () => {
                     <span className="text-xs font-extrabold text-slate-900 bg-slate-100 border border-slate-300 px-2.5 py-0.5 rounded">
                       {isTa ? 'அறை' : 'Room'} #{order.room_number || 'N/A'}
                     </span>
+                    <span className="text-xs bg-emerald-100 text-emerald-950 border border-emerald-300 font-extrabold px-2.5 py-0.5 rounded">
+                      {isTa ? 'டெலிவரி:' : 'Delivery:'} {order.delivery_date || order.order_date}
+                    </span>
                     <span className="text-xs text-gray-500 font-medium">
-                      {order.order_date} • {order.order_time} ({translateCategory(order.meal_type)})
+                      {isTa ? 'ஆர்டர்:' : 'Placed:'} {order.order_placed_date || order.order_date} • {order.order_time} ({translateCategory(order.meal_type)})
                     </span>
                     {order.serving_time && (
                       <span className="text-xs bg-amber-50 border border-amber-300 text-amber-900 font-bold px-2 py-0.5 rounded inline-flex items-center gap-1">

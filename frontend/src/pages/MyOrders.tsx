@@ -4,7 +4,7 @@ import { useSocket } from '../context/SocketContext';
 import { useLanguage } from '../context/LanguageContext';
 import { FoodOrder } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
-import { ShoppingBag, Clock, AlertTriangle, Star, MessageSquare, X, CheckCircle2 } from 'lucide-react';
+import { ShoppingBag, Clock, AlertTriangle, Star, MessageSquare, X, CheckCircle2, Calendar } from 'lucide-react';
 
 export const MyOrders: React.FC = () => {
   const [orders, setOrders] = useState<FoodOrder[]>([]);
@@ -139,11 +139,19 @@ export const MyOrders: React.FC = () => {
                           {isTa ? 'வழங்கும் நேரம்:' : 'Serving Time:'} {translateSlot(order.serving_time)}
                         </span>
                       )}
+                      {/* Delivery Date Badge */}
+                      <span className="text-xs bg-emerald-50 border border-emerald-300 text-emerald-900 font-extrabold px-2.5 py-0.5 rounded-md flex items-center gap-1">
+                        <Calendar className="w-3 h-3 text-emerald-700" />
+                        <span>
+                          {isTa ? 'விநியோக தேதி:' : 'Delivery Date:'} {order.delivery_date || order.order_date}
+                          {order.delivery_day && ` (${order.delivery_day})`}
+                        </span>
+                      </span>
                     </div>
                     <div className="text-xs text-slate-500 mt-1 font-medium">
                       {isTa
-                        ? `ஆர்டர் செய்த நேரம்: ${order.order_date} • ${order.order_time}`
-                        : `Ordered on: ${order.order_date} at ${order.order_time}`}
+                        ? `ஆர்டர் செய்த நேரம்: ${order.order_placed_date || order.order_date} • ${order.order_time}`
+                        : `Ordered on: ${order.order_placed_date || order.order_date} at ${order.order_time}`}
                     </div>
                   </div>
 

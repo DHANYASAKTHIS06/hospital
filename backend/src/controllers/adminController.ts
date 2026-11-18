@@ -9,6 +9,7 @@ import { MenuItem } from '../models/MenuItem';
 import { getNextSequenceValue } from '../models/Counter';
 import { getOrderingLockedStatus } from './systemController';
 import { emitToPatient, emitToAdmin } from '../services/socketService';
+import { getKolkataDates, DAYS_OF_WEEK } from '../utils/dateUtils';
 
 /**
  * Helper to parse any valid numeric amount from number or string (including currency symbols/commas).
@@ -38,8 +39,11 @@ export const getAdminDashboardStats = async (req: Request, res: Response) => {
       is_cleared_from_active_view: { $ne: true },
     });
 
-    const todayStr = new Date().toLocaleDateString('en-GB');
-    const todaysOrdersDocs = await FoodOrder.find({ order_date: todayStr });
+    const { orderPlacedDate, deliveryDate, tomorrowDay } = getKolkataDates();
+    const todayStr = orderPlacedDate;
+    const todaysOrdersDocs = await FoodOrder.find({
+      $or: [{ order_placed_date: todayStr }, { order_date: todayStr }],
+    });
     const todayOrdersCount = todaysOrdersDocs.length;
 
     const todaysRevenue = todaysOrdersDocs
@@ -348,10 +352,20 @@ export const deletePatient = async (req: Request, res: Response) => {
 
 export const getFoodRecords = async (req: Request, res: Response) => {
   try {
-    const { date, patient_id, room_number, meal_type } = req.query;
+    const { date, delivery_date, patient_id, room_number, meal_type } = req.query;
     let query: any = {};
 
-    if (date) query.order_date = String(date);
+    if (delivery_date) {
+      query.$or = [
+        { delivery_date: String(delivery_date) },
+        { delivery_date: { $in: [null, ''] }, order_date: String(delivery_date) },
+      ];
+    } else if (date) {
+      query.$or = [
+        { delivery_date: String(date) },
+        { order_date: String(date) },
+      ];
+    }
     if (patient_id) query.patient_id = String(patient_id).toUpperCase();
     if (meal_type) query.meal_type = String(meal_type);
 
@@ -408,7 +422,10 @@ export const getRoomFoodRecords = async (req: Request, res: Response) => {
     const patientIds = patientsInRoom.map((p) => p.patient_id);
 
     const orders = await FoodOrder.find({
-      order_date: String(date),
+      $or: [
+        { delivery_date: String(date) },
+        { order_date: String(date) },
+      ],
       patient_id: { $in: patientIds },
       order_status: { $ne: 'CANCELLED' },
     });
@@ -464,10 +481,44 @@ export const getRoomFoodRecords = async (req: Request, res: Response) => {
  */
 export const getKitchenReport = async (req: Request, res: Response) => {
   try {
-    const activeOrders = await FoodOrder.find({
+    const { deliveryDate, tomorrowDay, orderPlacedDate, orderTime } = getKolkataDates();
+    const queryDate = req.query.delivery_date || req.query.date;
+    const targetDeliveryDate = queryDate ? String(queryDate) : deliveryDate;
+
+    let targetDeliveryDay = tomorrowDay;
+    if (targetDeliveryDate && targetDeliveryDate.includes('/')) {
+      const [d, m, y] = targetDeliveryDate.split('/').map(Number);
+      if (d && m && y) {
+        const dateObj = new Date(Date.UTC(y, m - 1, d));
+        targetDeliveryDay = DAYS_OF_WEEK[dateObj.getUTCDay()];
+      }
+    }
+
+    const orderQuery: any = {
       order_status: { $nin: ['PENDING', 'DELIVERED', 'CANCELLED'] },
       is_cleared_from_active_view: { $ne: true },
-    }).sort({ createdAt: -1 });
+    };
+
+    if (targetDeliveryDate && targetDeliveryDate !== 'ALL') {
+      orderQuery.$or = [
+        { delivery_date: targetDeliveryDate },
+        { delivery_date: { $in: [null, ''] }, order_date: targetDeliveryDate },
+      ];
+    }
+
+    let activeOrders = await FoodOrder.find(orderQuery).sort({ createdAt: -1 });
+
+    // Fallback: If no orders specifically matched target delivery date and queryDate wasn't explicitly passed,
+    // look for all active non-cleared orders to ensure reports are never blank if orders exist
+    if (activeOrders.length === 0 && !queryDate) {
+      const allActive = await FoodOrder.find({
+        order_status: { $nin: ['PENDING', 'DELIVERED', 'CANCELLED'] },
+        is_cleared_from_active_view: { $ne: true },
+      }).sort({ createdAt: -1 });
+      if (allActive.length > 0) {
+        activeOrders = allActive;
+      }
+    }
 
     const activeOrderIds = activeOrders.map((o) => o.order_id);
     const activeOrderItems = await OrderItem.find({ order_id: { $in: activeOrderIds } });
@@ -693,11 +744,13 @@ export const getKitchenReport = async (req: Request, res: Response) => {
     ];
 
     const totalPortions = standardSections.reduce((sum, sec) => sum + sec.subtotal, 0);
-    const now = new Date();
 
     return res.status(200).json({
-      report_date: now.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }),
-      generation_time: now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true }),
+      report_date: targetDeliveryDate,
+      preparation_date: targetDeliveryDate,
+      preparation_day: targetDeliveryDay,
+      generation_date: orderPlacedDate,
+      generation_time: orderTime,
       active_orders_count: activeOrders.length,
       total_portions_to_cook: totalPortions,
       tea_coffee_slots: teaCoffeeSlots,

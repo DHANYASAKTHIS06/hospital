@@ -4,8 +4,30 @@ import { useSocket } from '../context/SocketContext';
 import { useLanguage } from '../context/LanguageContext';
 import { MenuItem, Category } from '../types';
 import { StatusBadge } from '../components/StatusBadge';
-import { ShoppingBag, Plus, Minus, Check, Utensils, AlertCircle, Lock, Wallet, AlertTriangle, Coffee, Sun, Moon, Cookie, Sparkles, Clock } from 'lucide-react';
+import {
+  ShoppingBag,
+  Plus,
+  Minus,
+  Check,
+  Utensils,
+  AlertCircle,
+  Lock,
+  Wallet,
+  AlertTriangle,
+  Coffee,
+  Sun,
+  Moon,
+  Cookie,
+  Sparkles,
+  Clock,
+  Calendar,
+  User,
+  CheckCircle2,
+  X,
+  ArrowRight,
+} from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { getKolkataDatesFrontend, DAYS_OF_WEEK_TA } from '../utils/dateUtils';
 
 export const TEA_TIME_SLOTS = [
   { slot: '7:00 AM', label: '7:00 AM', periodKey: 'morningService', periodEn: 'Morning Service', color: 'text-amber-800 bg-amber-50 border-amber-200' },
@@ -37,11 +59,15 @@ export const PatientMenu: React.FC = () => {
   const [teaSlotsCart, setTeaSlotsCart] = useState<{ [menuId: number]: { [slot: string]: number } }>({});
 
   const [advanceBalance, setAdvanceBalance] = useState<number>(0);
+  const [patientInfo, setPatientInfo] = useState<{ name?: string; patient_id?: string; room_number?: string } | null>(null);
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isOrderingLocked, setIsOrderingLocked] = useState(false);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
+
+  const kolkataDates = getKolkataDatesFrontend();
 
   const mealSessions: Array<{ label: string; value: string; icon: any; categoryFilter: Category | 'ALL' }> = [
     { label: isTa ? 'பொது மெனு' : 'Common Menu', value: 'Common Menu', icon: Sparkles, categoryFilter: 'COMMON MENU' },
@@ -63,6 +89,7 @@ export const PatientMenu: React.FC = () => {
       setMenuItems(menuRes.data || []);
       setIsOrderingLocked(Boolean(statusRes.data?.is_ordering_locked));
       setAdvanceBalance(profileRes.data?.advance_balance || 0);
+      setPatientInfo(profileRes.data || null);
     } catch (err: any) {
       setError(isTa ? 'மெனு உருப்படிகளை ஏற்றுவதில் தோல்வி.' : 'Failed to load menu items and profile data.');
     } finally {
@@ -197,7 +224,81 @@ export const PatientMenu: React.FC = () => {
     return count;
   };
 
-  const handlePlaceOrder = async () => {
+  const buildMealsPayload = () => {
+    const mealsPayload: Array<{
+      meal_type: string;
+      serving_time?: string;
+      items: Array<{
+        menu_id: number;
+        quantity: number;
+        serving_time?: string;
+        item_name?: string;
+        unit_price?: number;
+        subtotal?: number;
+      }>;
+    }> = [];
+
+    // 1. Regular meal sessions (Breakfast, Lunch, Dinner, Snacks)
+    Object.entries(cartByMeal).forEach(([mealType, mealCart]) => {
+      if (mealType === 'Tea / Milk') return;
+      const mealItems = Object.entries(mealCart).map(([menuIdStr, qty]) => {
+        const item = menuItems.find((m) => m.menu_id === Number(menuIdStr));
+        return {
+          menu_id: Number(menuIdStr),
+          quantity: qty,
+          item_name: item?.item_name || 'Food Item',
+          unit_price: item?.price || 0,
+          subtotal: (item?.price || 0) * qty,
+        };
+      });
+
+      if (mealItems.length > 0) {
+        mealsPayload.push({
+          meal_type: mealType,
+          items: mealItems,
+        });
+      }
+    });
+
+    // 2. Tea / Milk and Coffee items grouped separately by each selected serving time slot
+    TEA_TIME_SLOTS.forEach(({ slot }) => {
+      const slotItems: Array<{
+        menu_id: number;
+        quantity: number;
+        serving_time: string;
+        item_name?: string;
+        unit_price?: number;
+        subtotal?: number;
+      }> = [];
+
+      Object.entries(teaSlotsCart).forEach(([menuIdStr, slots]) => {
+        const qty = slots[slot] || 0;
+        if (qty > 0) {
+          const item = menuItems.find((m) => m.menu_id === Number(menuIdStr));
+          slotItems.push({
+            menu_id: Number(menuIdStr),
+            quantity: qty,
+            serving_time: slot,
+            item_name: item?.item_name || 'Hot Beverage',
+            unit_price: item?.price || 0,
+            subtotal: (item?.price || 0) * qty,
+          });
+        }
+      });
+
+      if (slotItems.length > 0) {
+        mealsPayload.push({
+          meal_type: 'Tea / Milk',
+          serving_time: slot,
+          items: slotItems,
+        });
+      }
+    });
+
+    return mealsPayload;
+  };
+
+  const handleOpenReviewModal = () => {
     setError(null);
     setSuccessMsg(null);
 
@@ -221,63 +322,28 @@ export const PatientMenu: React.FC = () => {
       return;
     }
 
-    // Format multi-meal order payload: [{ meal_type, serving_time, items: [{ menu_id, quantity, serving_time }] }]
-    const mealsPayload: Array<{
-      meal_type: string;
-      serving_time?: string;
-      items: Array<{ menu_id: number; quantity: number; serving_time?: string }>;
-    }> = [];
+    setIsConfirmModalOpen(true);
+  };
 
-    // 1. Regular meal sessions (Breakfast, Lunch, Dinner, Snacks)
-    Object.entries(cartByMeal).forEach(([mealType, mealCart]) => {
-      if (mealType === 'Tea / Milk') return;
-      const mealItems = Object.entries(mealCart).map(([menuIdStr, qty]) => ({
-        menu_id: Number(menuIdStr),
-        quantity: qty,
-      }));
+  const handleConfirmAndPlaceOrder = async () => {
+    setError(null);
+    setSuccessMsg(null);
 
-      if (mealItems.length > 0) {
-        mealsPayload.push({
-          meal_type: mealType,
-          items: mealItems,
-        });
-      }
-    });
-
-    // 2. Tea / Milk and Coffee items grouped separately by each selected serving time slot
-    TEA_TIME_SLOTS.forEach(({ slot }) => {
-      const slotItems: Array<{ menu_id: number; quantity: number; serving_time: string }> = [];
-
-      Object.entries(teaSlotsCart).forEach(([menuIdStr, slots]) => {
-        const qty = slots[slot] || 0;
-        if (qty > 0) {
-          slotItems.push({
-            menu_id: Number(menuIdStr),
-            quantity: qty,
-            serving_time: slot,
-          });
-        }
-      });
-
-      if (slotItems.length > 0) {
-        mealsPayload.push({
-          meal_type: 'Tea / Milk',
-          serving_time: slot,
-          items: slotItems,
-        });
-      }
-    });
+    const mealsPayload = buildMealsPayload();
+    const grandTotal = calculateGrandTotal();
 
     setSubmitting(true);
     try {
       const response = await api.post('/patient/orders', {
         meals: mealsPayload,
+        delivery_date: kolkataDates.deliveryDate,
       });
 
+      setIsConfirmModalOpen(false);
       setSuccessMsg(
         isTa
-          ? `ஆர்டர் வெற்றிகரமாக வைக்கப்பட்டது! மொத்தத் தொகை ₹${grandTotal} முன்பண இருப்பிலிருந்து கழிக்கப்பட்டது.`
-          : `Orders placed successfully for ${mealsPayload.length} meal/serving slot(s)! Amount ₹${grandTotal} deducted from advance balance.`
+          ? 'நாளைக்கான உங்கள் உணவு ஆர்டர் வெற்றிகரமாக வைக்கப்பட்டது.'
+          : 'Your food order for tomorrow has been placed successfully.'
       );
       setAdvanceBalance(response.data.remaining_balance);
       setCartByMeal({
@@ -320,19 +386,27 @@ export const PatientMenu: React.FC = () => {
       {/* Header with Balance Badge */}
       <div className="bg-white p-5 rounded-2xl border border-procare-200 shadow-xs flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
-          <span className="text-[10px] font-black text-procare-800 uppercase tracking-wider">
-            {t('appName')} • {t('clinicName')}
+          <span className="text-[10px] font-black text-emerald-800 uppercase tracking-wider bg-emerald-50 px-2.5 py-1 rounded-md border border-emerald-200 inline-flex items-center gap-1">
+            <Calendar className="w-3.5 h-3.5 text-emerald-700" />
+            {isTa ? 'அடுத்த நாள் முன்பதிவு உணவு முறை' : 'Next-Day Advance Food Ordering System'}
           </span>
-          <h1 className="text-xl font-black text-slate-900 flex items-center gap-2 mt-0.5">
+          <h1 className="text-xl sm:text-2xl font-black text-slate-900 flex flex-wrap items-center gap-2 mt-1">
             <div className="p-1.5 rounded-lg bg-celadon text-slate-950">
-              <Utensils className="w-5 h-5" />
+              <Utensils className="w-5 h-5 text-slate-950" />
             </div>
-            {isTa ? 'ப்ரோகேர் கேன்டீன் உணவு மெனு' : 'PROCARE CANTEEN MEAL MENU'}
+            <span>
+              {isTa
+                ? `நாளைக்கான உணவு ஆர்டர் – ${kolkataDates.formattedTomorrowTa}`
+                : `Order Food for Tomorrow – ${kolkataDates.formattedTomorrowEn}`}
+            </span>
           </h1>
-          <p className="text-xs text-slate-500 mt-0.5 font-medium">
-            {isTa
-              ? 'காலை, மதிய மற்றும் இரவு உணவை தனித்தனியாகவோ அல்லது ஒன்றாகவோ ஆர்டர் செய்யலாம்.'
-              : 'Order Breakfast, Lunch, and Dinner separately or together in one transaction.'}
+          <p className="text-xs text-slate-600 mt-1 font-semibold flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+            <span>
+              {isTa
+                ? `விநியோக தேதி: ${kolkataDates.deliveryDate} (${kolkataDates.tomorrowDayTa}) • இன்றைய உணவு ஆர்டர் முடிந்துவிட்டது`
+                : `Delivery Date: ${kolkataDates.deliveryDate} (${kolkataDates.tomorrowDay}) • Today's food ordering is closed`}
+            </span>
           </p>
         </div>
 
@@ -464,7 +538,11 @@ export const PatientMenu: React.FC = () => {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredItems.map((item) => {
-            const isAvailable = item.is_available_today && !isOrderingLocked;
+            const isAvailable =
+              !isOrderingLocked &&
+              (item.is_available_tomorrow !== undefined
+                ? item.is_available_tomorrow
+                : Boolean(item.availability && item.available_days?.includes(kolkataDates.tomorrowDay)));
             const currentMealCart = cartByMeal[currentMealName] || {};
             const qtyInCart = currentMealCart[item.menu_id] || 0;
 
@@ -500,9 +578,11 @@ export const PatientMenu: React.FC = () => {
                     <span className="text-base font-black text-blue-700">₹{item.price}</span>
                   </div>
 
-                  {!item.is_available_today && (
-                    <div className="text-[11px] text-amber-800 bg-amber-50 p-2 rounded-xl border border-amber-200/80 mb-2 font-medium">
-                      {isTa ? 'கிடைக்கும் நாட்கள்:' : 'Available on:'} {item.available_days.join(', ')}
+                  {!isAvailable && (
+                    <div className="text-[11px] text-rose-800 bg-rose-50 p-2 rounded-xl border border-rose-200/80 mb-2 font-medium">
+                      {isTa
+                        ? `நாளை (${kolkataDates.tomorrowDayTa}) கிடைக்காது`
+                        : `Not Available Tomorrow (${kolkataDates.tomorrowDay})`}
                     </div>
                   )}
                 </div>
@@ -675,8 +755,10 @@ export const PatientMenu: React.FC = () => {
                       </div>
                     )
                   ) : (
-                    <span className="text-xs text-rose-500 font-extrabold italic">
-                      {isOrderingLocked ? (isTa ? 'ஆர்டர் மூடப்பட்டுள்ளது' : 'Ordering Closed') : (isTa ? 'இன்று கிடைக்கவில்லை' : 'Unavailable Today')}
+                    <span className="text-xs text-rose-600 font-extrabold italic bg-rose-50 px-2.5 py-1 rounded-md border border-rose-200">
+                      {isOrderingLocked
+                        ? (isTa ? 'ஆர்டர் மூடப்பட்டுள்ளது' : 'Ordering Closed')
+                        : (isTa ? `நாளை (${kolkataDates.tomorrowDayTa}) கிடைக்காது` : `Not Available Tomorrow (${kolkataDates.tomorrowDay})`)}
                     </span>
                   )}
                 </div>
@@ -734,7 +816,7 @@ export const PatientMenu: React.FC = () => {
           </div>
 
           <button
-            onClick={handlePlaceOrder}
+            onClick={handleOpenReviewModal}
             disabled={submitting || isOrderingLocked || advanceBalance < grandTotal}
             className="w-full sm:w-auto bg-celadon hover:bg-procare-400 active:bg-procare-500 text-slate-950 font-black text-xs sm:text-sm px-6 py-3 rounded-xl shadow-md transition-colors disabled:opacity-50 cursor-pointer shrink-0"
           >
@@ -751,9 +833,157 @@ export const PatientMenu: React.FC = () => {
                 ? 'போதிய இருப்பு இல்லை'
                 : 'Insufficient Balance'
               : isTa
-              ? 'உணவை இப்போது ஆர்டர் செய்க'
-              : 'PLACE MEAL ORDERS NOW'}
+              ? 'நாளைக்கான ஆர்டரை மதிப்பாய்வு செய்து உறுதிப்படுத்துக'
+              : 'REVIEW & CONFIRM FOR TOMORROW'}
           </button>
+        </div>
+      )}
+
+      {/* ORDER SUMMARY CONFIRMATION MODAL */}
+      {isConfirmModalOpen && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 z-50 overflow-y-auto animate-in fade-in">
+          <div className="bg-white rounded-3xl max-w-xl w-full p-6 sm:p-7 shadow-2xl border border-slate-200 space-y-5 my-8">
+            {/* Modal Header */}
+            <div className="flex justify-between items-start border-b border-slate-100 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-celadon text-slate-950 rounded-2xl shadow-xs">
+                  <CheckCircle2 className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-base sm:text-lg font-black text-slate-900 leading-tight">
+                    {isTa ? 'நாளைக்கான உணவு ஆர்டர் சுருக்கம்' : 'Order Summary for Tomorrow'}
+                  </h3>
+                  <p className="text-xs text-procare-800 font-bold mt-0.5">
+                    {isTa ? 'அடுத்த நாள் முன்பதிவு உறுதிப்படுத்தல்' : 'Strict Next-Day Advance Food Order Confirmation'}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsConfirmModalOpen(false)}
+                className="text-slate-400 hover:text-slate-600 p-1.5 rounded-xl hover:bg-slate-100 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Delivery Date & Patient Info Banner */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="bg-emerald-50 border border-emerald-200 p-3.5 rounded-2xl space-y-1">
+                <div className="text-[10px] font-extrabold uppercase tracking-wider text-emerald-800 flex items-center gap-1">
+                  <Calendar className="w-3.5 h-3.5 text-emerald-700" />
+                  <span>{isTa ? 'உணவு விநியோக தேதி (நாளை)' : 'Food Delivery Date (Tomorrow)'}</span>
+                </div>
+                <div className="text-sm font-black text-emerald-950">
+                  {isTa ? kolkataDates.formattedTomorrowTa : kolkataDates.formattedTomorrowEn}
+                </div>
+                <div className="text-[11px] text-emerald-800 font-bold">
+                  {isTa ? `தேதி: ${kolkataDates.deliveryDate}` : `Date: ${kolkataDates.deliveryDate}`}
+                </div>
+              </div>
+
+              <div className="bg-slate-50 border border-slate-200 p-3.5 rounded-2xl space-y-1">
+                <div className="text-[10px] font-extrabold uppercase tracking-wider text-slate-600 flex items-center gap-1">
+                  <User className="w-3.5 h-3.5 text-slate-500" />
+                  <span>{isTa ? 'நோயாளி விவரங்கள்' : 'Patient Details'}</span>
+                </div>
+                <div className="text-sm font-black text-slate-900 truncate">
+                  {patientInfo?.name || 'Patient'} ({patientInfo?.patient_id || 'ID'})
+                </div>
+                <div className="text-[11px] text-slate-600 font-bold">
+                  {isTa ? 'அறை எண்' : 'Room Number'}: #{patientInfo?.room_number || 'N/A'}
+                </div>
+              </div>
+            </div>
+
+            {/* Ordered Food Items Breakdown */}
+            <div className="space-y-3 max-h-60 overflow-y-auto pr-1">
+              <div className="text-xs font-black text-slate-900 uppercase tracking-wide">
+                {isTa ? 'தேர்ந்தெடுக்கப்பட்ட உணவுகள் & அளவுகள்:' : 'Selected Meals & Quantities:'}
+              </div>
+
+              <div className="divide-y divide-slate-100 border border-slate-200 rounded-2xl overflow-hidden bg-slate-50/50">
+                {buildMealsPayload().map((meal, mIdx) => (
+                  <div key={mIdx} className="p-3 space-y-2">
+                    <div className="flex items-center justify-between text-xs font-black text-slate-800 bg-white px-2.5 py-1 rounded-lg border border-slate-200/80">
+                      <span className="flex items-center gap-1.5">
+                        <Utensils className="w-3.5 h-3.5 text-procare-700" />
+                        <span>{translateCategory(meal.meal_type)}</span>
+                        {meal.serving_time && (
+                          <span className="text-[10px] bg-amber-100 text-amber-900 px-1.5 py-0.5 rounded font-mono font-bold">
+                            {translateSlot(meal.serving_time)}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+
+                    <div className="space-y-1 pl-2">
+                      {meal.items.map((it, itIdx) => (
+                        <div key={itIdx} className="flex justify-between items-center text-xs">
+                          <span className="font-semibold text-slate-700">
+                            {translateFood(it.item_name || '')}{' '}
+                            <strong className="text-slate-950 font-black">× {it.quantity}</strong>
+                            {it.serving_time && (
+                              <span className="ml-1 text-[10px] text-amber-800 font-bold">
+                                ({translateSlot(it.serving_time)})
+                              </span>
+                            )}
+                          </span>
+                          <span className="font-mono font-bold text-slate-900">
+                            ₹{it.subtotal || (it.unit_price || 0) * it.quantity}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Total & Advance Balance Summary */}
+            <div className="bg-procare-50 p-4 rounded-2xl border border-procare-200/80 space-y-2 text-xs">
+              <div className="flex justify-between items-center text-slate-600 font-medium">
+                <span>{isTa ? 'தற்போதைய முன்பண இருப்பு:' : 'Current Advance Balance:'}</span>
+                <span className="font-mono font-bold text-slate-900">₹{advanceBalance}</span>
+              </div>
+              <div className="flex justify-between items-center text-sm font-black text-slate-950 border-t border-procare-200/80 pt-2">
+                <span>{isTa ? 'நாளைக்கான ஆர்டர் மொத்தத் தொகை:' : 'Tomorrow Order Grand Total:'}</span>
+                <span className="font-mono text-base text-blue-700 font-black">₹{grandTotal}</span>
+              </div>
+              <div className="flex justify-between items-center text-xs font-extrabold text-emerald-800 border-t border-procare-200/80 pt-1.5">
+                <span>{isTa ? 'ஆர்டருக்குப் பின் மீதமிருக்கும் இருப்பு:' : 'Remaining Balance After Order:'}</span>
+                <span className="font-mono font-black">₹{advanceBalance - grandTotal}</span>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex flex-col-reverse sm:flex-row items-center gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsConfirmModalOpen(false)}
+                disabled={submitting}
+                className="w-full sm:w-1/3 px-4 py-2.5 rounded-xl border border-slate-300 text-slate-700 hover:bg-slate-100 font-bold text-xs transition-colors cursor-pointer"
+              >
+                {isTa ? 'தேர்வை திருத்து' : 'Edit Selection'}
+              </button>
+
+              <button
+                type="button"
+                onClick={handleConfirmAndPlaceOrder}
+                disabled={submitting || advanceBalance < grandTotal}
+                className="w-full sm:w-2/3 bg-celadon hover:bg-procare-400 active:bg-procare-500 text-slate-950 font-black text-xs sm:text-sm px-5 py-3 rounded-xl shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer disabled:opacity-50"
+              >
+                {submitting ? (
+                  <span>{isTa ? 'ஆர்டர் உறுதிப்படுத்தப்படுகிறது...' : 'Confirming & Saving Order...'}</span>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-4 h-4 text-slate-950" />
+                    <span>{isTa ? 'நாளைக்கான ஆர்டரை உறுதிசெய்க' : 'Confirm & Place Order for Tomorrow'}</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

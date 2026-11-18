@@ -16,6 +16,7 @@ import {
   Cookie,
   RefreshCw,
 } from 'lucide-react';
+import { getKolkataDatesFrontend, DAYS_OF_WEEK_TA } from '../utils/dateUtils';
 
 interface PrintableReportsModalProps {
   isOpen: boolean;
@@ -93,6 +94,7 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
   if (!isOpen) return null;
 
   const now = new Date();
+  const kolkataDates = getKolkataDatesFrontend();
   const dateFormatted = now.toLocaleDateString(isTa ? 'ta-IN' : 'en-GB', {
     day: '2-digit',
     month: 'short',
@@ -108,7 +110,16 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
   const validActiveOrders = (orders || []).filter((o) => {
     const status = (o.order_status || '').toUpperCase().trim();
     const isCleared = (o as any).is_cleared_from_active_view === true;
-    return !isCleared && status !== 'PENDING' && status !== 'CANCELLED' && status !== 'DELIVERED';
+    const isValidStatus = !isCleared && status !== 'PENDING' && status !== 'CANCELLED' && status !== 'DELIVERED';
+    if (!isValidStatus) return false;
+
+    // For Kitchen Report, filter by intended delivery date (e.g. tomorrow)
+    if (reportType === 'ITEMS_TO_PREPARE') {
+      const targetDate = kitchenReportData?.preparation_date || kolkataDates.deliveryDate;
+      const orderDelivery = o.delivery_date || o.order_date;
+      return orderDelivery === targetDate;
+    }
+    return true;
   });
 
   // ----------------------------------------------------
@@ -490,14 +501,37 @@ export const PrintableReportsModal: React.FC<PrintableReportsModalProps> = ({
                 </div>
               </div>
               <div className="text-right text-xs text-slate-600">
-                <div className="flex items-center justify-end gap-1 font-extrabold text-slate-900">
-                  <Calendar className="w-3.5 h-3.5 text-procare-700" />
-                  <span>{dateFormatted}</span>
-                </div>
-                <div className="flex items-center justify-end gap-1 font-semibold mt-0.5 text-slate-600">
-                  <Clock className="w-3.5 h-3.5 text-procare-700" />
-                  <span>{timeFormatted}</span>
-                </div>
+                {reportType === 'ITEMS_TO_PREPARE' ? (
+                  <div className="space-y-1">
+                    <div className="inline-flex items-center justify-end gap-1 font-black text-emerald-950 bg-emerald-100 border border-emerald-300 px-2.5 py-1 rounded-lg">
+                      <Calendar className="w-3.5 h-3.5 text-emerald-700" />
+                      <span>
+                        {isTa ? 'உணவு தயாரிப்பு தேதி:' : 'Food Preparation Date:'}{' '}
+                        <strong>
+                          {kitchenReportData?.preparation_date || kolkataDates.deliveryDate}{' '}
+                          ({isTa
+                            ? (DAYS_OF_WEEK_TA[kitchenReportData?.preparation_day || kolkataDates.tomorrowDay] || kolkataDates.tomorrowDay)
+                            : (kitchenReportData?.preparation_day || kolkataDates.tomorrowDay)})
+                        </strong>
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-500 font-medium">
+                      {isTa ? 'அறிக்கை உருவான நேரம்:' : 'Generated on:'}{' '}
+                      {kitchenReportData?.generation_date || kolkataDates.orderPlacedDate} at {kitchenReportData?.generation_time || timeFormatted}
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center justify-end gap-1 font-extrabold text-slate-900">
+                      <Calendar className="w-3.5 h-3.5 text-procare-700" />
+                      <span>{dateFormatted}</span>
+                    </div>
+                    <div className="flex items-center justify-end gap-1 font-semibold mt-0.5 text-slate-600">
+                      <Clock className="w-3.5 h-3.5 text-procare-700" />
+                      <span>{timeFormatted}</span>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
 
