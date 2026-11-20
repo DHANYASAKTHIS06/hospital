@@ -24,6 +24,7 @@ import {
   Send,
   XCircle,
 } from 'lucide-react';
+import { translateToTamil, translateToEnglish } from '../utils/translate';
 
 export const AdminDashboard: React.FC = () => {
   const [stats, setStats] = useState<any>(null);
@@ -122,9 +123,21 @@ export const AdminDashboard: React.FC = () => {
     setAnnounceError('');
     setAnnounceLoading(true);
     try {
+      let finalEn = announcementTextEn.trim();
+      let finalTa = announcementTextTa.trim();
+
+      // Auto-translate if one language is missing
+      if (finalEn && !finalTa) {
+        finalTa = await translateToTamil(finalEn);
+        setAnnouncementTextTa(finalTa);
+      } else if (finalTa && !finalEn) {
+        finalEn = await translateToEnglish(finalTa);
+        setAnnouncementTextEn(finalEn);
+      }
+
       const res = await api.post('/admin/announcement/publish', {
-        text_en: announcementTextEn.trim(),
-        text_ta: announcementTextTa.trim(),
+        text_en: finalEn,
+        text_ta: finalTa,
       });
       setActiveAnnouncement(res.data.announcement);
     } catch (err: any) {

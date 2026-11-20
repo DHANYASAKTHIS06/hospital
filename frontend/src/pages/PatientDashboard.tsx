@@ -20,6 +20,7 @@ import {
   User,
   Megaphone,
 } from 'lucide-react';
+import { translateToTamil } from '../utils/translate';
 
 export const PatientDashboard: React.FC = () => {
   const { user } = useAuth();
@@ -30,8 +31,20 @@ export const PatientDashboard: React.FC = () => {
   const [latestBill, setLatestBill] = useState<Bill | null>(null);
   const [loading, setLoading] = useState(true);
   const [announcement, setAnnouncement] = useState<{ is_active: boolean; text: string; text_en?: string; text_ta?: string; published_at: string | null } | null>(null);
+  const [translatedTaText, setTranslatedTaText] = useState<string>('');
 
   const isTa = language === 'ta';
+
+  // Auto-translate announcement to Tamil on client side when text_ta is missing
+  useEffect(() => {
+    if (announcement?.is_active && !announcement.text_ta && (announcement.text_en || announcement.text)) {
+      translateToTamil(announcement.text_en || announcement.text || '').then((t) => {
+        setTranslatedTaText(t);
+      });
+    } else {
+      setTranslatedTaText('');
+    }
+  }, [announcement]);
 
   const fetchData = async () => {
     try {
@@ -208,7 +221,7 @@ export const PatientDashboard: React.FC = () => {
                 {isTa ? 'அறிவிப்பு' : 'Announcement'}
               </h3>
               <p className="text-sm font-bold text-amber-950 whitespace-pre-wrap break-words leading-relaxed">
-                {isTa ? (announcement.text_ta || announcement.text_en || announcement.text) : (announcement.text_en || announcement.text)}
+                {isTa ? (announcement.text_ta || translatedTaText || announcement.text_en || announcement.text) : (announcement.text_en || announcement.text)}
               </p>
             </div>
           </div>
