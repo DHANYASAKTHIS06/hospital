@@ -139,7 +139,8 @@ export const AdminDashboard: React.FC = () => {
     try {
       const res = await api.post('/admin/announcement/end');
       setActiveAnnouncement(res.data.announcement);
-      setAnnouncementText('');
+      setAnnouncementTextEn('');
+      setAnnouncementTextTa('');
       setAnnounceError('');
     } catch (err: any) {
       setAnnounceError(err.response?.data?.message || (isTa ? 'அறிவிப்பை நிறுத்துவதில் தோல்வி.' : 'Failed to end announcement.'));
@@ -338,16 +339,27 @@ export const AdminDashboard: React.FC = () => {
 
         <div className="p-5 space-y-3">
           {/* Currently Active Announcement Display */}
-          {activeAnnouncement?.is_active && activeAnnouncement?.text && (
+          {activeAnnouncement?.is_active && (activeAnnouncement?.text_en || activeAnnouncement?.text_ta || activeAnnouncement?.text) && (
             <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 flex items-start gap-3">
               <Megaphone className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <span className="text-[10px] font-black text-amber-700 uppercase tracking-wider block mb-1">
+              <div className="flex-1 min-w-0 space-y-2">
+                <span className="text-[10px] font-black text-amber-700 uppercase tracking-wider block">
                   {isTa ? 'தற்போது செயலில் உள்ள அறிவிப்பு' : 'Currently Active Announcement'}
                 </span>
-                <p className="text-sm font-bold text-amber-950 whitespace-pre-wrap break-words">{activeAnnouncement.text}</p>
+                {(activeAnnouncement.text_en || activeAnnouncement.text) && (
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">English:</span>
+                    <p className="text-sm font-bold text-amber-950 whitespace-pre-wrap break-words">{activeAnnouncement.text_en || activeAnnouncement.text}</p>
+                  </div>
+                )}
+                {activeAnnouncement.text_ta && (
+                  <div>
+                    <span className="text-[10px] font-bold text-slate-500 uppercase">தமிழ்:</span>
+                    <p className="text-sm font-bold text-amber-950 whitespace-pre-wrap break-words">{activeAnnouncement.text_ta}</p>
+                  </div>
+                )}
                 {activeAnnouncement.published_at && (
-                  <span className="text-[10px] text-amber-600 font-medium mt-1 block">
+                  <span className="text-[10px] text-amber-600 font-medium block">
                     {isTa ? 'வெளியிடப்பட்டது:' : 'Published:'} {new Date(activeAnnouncement.published_at).toLocaleString('en-IN')}
                   </span>
                 )}
@@ -359,27 +371,46 @@ export const AdminDashboard: React.FC = () => {
                 title={isTa ? 'அறிவிப்பை நிறுத்து' : 'End Announcement'}
               >
                 <XCircle className="w-3.5 h-3.5" />
-                <span>{isTa ? 'அறிவிப்பை நிறுத்து' : 'End Announcement'}</span>
+                <span>{isTa ? 'நிறுத்து' : 'End'}</span>
               </button>
             </div>
           )}
 
-          {/* Compose / Update Announcement */}
-          <div className="space-y-2">
-            <textarea
-              value={announcementText}
-              onChange={(e) => { setAnnouncementText(e.target.value); setAnnounceError(''); }}
-              placeholder={isTa ? 'இங்கே அறிவிப்பை தட்டச்சு செய்யவும்...' : 'Type your announcement here...'}
-              rows={3}
-              className="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 resize-none"
-            />
+          {/* Compose / Update Announcement — Bilingual */}
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-[11px] font-black text-slate-700 uppercase tracking-wide flex items-center gap-1">
+                  English Announcement
+                </label>
+                <textarea
+                  value={announcementTextEn}
+                  onChange={(e) => { setAnnouncementTextEn(e.target.value); setAnnounceError(''); }}
+                  placeholder="Type announcement in English..."
+                  rows={3}
+                  className="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 resize-none"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[11px] font-black text-slate-700 uppercase tracking-wide flex items-center gap-1">
+                  தமிழ் அறிவிப்பு (Tamil)
+                </label>
+                <textarea
+                  value={announcementTextTa}
+                  onChange={(e) => { setAnnouncementTextTa(e.target.value); setAnnounceError(''); }}
+                  placeholder="தமிழில் அறிவிப்பை தட்டச்சு செய்யவும்..."
+                  rows={3}
+                  className="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 resize-none"
+                />
+              </div>
+            </div>
             {announceError && (
               <p className="text-xs font-bold text-rose-600">{announceError}</p>
             )}
             <div className="flex items-center gap-2">
               <button
                 onClick={handlePublishAnnouncement}
-                disabled={announceLoading || !announcementText.trim()}
+                disabled={announceLoading || (!announcementTextEn.trim() && !announcementTextTa.trim())}
                 className="bg-amber-600 hover:bg-amber-700 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
               >
                 <Send className="w-3.5 h-3.5" />
@@ -387,7 +418,7 @@ export const AdminDashboard: React.FC = () => {
               </button>
               {activeAnnouncement?.is_active && (
                 <span className="text-[10px] text-slate-500 font-medium">
-                  {isTa ? 'புதிய அறிவிப்பை வெளியிடுவதற்கு முன், தற்போதைய அறிவிப்பை நிறுத்தவும் அல்லது உரையை மாற்றி புதுப்பி பொத்தானை அழுத்தவும்.' : 'End the current announcement first, or update its text and click Update.'}
+                  {isTa ? 'உரையை மாற்றி புதுப்பி பொத்தானை அழுத்தவும், அல்லது நிறுத்து பொத்தானை அழுத்தவும்.' : 'Update the text and click Update, or click End to remove.'}
                 </span>
               )}
             </div>

@@ -29,7 +29,7 @@ export const PatientDashboard: React.FC = () => {
   const [activeOrders, setActiveOrders] = useState<FoodOrder[]>([]);
   const [latestBill, setLatestBill] = useState<Bill | null>(null);
   const [loading, setLoading] = useState(true);
-  const [announcement, setAnnouncement] = useState<{ is_active: boolean; text: string; published_at: string | null } | null>(null);
+  const [announcement, setAnnouncement] = useState<{ is_active: boolean; text: string; text_en?: string; text_ta?: string; published_at: string | null } | null>(null);
 
   const isTa = language === 'ta';
 
@@ -197,7 +197,7 @@ export const PatientDashboard: React.FC = () => {
       </div>
 
       {/* ─── ANNOUNCEMENT BANNER (shown only when active) ─── */}
-      {announcement?.is_active && announcement?.text && (
+      {announcement?.is_active && (announcement?.text_en || announcement?.text_ta || announcement?.text) && (
         <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 sm:p-5 shadow-sm">
           <div className="flex items-start gap-3">
             <div className="p-2 bg-amber-600 text-white rounded-xl shrink-0">
@@ -208,7 +208,7 @@ export const PatientDashboard: React.FC = () => {
                 {isTa ? 'அறிவிப்பு' : 'Announcement'}
               </h3>
               <p className="text-sm font-bold text-amber-950 whitespace-pre-wrap break-words leading-relaxed">
-                {announcement.text}
+                {isTa ? (announcement.text_ta || announcement.text_en || announcement.text) : (announcement.text_en || announcement.text)}
               </p>
             </div>
           </div>
