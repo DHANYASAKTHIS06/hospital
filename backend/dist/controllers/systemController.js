@@ -30,7 +30,33 @@ const getAnnouncement = async (req, res) => {
         if (!setting || !setting.value?.is_active) {
             return res.status(200).json({ is_active: false, text: '', text_en: '', text_ta: '', published_at: null });
         }
-        return res.status(200).json(setting.value);
+        const val = setting.value;
+        // Auto-fill missing translations for old announcements
+        let needsSave = false;
+        if (!val.text_en && val.text) {
+            val.text_en = val.text;
+            needsSave = true;
+        }
+        if (!val.text_ta && (val.text_en || val.text)) {
+            try {
+                val.text_ta = await (0, translate_1.translateToTamil)(val.text_en || val.text);
+                needsSave = true;
+            }
+            catch { /* keep empty */ }
+        }
+        if (!val.text_en && val.text_ta) {
+            try {
+                val.text_en = await (0, translate_1.translateToEnglish)(val.text_ta);
+                val.text = val.text_en;
+                needsSave = true;
+            }
+            catch { /* keep empty */ }
+        }
+        // Persist the auto-translated fields so we don't translate again
+        if (needsSave) {
+            await SystemSetting_1.SystemSetting.findOneAndUpdate({ key: 'active_announcement' }, { value: val }, { new: true });
+        }
+        return res.status(200).json(val);
     }
     catch (error) {
         console.error('Get Announcement Error:', error);
