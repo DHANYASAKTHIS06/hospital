@@ -35,11 +35,20 @@ export const PatientDashboard: React.FC = () => {
 
   const isTa = language === 'ta';
 
-  // Auto-translate announcement to Tamil on client side when text_ta is missing
+  // Auto-translate announcement to Tamil on client side when text_ta is missing or same as English
   useEffect(() => {
-    if (announcement?.is_active && !announcement.text_ta && (announcement.text_en || announcement.text)) {
-      translateToTamil(announcement.text_en || announcement.text || '').then((t) => {
-        setTranslatedTaText(t);
+    if (!announcement?.is_active) {
+      setTranslatedTaText('');
+      return;
+    }
+    const enText = announcement.text_en || announcement.text || '';
+    const taText = announcement.text_ta || '';
+    // If Tamil text is missing OR is identical to English (failed server translation), translate client-side
+    if (enText && (!taText || taText === enText)) {
+      translateToTamil(enText).then((translated) => {
+        if (translated && translated !== enText) {
+          setTranslatedTaText(translated);
+        }
       });
     } else {
       setTranslatedTaText('');

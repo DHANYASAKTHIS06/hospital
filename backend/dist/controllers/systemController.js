@@ -31,31 +31,17 @@ const getAnnouncement = async (req, res) => {
             return res.status(200).json({ is_active: false, text: '', text_en: '', text_ta: '', published_at: null });
         }
         const val = setting.value;
-        // Auto-fill missing translations for old announcements
-        let needsSave = false;
+        // Ensure text_en is populated from legacy text field
         if (!val.text_en && val.text) {
             val.text_en = val.text;
-            needsSave = true;
         }
-        if (!val.text_ta && (val.text_en || val.text)) {
-            try {
-                val.text_ta = await (0, translate_1.translateToTamil)(val.text_en || val.text);
-                needsSave = true;
-            }
-            catch { /* keep empty */ }
+        // Clean up bad translations: if text_ta is the same as English, it means
+        // a failed translation stored English as Tamil — clear it so frontend can re-translate
+        if (val.text_ta && (val.text_ta === val.text_en || val.text_ta === val.text)) {
+            val.text_ta = '';
         }
-        if (!val.text_en && val.text_ta) {
-            try {
-                val.text_en = await (0, translate_1.translateToEnglish)(val.text_ta);
-                val.text = val.text_en;
-                needsSave = true;
-            }
-            catch { /* keep empty */ }
-        }
-        // Persist the auto-translated fields so we don't translate again
-        if (needsSave) {
-            await SystemSetting_1.SystemSetting.findOneAndUpdate({ key: 'active_announcement' }, { value: val }, { new: true });
-        }
+        // Persist cleanup
+        await SystemSetting_1.SystemSetting.findOneAndUpdate({ key: 'active_announcement' }, { value: val }, { new: true });
         return res.status(200).json(val);
     }
     catch (error) {

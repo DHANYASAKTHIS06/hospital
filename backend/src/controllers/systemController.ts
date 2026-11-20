@@ -31,34 +31,23 @@ export const getAnnouncement = async (req: Request, res: Response) => {
 
     const val = setting.value;
 
-    // Auto-fill missing translations for old announcements
-    let needsSave = false;
+    // Ensure text_en is populated from legacy text field
     if (!val.text_en && val.text) {
       val.text_en = val.text;
-      needsSave = true;
-    }
-    if (!val.text_ta && (val.text_en || val.text)) {
-      try {
-        val.text_ta = await translateToTamil(val.text_en || val.text);
-        needsSave = true;
-      } catch { /* keep empty */ }
-    }
-    if (!val.text_en && val.text_ta) {
-      try {
-        val.text_en = await translateToEnglish(val.text_ta);
-        val.text = val.text_en;
-        needsSave = true;
-      } catch { /* keep empty */ }
     }
 
-    // Persist the auto-translated fields so we don't translate again
-    if (needsSave) {
-      await SystemSetting.findOneAndUpdate(
-        { key: 'active_announcement' },
-        { value: val },
-        { new: true }
-      );
+    // Clean up bad translations: if text_ta is the same as English, it means
+    // a failed translation stored English as Tamil — clear it so frontend can re-translate
+    if (val.text_ta && (val.text_ta === val.text_en || val.text_ta === val.text)) {
+      val.text_ta = '';
     }
+
+    // Persist cleanup
+    await SystemSetting.findOneAndUpdate(
+      { key: 'active_announcement' },
+      { value: val },
+      { new: true }
+    );
 
     return res.status(200).json(val);
   } catch (error: any) {
