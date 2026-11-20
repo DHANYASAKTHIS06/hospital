@@ -27,7 +27,7 @@ const getAnnouncement = async (req, res) => {
     try {
         const setting = await SystemSetting_1.SystemSetting.findOne({ key: 'active_announcement' });
         if (!setting || !setting.value?.is_active) {
-            return res.status(200).json({ is_active: false, text: '', published_at: null });
+            return res.status(200).json({ is_active: false, text: '', text_en: '', text_ta: '', published_at: null });
         }
         return res.status(200).json(setting.value);
     }
@@ -39,17 +39,22 @@ const getAnnouncement = async (req, res) => {
 exports.getAnnouncement = getAnnouncement;
 /**
  * POST /admin/announcement/publish  — publish or update active announcement
- * Body: { text: string }
+ * Body: { text_en: string, text_ta?: string } OR legacy { text: string }
  */
 const publishAnnouncement = async (req, res) => {
     try {
-        const { text } = req.body;
-        if (!text || typeof text !== 'string' || !text.trim()) {
-            return res.status(400).json({ message: 'Announcement text is required.' });
+        const { text, text_en, text_ta } = req.body;
+        // Support both old { text } and new { text_en, text_ta } payload
+        const englishText = (text_en || text || '').trim();
+        const tamilText = (text_ta || '').trim();
+        if (!englishText && !tamilText) {
+            return res.status(400).json({ message: 'At least one language announcement text is required.' });
         }
         const announcementValue = {
             is_active: true,
-            text: text.trim(),
+            text: englishText || tamilText, // backward-compat fallback
+            text_en: englishText,
+            text_ta: tamilText,
             published_at: new Date().toISOString(),
         };
         await SystemSetting_1.SystemSetting.findOneAndUpdate({ key: 'active_announcement' }, { value: announcementValue }, { upsert: true, new: true });
@@ -80,6 +85,8 @@ const endAnnouncement = async (req, res) => {
         const announcementValue = {
             is_active: false,
             text: '',
+            text_en: '',
+            text_ta: '',
             published_at: null,
         };
         await SystemSetting_1.SystemSetting.findOneAndUpdate({ key: 'active_announcement' }, { value: announcementValue }, { upsert: true, new: true });

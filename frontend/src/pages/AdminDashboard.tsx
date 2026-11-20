@@ -42,8 +42,9 @@ export const AdminDashboard: React.FC = () => {
   const [reportType, setReportType] = useState<'ROOM_WISE' | 'ITEMS_TO_PREPARE'>('ROOM_WISE');
 
   // Announcement state
-  const [announcementText, setAnnouncementText] = useState<string>('');
-  const [activeAnnouncement, setActiveAnnouncement] = useState<{ is_active: boolean; text: string; published_at: string | null } | null>(null);
+  const [announcementTextEn, setAnnouncementTextEn] = useState<string>('');
+  const [announcementTextTa, setAnnouncementTextTa] = useState<string>('');
+  const [activeAnnouncement, setActiveAnnouncement] = useState<{ is_active: boolean; text: string; text_en?: string; text_ta?: string; published_at: string | null } | null>(null);
   const [announceLoading, setAnnounceLoading] = useState(false);
   const [announceError, setAnnounceError] = useState('');
 
@@ -72,9 +73,10 @@ export const AdminDashboard: React.FC = () => {
     try {
       const res = await api.get('/admin/announcement');
       setActiveAnnouncement(res.data);
-      // Pre-fill text area with current announcement for easy editing
-      if (res.data?.is_active && res.data?.text) {
-        setAnnouncementText(res.data.text);
+      // Pre-fill text areas with current announcement for easy editing
+      if (res.data?.is_active) {
+        setAnnouncementTextEn(res.data.text_en || res.data.text || '');
+        setAnnouncementTextTa(res.data.text_ta || '');
       }
     } catch (err) {
       console.error('Error fetching announcement:', err);
@@ -113,14 +115,17 @@ export const AdminDashboard: React.FC = () => {
   }, [socket]);
 
   const handlePublishAnnouncement = async () => {
-    if (!announcementText.trim()) {
-      setAnnounceError(isTa ? 'அறிவிப்பு உரை காலியாக உள்ளது.' : 'Announcement text cannot be empty.');
+    if (!announcementTextEn.trim() && !announcementTextTa.trim()) {
+      setAnnounceError(isTa ? 'குறைந்தபட்சம் ஒரு மொழியில் அறிவிப்பு உரை தேவை.' : 'At least one language announcement text is required.');
       return;
     }
     setAnnounceError('');
     setAnnounceLoading(true);
     try {
-      const res = await api.post('/admin/announcement/publish', { text: announcementText.trim() });
+      const res = await api.post('/admin/announcement/publish', {
+        text_en: announcementTextEn.trim(),
+        text_ta: announcementTextTa.trim(),
+      });
       setActiveAnnouncement(res.data.announcement);
     } catch (err: any) {
       setAnnounceError(err.response?.data?.message || (isTa ? 'அறிவிப்பை வெளியிடுவதில் தோல்வி.' : 'Failed to publish announcement.'));
