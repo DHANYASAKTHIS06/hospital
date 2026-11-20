@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { SystemSetting } from '../models/SystemSetting';
 import { getIO } from '../services/socketService';
+import { translateToTamil, translateToEnglish } from '../utils/translate';
 
 // ─── ANNOUNCEMENT HELPERS ────────────────────────────────────────────────────
 
@@ -44,17 +45,27 @@ export const publishAnnouncement = async (req: Request, res: Response) => {
 
     // Support both old { text } and new { text_en, text_ta } payload
     const englishText = (text_en || text || '').trim();
-    const tamilText = (text_ta || '').trim();
+    let tamilText = (text_ta || '').trim();
 
     if (!englishText && !tamilText) {
       return res.status(400).json({ message: 'At least one language announcement text is required.' });
     }
 
+    // Auto-translate if only one language is provided
+    let finalEnglish = englishText;
+    let finalTamil = tamilText;
+
+    if (englishText && !tamilText) {
+      finalTamil = await translateToTamil(englishText);
+    } else if (tamilText && !englishText) {
+      finalEnglish = await translateToEnglish(tamilText);
+    }
+
     const announcementValue = {
       is_active: true,
-      text: englishText || tamilText,  // backward-compat fallback
-      text_en: englishText,
-      text_ta: tamilText,
+      text: finalEnglish || finalTamil,  // backward-compat fallback
+      text_en: finalEnglish,
+      text_ta: finalTamil,
       published_at: new Date().toISOString(),
     };
 

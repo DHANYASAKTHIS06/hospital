@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.toggleOrderingLock = exports.getSystemStatus = exports.getOrderingLockedStatus = exports.endAnnouncement = exports.publishAnnouncement = exports.getAnnouncement = exports.getActiveAnnouncementValue = void 0;
 const SystemSetting_1 = require("../models/SystemSetting");
 const socketService_1 = require("../services/socketService");
+const translate_1 = require("../utils/translate");
 // ─── ANNOUNCEMENT HELPERS ────────────────────────────────────────────────────
 /**
  * Returns the currently active announcement object, or null if none is active.
@@ -46,15 +47,24 @@ const publishAnnouncement = async (req, res) => {
         const { text, text_en, text_ta } = req.body;
         // Support both old { text } and new { text_en, text_ta } payload
         const englishText = (text_en || text || '').trim();
-        const tamilText = (text_ta || '').trim();
+        let tamilText = (text_ta || '').trim();
         if (!englishText && !tamilText) {
             return res.status(400).json({ message: 'At least one language announcement text is required.' });
         }
+        // Auto-translate if only one language is provided
+        let finalEnglish = englishText;
+        let finalTamil = tamilText;
+        if (englishText && !tamilText) {
+            finalTamil = await (0, translate_1.translateToTamil)(englishText);
+        }
+        else if (tamilText && !englishText) {
+            finalEnglish = await (0, translate_1.translateToEnglish)(tamilText);
+        }
         const announcementValue = {
             is_active: true,
-            text: englishText || tamilText, // backward-compat fallback
-            text_en: englishText,
-            text_ta: tamilText,
+            text: finalEnglish || finalTamil, // backward-compat fallback
+            text_en: finalEnglish,
+            text_ta: finalTamil,
             published_at: new Date().toISOString(),
         };
         await SystemSetting_1.SystemSetting.findOneAndUpdate({ key: 'active_announcement' }, { value: announcementValue }, { upsert: true, new: true });
