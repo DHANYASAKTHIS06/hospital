@@ -20,6 +20,9 @@ import {
   Building2,
   RotateCcw,
   Coffee,
+  Megaphone,
+  Send,
+  XCircle,
 } from 'lucide-react';
 
 export const AdminDashboard: React.FC = () => {
@@ -37,6 +40,12 @@ export const AdminDashboard: React.FC = () => {
   // Print modal state
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [reportType, setReportType] = useState<'ROOM_WISE' | 'ITEMS_TO_PREPARE'>('ROOM_WISE');
+
+  // Announcement state
+  const [announcementText, setAnnouncementText] = useState<string>('');
+  const [activeAnnouncement, setActiveAnnouncement] = useState<{ is_active: boolean; text: string; published_at: string | null } | null>(null);
+  const [announceLoading, setAnnounceLoading] = useState(false);
+  const [announceError, setAnnounceError] = useState('');
 
   const { socket } = useSocket();
   const { t, language, translateFood, translateCategory, translateSlot } = useLanguage();
@@ -59,13 +68,30 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
+  const fetchAnnouncement = async () => {
+    try {
+      const res = await api.get('/admin/announcement');
+      setActiveAnnouncement(res.data);
+      // Pre-fill text area with current announcement for easy editing
+      if (res.data?.is_active && res.data?.text) {
+        setAnnouncementText(res.data.text);
+      }
+    } catch (err) {
+      console.error('Error fetching announcement:', err);
+    }
+  };
+
   useEffect(() => {
     fetchStatsAndOrders();
+    fetchAnnouncement();
 
     if (socket) {
       const handleRefresh = () => fetchStatsAndOrders();
       const handleLockChange = (data: { is_ordering_locked: boolean }) => {
         setIsOrderingLocked(data.is_ordering_locked);
+      };
+      const handleAnnouncementUpdate = (data: any) => {
+        setActiveAnnouncement(data);
       };
 
       socket.on('new_order', handleRefresh);
@@ -73,6 +99,7 @@ export const AdminDashboard: React.FC = () => {
       socket.on('delivery_status_updated', handleRefresh);
       socket.on('payment_status_updated', handleRefresh);
       socket.on('ordering_status_changed', handleLockChange);
+      socket.on('announcement_updated', handleAnnouncementUpdate);
 
       return () => {
         socket.off('new_order', handleRefresh);
@@ -80,9 +107,41 @@ export const AdminDashboard: React.FC = () => {
         socket.off('delivery_status_updated', handleRefresh);
         socket.off('payment_status_updated', handleRefresh);
         socket.off('ordering_status_changed', handleLockChange);
+        socket.off('announcement_updated', handleAnnouncementUpdate);
       };
     }
   }, [socket]);
+
+  const handlePublishAnnouncement = async () => {
+    if (!announcementText.trim()) {
+      setAnnounceError(isTa ? 'அறிவிப்பு உரை காலியாக உள்ளது.' : 'Announcement text cannot be empty.');
+      return;
+    }
+    setAnnounceError('');
+    setAnnounceLoading(true);
+    try {
+      const res = await api.post('/admin/announcement/publish', { text: announcementText.trim() });
+      setActiveAnnouncement(res.data.announcement);
+    } catch (err: any) {
+      setAnnounceError(err.response?.data?.message || (isTa ? 'அறிவிப்பை வெளியிடுவதில் தோல்வி.' : 'Failed to publish announcement.'));
+    } finally {
+      setAnnounceLoading(false);
+    }
+  };
+
+  const handleEndAnnouncement = async () => {
+    setAnnounceLoading(true);
+    try {
+      const res = await api.post('/admin/announcement/end');
+      setActiveAnnouncement(res.data.announcement);
+      setAnnouncementText('');
+      setAnnounceError('');
+    } catch (err: any) {
+      setAnnounceError(err.response?.data?.message || (isTa ? 'அறிவிப்பை நிறுத்துவதில் தோல்வி.' : 'Failed to end announcement.'));
+    } finally {
+      setAnnounceLoading(false);
+    }
+  };
 
   const handleToggleLock = async () => {
     try {
@@ -248,6 +307,88 @@ export const AdminDashboard: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* ─── ANNOUNCEMENTS SECTION ─── */}
+      <div className="bg-white rounded-xl border border-amber-200 shadow-sm overflow-hidden">
+        <div className="px-5 py-3 border-b border-amber-100 bg-amber-50 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 bg-amber-600 text-white rounded-lg">
+              <Megaphone className="w-4 h-4" />
+            </div>
+            <div>
+              <h2 className="text-sm font-black text-amber-950 uppercase tracking-wide">
+                {isTa ? 'அறிவிப்புகள்' : 'Announcements'}
+              </h2>
+              <p className="text-[10px] text-amber-800 font-medium">
+                {isTa ? 'அனைத்து நோயாளிகளுக்கும் ஒரு நேரடி அறிவிப்பை அனுப்பவும்.' : 'Send a live announcement visible to all patients.'}
+              </p>
+            </div>
+          </div>
+          {activeAnnouncement?.is_active && (
+            <span className="text-[10px] font-black uppercase bg-emerald-100 text-emerald-800 border border-emerald-300 px-2.5 py-0.5 rounded-full">
+              {isTa ? 'நேரடி' : 'LIVE'}
+            </span>
+          )}
+        </div>
+
+        <div className="p-5 space-y-3">
+          {/* Currently Active Announcement Display */}
+          {activeAnnouncement?.is_active && activeAnnouncement?.text && (
+            <div className="bg-amber-50 border border-amber-300 rounded-xl p-4 flex items-start gap-3">
+              <Megaphone className="w-5 h-5 text-amber-700 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <span className="text-[10px] font-black text-amber-700 uppercase tracking-wider block mb-1">
+                  {isTa ? 'தற்போது செயலில் உள்ள அறிவிப்பு' : 'Currently Active Announcement'}
+                </span>
+                <p className="text-sm font-bold text-amber-950 whitespace-pre-wrap break-words">{activeAnnouncement.text}</p>
+                {activeAnnouncement.published_at && (
+                  <span className="text-[10px] text-amber-600 font-medium mt-1 block">
+                    {isTa ? 'வெளியிடப்பட்டது:' : 'Published:'} {new Date(activeAnnouncement.published_at).toLocaleString('en-IN')}
+                  </span>
+                )}
+              </div>
+              <button
+                onClick={handleEndAnnouncement}
+                disabled={announceLoading}
+                className="shrink-0 bg-rose-100 hover:bg-rose-200 text-rose-800 border border-rose-300 px-3 py-1.5 rounded-lg text-xs font-black flex items-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                title={isTa ? 'அறிவிப்பை நிறுத்து' : 'End Announcement'}
+              >
+                <XCircle className="w-3.5 h-3.5" />
+                <span>{isTa ? 'அறிவிப்பை நிறுத்து' : 'End Announcement'}</span>
+              </button>
+            </div>
+          )}
+
+          {/* Compose / Update Announcement */}
+          <div className="space-y-2">
+            <textarea
+              value={announcementText}
+              onChange={(e) => { setAnnouncementText(e.target.value); setAnnounceError(''); }}
+              placeholder={isTa ? 'இங்கே அறிவிப்பை தட்டச்சு செய்யவும்...' : 'Type your announcement here...'}
+              rows={3}
+              className="w-full border border-slate-300 rounded-xl px-4 py-3 text-sm font-medium text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-amber-400 resize-none"
+            />
+            {announceError && (
+              <p className="text-xs font-bold text-rose-600">{announceError}</p>
+            )}
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handlePublishAnnouncement}
+                disabled={announceLoading || !announcementText.trim()}
+                className="bg-amber-600 hover:bg-amber-700 text-white font-black text-xs px-4 py-2.5 rounded-xl transition-colors flex items-center gap-1.5 shadow-sm cursor-pointer disabled:opacity-50"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>{announceLoading ? (isTa ? 'அனுப்புகிறது...' : 'Publishing...') : activeAnnouncement?.is_active ? (isTa ? 'அறிவிப்பை புதுப்பி' : 'Update Announcement') : (isTa ? 'அறிவிப்பை வெளியிடு' : 'Publish Announcement')}</span>
+              </button>
+              {activeAnnouncement?.is_active && (
+                <span className="text-[10px] text-slate-500 font-medium">
+                  {isTa ? 'புதிய அறிவிப்பை வெளியிடுவதற்கு முன், தற்போதைய அறிவிப்பை நிறுத்தவும் அல்லது உரையை மாற்றி புதுப்பி பொத்தானை அழுத்தவும்.' : 'End the current announcement first, or update its text and click Update.'}
+                </span>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
 
       {/* Stats Cards Grid */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4">

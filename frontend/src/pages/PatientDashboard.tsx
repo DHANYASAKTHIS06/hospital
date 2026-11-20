@@ -18,6 +18,7 @@ import {
   Bed,
   History,
   User,
+  Megaphone,
 } from 'lucide-react';
 
 export const PatientDashboard: React.FC = () => {
@@ -28,22 +29,33 @@ export const PatientDashboard: React.FC = () => {
   const [activeOrders, setActiveOrders] = useState<FoodOrder[]>([]);
   const [latestBill, setLatestBill] = useState<Bill | null>(null);
   const [loading, setLoading] = useState(true);
+  const [announcement, setAnnouncement] = useState<{ is_active: boolean; text: string; published_at: string | null } | null>(null);
 
   const isTa = language === 'ta';
 
   const fetchData = async () => {
     try {
-      const ordersRes = await api.get('/patient/orders');
+      const [ordersRes, billsRes, announcementRes] = await Promise.all([
+        api.get('/patient/orders'),
+        api.get('/patient/bills'),
+        api.get('/patient/announcement').catch(() => ({ data: null })),
+      ]);
+
       const active = ordersRes.data.filter(
         (o: FoodOrder) => o.order_status !== 'DELIVERED' && o.order_status !== 'CANCELLED'
       );
       setActiveOrders(active);
 
-      const billsRes = await api.get('/patient/bills');
       if (billsRes.data && billsRes.data.length > 0) {
         setLatestBill(billsRes.data[0]);
       } else {
         setLatestBill(null);
+      }
+
+      if (announcementRes.data?.is_active) {
+        setAnnouncement(announcementRes.data);
+      } else {
+        setAnnouncement(null);
       }
     } catch (err) {
       console.error('Error loading patient dashboard data:', err);
@@ -57,14 +69,23 @@ export const PatientDashboard: React.FC = () => {
 
     if (socket) {
       const handleDataRefresh = () => fetchData();
+      const handleAnnouncementUpdate = (data: any) => {
+        if (data?.is_active) {
+          setAnnouncement(data);
+        } else {
+          setAnnouncement(null);
+        }
+      };
       socket.on('order_status_updated', handleDataRefresh);
       socket.on('delivery_status_updated', handleDataRefresh);
       socket.on('payment_status_updated', handleDataRefresh);
+      socket.on('announcement_updated', handleAnnouncementUpdate);
 
       return () => {
         socket.off('order_status_updated', handleDataRefresh);
         socket.off('delivery_status_updated', handleDataRefresh);
         socket.off('payment_status_updated', handleDataRefresh);
+        socket.off('announcement_updated', handleAnnouncementUpdate);
       };
     }
   }, [socket]);
@@ -174,6 +195,25 @@ export const PatientDashboard: React.FC = () => {
           </Link>
         </div>
       </div>
+
+      {/* ─── ANNOUNCEMENT BANNER (shown only when active) ─── */}
+      {announcement?.is_active && announcement?.text && (
+        <div className="bg-amber-50 border-2 border-amber-300 rounded-2xl p-4 sm:p-5 shadow-sm">
+          <div className="flex items-start gap-3">
+            <div className="p-2 bg-amber-600 text-white rounded-xl shrink-0">
+              <Megaphone className="w-5 h-5" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h3 className="text-xs font-black text-amber-800 uppercase tracking-wider mb-1">
+                {isTa ? 'அறிவிப்பு' : 'Announcement'}
+              </h3>
+              <p className="text-sm font-bold text-amber-950 whitespace-pre-wrap break-words leading-relaxed">
+                {announcement.text}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Quick Access Navigation Tabs Grid */}
       <div className="space-y-2">

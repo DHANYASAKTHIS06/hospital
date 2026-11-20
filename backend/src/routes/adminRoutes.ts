@@ -29,7 +29,7 @@ import {
 } from '../controllers/orderController';
 import { generateBill, getAllBillsAdmin } from '../controllers/billController';
 import { updatePaymentStatus } from '../controllers/paymentController';
-import { getSystemStatus, toggleOrderingLock } from '../controllers/systemController';
+import { getSystemStatus, toggleOrderingLock, getAnnouncement, publishAnnouncement, endAnnouncement } from '../controllers/systemController';
 
 const router = Router();
 
@@ -39,6 +39,11 @@ router.use(authenticateToken, requireAdmin);
 router.get('/dashboard', getAdminDashboardStats);
 router.get('/system-status', getSystemStatus);
 router.post('/toggle-ordering-lock', toggleOrderingLock);
+
+// Announcement Management
+router.get('/announcement', getAnnouncement);
+router.post('/announcement/publish', publishAnnouncement);
+router.post('/announcement/end', endAnnouncement);
 
 // Order Management
 router.get('/orders', getAllOrdersAdmin);

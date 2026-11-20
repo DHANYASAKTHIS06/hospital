@@ -2,6 +2,111 @@ import { Request, Response } from 'express';
 import { SystemSetting } from '../models/SystemSetting';
 import { getIO } from '../services/socketService';
 
+// ─── ANNOUNCEMENT HELPERS ────────────────────────────────────────────────────
+
+/**
+ * Returns the currently active announcement object, or null if none is active.
+ */
+export const getActiveAnnouncementValue = async (): Promise<{ text: string; published_at: string } | null> => {
+  try {
+    const setting = await SystemSetting.findOne({ key: 'active_announcement' });
+    if (!setting || !setting.value?.is_active) return null;
+    return setting.value;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * GET /admin/announcement  — returns current active announcement (admin view, includes status)
+ * GET /patient/announcement — same endpoint, same data
+ */
+export const getAnnouncement = async (req: Request, res: Response) => {
+  try {
+    const setting = await SystemSetting.findOne({ key: 'active_announcement' });
+    if (!setting || !setting.value?.is_active) {
+      return res.status(200).json({ is_active: false, text: '', published_at: null });
+    }
+    return res.status(200).json(setting.value);
+  } catch (error: any) {
+    console.error('Get Announcement Error:', error);
+    return res.status(500).json({ message: 'Error retrieving announcement.' });
+  }
+};
+
+/**
+ * POST /admin/announcement/publish  — publish or update active announcement
+ * Body: { text: string }
+ */
+export const publishAnnouncement = async (req: Request, res: Response) => {
+  try {
+    const { text } = req.body;
+    if (!text || typeof text !== 'string' || !text.trim()) {
+      return res.status(400).json({ message: 'Announcement text is required.' });
+    }
+
+    const announcementValue = {
+      is_active: true,
+      text: text.trim(),
+      published_at: new Date().toISOString(),
+    };
+
+    await SystemSetting.findOneAndUpdate(
+      { key: 'active_announcement' },
+      { value: announcementValue },
+      { upsert: true, new: true }
+    );
+
+    // Broadcast to ALL connected clients (patients + admin)
+    try {
+      const io = getIO();
+      io.emit('announcement_updated', announcementValue);
+    } catch (e) {
+      console.warn('Socket emit warning (announcement):', e);
+    }
+
+    return res.status(200).json({
+      message: 'Announcement published successfully.',
+      announcement: announcementValue,
+    });
+  } catch (error: any) {
+    console.error('Publish Announcement Error:', error);
+    return res.status(500).json({ message: 'Error publishing announcement.' });
+  }
+};
+
+/**
+ * POST /admin/announcement/end  — deactivate the current announcement
+ */
+export const endAnnouncement = async (req: Request, res: Response) => {
+  try {
+    const announcementValue = {
+      is_active: false,
+      text: '',
+      published_at: null,
+    };
+
+    await SystemSetting.findOneAndUpdate(
+      { key: 'active_announcement' },
+      { value: announcementValue },
+      { upsert: true, new: true }
+    );
+
+    // Broadcast to ALL clients so patient dashboards clear immediately
+    try {
+      const io = getIO();
+      io.emit('announcement_updated', announcementValue);
+    } catch (e) {
+      console.warn('Socket emit warning (end announcement):', e);
+    }
+
+    return res.status(200).json({ message: 'Announcement ended successfully.', announcement: announcementValue });
+  } catch (error: any) {
+    console.error('End Announcement Error:', error);
+    return res.status(500).json({ message: 'Error ending announcement.' });
+  }
+};
+
 export const getOrderingLockedStatus = async (): Promise<boolean> => {
   try {
     const setting = await SystemSetting.findOne({ key: 'is_ordering_locked' });

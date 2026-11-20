@@ -14,6 +14,10 @@ router.use(auth_1.authenticateToken, auth_1.requireAdmin);
 router.get('/dashboard', adminController_1.getAdminDashboardStats);
 router.get('/system-status', systemController_1.getSystemStatus);
 router.post('/toggle-ordering-lock', systemController_1.toggleOrderingLock);
+// Announcement Management
+router.get('/announcement', systemController_1.getAnnouncement);
+router.post('/announcement/publish', systemController_1.publishAnnouncement);
+router.post('/announcement/end', systemController_1.endAnnouncement);
 // Order Management
 router.get('/orders', orderController_1.getAllOrdersAdmin);
 router.post('/orders/clear-active-view', orderController_1.clearActiveOrdersView);

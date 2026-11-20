@@ -6,6 +6,7 @@ import { createOrder, getPatientOrders, patientConfirmDelivery, submitPatientFee
 import { getPatientBills } from '../controllers/billController';
 import { getPatientPaymentStatus } from '../controllers/paymentController';
 import { getSystemStatus } from '../controllers/systemController';
+import { getAnnouncement } from '../controllers/systemController';
 
 const router = Router();
 
@@ -13,6 +14,7 @@ const router = Router();
 router.use(authenticateToken, requirePatient);
 
 router.get('/system-status', getSystemStatus);
+router.get('/announcement', getAnnouncement);
 router.get('/profile', getProfile);
 router.get('/menu', getMenuItems);
 
